@@ -273,7 +273,7 @@ MFA_TOTP_TOLERANCE = 0
 MFA_TRUST_ENABLED = False
 MFA_RECOVERY_CODES_SHOW_ONCE = True
 MFA_RECOVERY_CODE_COUNT = int(os.getenv('MFA_RECOVERY_CODE_COUNT', '10'))
-MFA_ENCRYPTION_KEY = os.getenv('MFA_ENCRYPTION_KEY', '')
+MFA_ENCRYPTION_KEY = os.getenv('MFA_ENCRYPTION_KEY', 'kTBqXCXXq2hbIcGaTBaetjnbmtdGR4qWlENY9Kpgjbw')
 MFA_ENFORCE_OWNER = os.getenv('MFA_ENFORCE_OWNER', 'True').lower() == 'true'
 MFA_REQUIRE_INTERNAL_USERS = os.getenv('MFA_REQUIRE_INTERNAL_USERS', 'False').lower() == 'true'
 MFA_FAILURE_LIMIT = int(os.getenv('MFA_FAILURE_LIMIT', '5'))
@@ -345,14 +345,14 @@ EMAIL_BACKEND = os.getenv(
     if IS_PRODUCTION
     else 'django.core.mail.backends.console.EmailBackend',
 )
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'godzu1890@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'rraegrskxmaxuqjx')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@getnailed.local')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'godzu1890@gmail.com')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 if EMAIL_USE_TLS and EMAIL_USE_SSL:
