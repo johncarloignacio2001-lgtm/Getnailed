@@ -19,7 +19,7 @@ if ENVIRONMENT not in {'development', 'test', 'production'}:
     )
 IS_PRODUCTION = ENVIRONMENT == 'production'
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()]
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'getnailed.vercel.app']
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 if 'getnailed.vercel.app' not in ALLOWED_HOSTS:
@@ -40,10 +40,7 @@ if IS_PRODUCTION and (
     or SECRET_KEY in {'change-this-development-key', 'replace-this-value'}
 ):
     raise ImproperlyConfigured('Production requires a strong DJANGO_SECRET_KEY.')
-if IS_PRODUCTION and (
-    not os.getenv('DJANGO_ALLOWED_HOSTS')
-    or any(host == '*' or host.startswith('.') for host in ALLOWED_HOSTS)
-):
+if IS_PRODUCTION and any(host == '*' or host.startswith('.') for host in ALLOWED_HOSTS):
     raise ImproperlyConfigured('Production requires explicit DJANGO_ALLOWED_HOSTS without wildcards.')
 if IS_PRODUCTION and (
     not CSRF_TRUSTED_ORIGINS
