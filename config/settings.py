@@ -5,7 +5,10 @@ from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
-import dj_database_url
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,12 +25,14 @@ IS_PRODUCTION = ENVIRONMENT == 'production'
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'getnailed.vercel.app']
 
-
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
     if origin.strip()
 ]
+for default_origin in ['https://getnailed.vercel.app', 'https://*.vercel.app']:
+    if default_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(default_origin)
 
 if IS_PRODUCTION and DEBUG:
     raise ImproperlyConfigured('DJANGO_DEBUG must be False in production.')
@@ -113,21 +118,33 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-if os.getenv("DATABASE_URL"):
+IS_VERCEL = bool(os.getenv('VERCEL') or os.getenv('VERCEL_ENV') or os.getenv('AWS_LAMBDA_FUNCTION_NAME') or '/var/task' in str(BASE_DIR))
+
+if os.getenv("DATABASE_URL") and dj_database_url:
     DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
 else:
+    if IS_VERCEL or IS_PRODUCTION:
+        tmp_db = Path('/tmp/db.sqlite3')
+        source_db = BASE_DIR / 'db.sqlite3'
+        if source_db.exists() and not tmp_db.exists():
+            import shutil
+            try:
+                shutil.copyfile(source_db, tmp_db)
+                os.chmod(tmp_db, 0o666)
+            except Exception:
+                pass
+        db_path = str(tmp_db)
+    else:
+        db_path = os.getenv('DB_NAME', str(BASE_DIR / 'db.sqlite3'))
+
     DATABASES = {
-        "default": {
-            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
-            "NAME": (
-                os.getenv("DB_NAME")
-                if os.getenv("DB_NAME")
-                else ("/tmp/db.sqlite3" if IS_PRODUCTION else BASE_DIR / "db.sqlite3")
-            ),
-            "USER": os.getenv("DB_USER", ""),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", ""),
-            "PORT": os.getenv("DB_PORT", ""),
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.sqlite3'),
+            'NAME': db_path,
+            'USER': os.getenv('DB_USER', ''),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', ''),
+            'PORT': os.getenv('DB_PORT', ''),
         }
     }
 
