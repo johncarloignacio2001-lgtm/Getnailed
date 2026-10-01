@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Services | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <p class="eyebrow">SERVICE CATALOG</p>
+    <h2>Salon Services</h2>
+    <p class="text-secondary mb-0">Browse current treatments, timing, and salon pricing.</p>
+  </div>
+  {% if owner_view %}
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-dark" href="{% url 'services:category_list' %}">Categories</a>
+      <a class="btn btn-outline-dark" href="{% url 'services:staff_list' %}">Staff Profiles</a>
+      <a class="btn btn-brand" href="{% url 'services:service_create' %}">Add service</a>
+    </div>
+  {% endif %}
+</div>
+
+<form class="content-card service-filter mb-4" method="get">
+  <div>
+    <label class="form-label" for="{{ filter_form.q.id_for_label }}">Search</label>
+    {{ filter_form.q }}
+  </div>
+  <div>
+    <label class="form-label" for="{{ filter_form.category.id_for_label }}">Category</label>
+    {{ filter_form.category }}
+  </div>
+  {% if owner_view %}
+    <div>
+      <label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>
+      {{ filter_form.status }}
+    </div>
+  {% endif %}
+  <div class="d-flex align-items-end gap-2">
+    <button class="btn btn-brand" type="submit">Apply</button>
+    <a class="btn btn-outline-secondary" href="{% url 'services:index' %}">Reset</a>
+  </div>
+</form>
+
+{% if filter_form.errors %}<div class="alert alert-danger">Review the selected filters and try again.</div>{% endif %}
+
+<div class="service-grid">
+  {% for service in page_obj %}
+    <article class="service-card{% if not service.is_active %} service-card-inactive{% endif %}">
+      <div class="service-image-wrap">
+        {% if service.image %}
+          <img src="{{ service.image.url }}" alt="{{ service.name }}">
+        {% else %}
+          <div class="service-image-placeholder" aria-hidden="true">{{ service.name|first|upper }}</div>
+        {% endif %}
+        <span class="service-category">{{ service.category.name }}</span>
+      </div>
+      <div class="service-card-body">
+        <div class="d-flex justify-content-between gap-3 align-items-start">
+          <h3>{{ service.name }}</h3>
+          {% if owner_view and not service.is_active %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}
+        </div>
+        <p>{{ service.description|default:'A carefully delivered salon treatment.'|truncatechars:145 }}</p>
+        <div class="service-meta">
+          <span>{{ service.duration_minutes }} minutes</span>
+          <strong>PHP {{ service.price|floatformat:2 }}</strong>
+        </div>
+        {% if owner_view %}
+          <div class="d-flex gap-2 mt-3">
+            <a class="btn btn-sm btn-outline-dark" href="{% url 'services:service_update' service.pk %}">Edit</a>
+            <a class="btn btn-sm btn-outline-danger" href="{% url 'services:service_delete' service.pk %}">Delete</a>
+          </div>
+        {% endif %}
+      </div>
+    </article>
+  {% empty %}
+    <div class="content-card service-empty">
+      <p class="eyebrow">NO MATCHES</p>
+      <h3 class="h5">No services match these filters.</h3>
+      <p class="text-secondary mb-0">Clear the filters or add a service to the catalog.</p>
+    </div>
+  {% endfor %}
+</div>
+
+{% include 'services/pagination.html' with page_obj=page_obj q=filter_form.q.value category=filter_form.category.value status=filter_form.status.value %}
+{% endblock %}

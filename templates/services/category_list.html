@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Service Categories | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">CATALOG STRUCTURE</p><h2>Service Categories</h2></div>
+  <a class="btn btn-brand" href="{% url 'services:category_create' %}">Add category</a>
+</div>
+<div class="content-card mb-4">
+  <form class="d-flex gap-2" method="get">
+    <label class="visually-hidden" for="category-search">Search categories</label>
+    <input class="form-control" id="category-search" name="q" value="{{ query }}" maxlength="100" placeholder="Search categories">
+    <button class="btn btn-brand" type="submit">Search</button>
+  </form>
+</div>
+<div class="content-card">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th scope="col">Category</th><th scope="col">Description</th><th scope="col">Services</th><th scope="col" class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for category in page_obj %}
+          <tr>
+            <td><strong>{{ category.name }}</strong></td>
+            <td>{{ category.description|default:'-' }}</td>
+            <td>{{ category.service_count }}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-dark" href="{% url 'services:category_update' category.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'services:category_delete' category.pk %}">Delete</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-center text-secondary py-4">No service categories found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include 'services/pagination.html' with page_obj=page_obj q=query %}
+{% endblock %}

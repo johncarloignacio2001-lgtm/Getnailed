@@ -1,0 +1,6 @@
+Appointment update
+
+Reference: {{ appointment.reference }}
+Status: {{ appointment.get_status_display }}
+Schedule: {{ appointment.scheduled_for }}
+Services: {{ appointment.service_name }}

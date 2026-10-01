@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Confirm Password | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="content-card" style="max-width: 620px;">
+  <div class="eyebrow">REAUTHENTICATION REQUIRED</div><h2 class="h4">Confirm your password</h2>
+  <p class="text-muted">Enter your current password before changing sensitive security settings.</p>
+  <form method="post" novalidate>{% csrf_token %}<div class="mb-3"><label class="form-label" for="{{ form.password.id_for_label }}">Current password</label>{{ form.password }}{% for error in form.password.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div><button class="btn btn-brand" type="submit">Confirm identity</button></form>
+</div>
+{% endblock %}

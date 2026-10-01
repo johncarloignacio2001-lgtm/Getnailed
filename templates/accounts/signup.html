@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block public_content %}
+<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <img src="{% static 'images/get-nailed-logo.png' %}" class="login-logo" alt="Get Nailed logo">
+      <h1 class="h3 mt-3">Create an account</h1>
+      <p class="text-muted">Sign up to manage your appointments.</p>
+    </div>
+    {% include 'partials/messages.html' %}
+    <form method="post" novalidate>
+      {% csrf_token %>
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ form.email.id_for_label }}">Email address</label>
+        {{ form.email }}
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="{{ form.password1.id_for_label }}">Password</label>
+        {{ form.password1 }}
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="{{ form.password2.id_for_label }}">Confirm password</label>
+        {{ form.password2 }}
+      </div>
+      {% if form.captcha %}
+      <div class="mb-3 captcha-field">
+        <label class="form-label" for="{{ form.captcha.id_for_label }}">Security check</label>
+        {{ form.captcha }}
+        {% for error in form.captcha.errors %}
+        <div class="text-danger small mt-1">{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <button class="btn btn-brand w-100 py-2" type="submit">Sign up</button>
+    </form>
+    <div class="text-center mt-3">
+      <a href="{% url 'accounts:login' %}">Already have an account? Sign in</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

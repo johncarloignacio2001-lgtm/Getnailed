@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Point of Sale | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading service-heading"><div><div class="eyebrow">TRANSACTIONAL CHECKOUT</div><h2>Point of Sale</h2></div><a class="btn btn-outline-brand" href="{% url 'pos:history' %}">Transaction history</a></div>
+<form method="post" novalidate id="pos-form">{% csrf_token %}
+  {{ form.non_field_errors }}{{ item_formset.non_form_errors }}{{ item_formset.management_form }}
+  <div class="pos-layout">
+    <section class="content-card"><h3 class="h5 mb-3">Services</h3><div class="pos-items">
+      {% for item_form in item_formset %}<div class="pos-item-row"><span class="pos-item-number">{{ forloop.counter }}</span>{% for field in item_form %}<div><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}</div>{% endfor %}
+    </div></section>
+    <aside class="content-card pos-checkout"><div><div class="eyebrow">CUSTOMER</div>{% for field in form %}{% if field.name == 'customer' or field.name == 'appointment' or field.name == 'mark_appointment_completed' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div><div><div class="eyebrow">DISCOUNT</div>{% for field in form %}{% if field.name == 'discount_type' or field.name == 'discount_value' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div><div><div class="eyebrow">PAYMENT</div>{% for field in form %}{% if field.name == 'payment_method' or field.name == 'amount_tendered' or field.name == 'payment_reference' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div><div class="pos-total"><span>Estimated total</span><strong id="pos-total">₱0.00</strong></div><button class="btn btn-brand btn-lg w-100" type="submit">Complete sale</button></aside>
+  </div>
+</form>
+{{ service_prices|json_script:"service-prices" }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const prices = JSON.parse(document.getElementById("service-prices").textContent);
+  const total = document.getElementById("pos-total");
+  function calculate() {
+    let subtotal = 0;
+    document.querySelectorAll(".pos-item-row").forEach(function (row) {
+      const service = row.querySelector(".pos-service");
+      const quantity = row.querySelector('input[name$="-quantity"]');
+      subtotal += Number(prices[service.value] || 0) * Number(quantity.value || 0);
+    });
+    const type = document.getElementById("id_discount_type").value;
+    const value = Number(document.getElementById("id_discount_value").value || 0);
+    const discount = type === "PERCENT" ? subtotal * value / 100 : (type === "FIXED" ? value : 0);
+    total.textContent = "₱" + Math.max(0, subtotal - discount).toFixed(2);
+  }
+  document.getElementById("pos-form").addEventListener("input", calculate);
+  document.getElementById("pos-form").addEventListener("change", calculate);
+  calculate();
+});
+</script>
+{% endblock %}

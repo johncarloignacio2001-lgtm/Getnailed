@@ -1,0 +1,313 @@
+{% load static %}
+<style>
+/* ── EXACT MULTIBIZ NAVBAR STYLING & SIZING ── */
+.customer-navbar {
+    background: #ffffff !important;
+    padding: 12px 0 !important;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+}
+
+.customer-brand-logo {
+    height: 40px !important;
+    width: 40px !important;
+    max-height: 40px !important;
+    max-width: 40px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    margin-right: 10px !important;
+    flex-shrink: 0 !important;
+}
+
+.customer-brand-title {
+    color: #1e293b !important;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+}
+
+.customer-brand-subtitle {
+    color: #64748b !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+}
+
+.customer-nav-list {
+    display: flex !important;
+    gap: 1.5rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    margin: 0 2rem !important;
+    padding: 0 !important;
+    list-style: none !important;
+}
+
+.customer-nav-link {
+    color: #333333 !important;
+    text-decoration: none !important;
+    font-weight: 500 !important;
+    font-size: 0.95rem !important;
+    transition: all 0.3s ease !important;
+    padding: 8px 14px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    white-space: nowrap !important;
+}
+
+.customer-nav-link i {
+    font-size: 0.9rem !important;
+    color: #6c757d !important;
+    transition: color 0.3s ease !important;
+}
+
+.customer-nav-link:hover {
+    color: var(--deep-rose, #8b4f5c) !important;
+    background: rgba(139, 79, 92, 0.1) !important;
+}
+
+.customer-nav-link:hover i {
+    color: var(--deep-rose, #8b4f5c) !important;
+}
+
+.customer-nav-link.active {
+    color: var(--deep-rose, #8b4f5c) !important;
+    background: rgba(139, 79, 92, 0.15) !important;
+    font-weight: 600 !important;
+}
+
+.customer-nav-link.active i {
+    color: var(--deep-rose, #8b4f5c) !important;
+}
+
+/* User Avatar Dropdown (Exact sizing from MULTIBIZ .ud-*) */
+.customer-user-dropdown {
+    position: relative !important;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.customer-avatar-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 4px 6px !important;
+    border-radius: 50px !important;
+    transition: background 0.2s !important;
+}
+
+.customer-avatar-btn:hover {
+    background: rgba(139, 79, 92, 0.08) !important;
+}
+
+.customer-avatar-circle {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #8b4f5c, #6f3b47) !important;
+    color: #fff !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    letter-spacing: 0.5px !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 2px 8px rgba(139, 79, 92, 0.35) !important;
+    border: 2px solid rgba(255, 255, 255, 0.9) !important;
+    overflow: hidden !important;
+}
+
+.customer-avatar-chevron {
+    font-size: 0.7rem !important;
+    color: #666 !important;
+    transition: transform 0.25s ease !important;
+}
+
+.customer-dropdown-menu {
+    position: absolute !important;
+    width: 240px !important;
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.07) !important;
+    border: 1px solid rgba(0, 0, 0, 0.07) !important;
+    overflow: hidden !important;
+    padding: 8px !important;
+    margin-top: 10px !important;
+}
+
+.customer-dropdown-menu .dropdown-item {
+    border-radius: 8px !important;
+    font-size: 0.88rem !important;
+    padding: 8px 12px !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+    transition: all 0.15s ease !important;
+}
+
+.customer-dropdown-menu .dropdown-item:hover {
+    background-color: rgba(139, 79, 92, 0.08) !important;
+    color: #8b4f5c !important;
+}
+
+.customer-dropdown-menu .dropdown-item.text-danger:hover {
+    background-color: rgba(220, 53, 69, 0.08) !important;
+    color: #dc2626 !important;
+}
+
+@media (max-width: 1024px) {
+    .customer-nav-list {
+        margin: 0 1rem !important;
+        gap: 1rem !important;
+    }
+    .customer-nav-link {
+        font-size: 0.9rem !important;
+        padding: 6px 10px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .customer-nav-list {
+        flex-direction: column !important;
+        margin: 0 !important;
+        gap: 0.5rem !important;
+        padding: 1rem 0 !important;
+        align-items: flex-start !important;
+    }
+    .customer-nav-link {
+        width: 100% !important;
+        padding: 12px 15px !important;
+        border-radius: 8px !important;
+        font-size: 0.9rem !important;
+    }
+}
+</style>
+
+<nav class="navbar navbar-expand-lg customer-navbar sticky-top" style="background: #ffffff !important; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08) !important; border-bottom: 1px solid rgba(0, 0, 0, 0.07) !important; padding: 12px 0 !important;">
+  <div class="container-fluid px-lg-5 px-3">
+    <!-- Brand / Logo -->
+    <a class="navbar-brand d-flex align-items-center py-0 text-decoration-none" href="{% url 'core:dashboard_router' %}">
+      <img src="{% static 'images/get-nailed-logo.png' %}" alt="Get Nailed logo" width="40" height="40" style="width: 40px !important; height: 40px !important; max-width: 40px !important; max-height: 40px !important; object-fit: cover !important; border-radius: 50% !important; margin-right: 10px !important; flex-shrink: 0 !important;" class="customer-brand-logo">
+      <div class="d-flex flex-column lh-1">
+        <span class="customer-brand-title">Get Nailed</span>
+        <small class="customer-brand-subtitle">Nail Bar and Spa</small>
+      </div>
+    </a>
+
+    <!-- Mobile Toggler -->
+    <button class="navbar-toggler border-0 shadow-none p-1" type="button" data-bs-toggle="collapse" data-bs-target="#customerNavbarNav" aria-controls="customerNavbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Navigation links & User dropdown -->
+    <div class="collapse navbar-collapse" id="customerNavbarNav">
+      <ul class="navbar-nav customer-nav-list mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link customer-nav-link {% if request.resolver_match.url_name == 'customer_dashboard' or request.resolver_match.url_name == 'dashboard_router' %}active{% endif %}" href="{% url 'core:customer_dashboard' %}">
+            <i class="bi bi-house-door-fill"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link customer-nav-link {% if request.resolver_match.app_name == 'bookings' and request.resolver_match.url_name == 'index' %}active{% endif %}" href="{% url 'bookings:index' %}">
+            <i class="bi bi-calendar-plus"></i>
+            <span>Book Appointment</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link customer-nav-link {% if request.resolver_match.url_name == 'customer_appointments' %}active{% endif %}" href="{% url 'core:customer_appointments' %}">
+            <i class="bi bi-calendar-check"></i>
+            <span>My Appointments</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link customer-nav-link {% if request.resolver_match.url_name == 'customer_services' %}active{% endif %}" href="{% url 'core:customer_services' %}">
+            <i class="bi bi-gem"></i>
+            <span>Services &amp; Pricing</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link customer-nav-link {% if request.resolver_match.url_name == 'customer_profile' %}active{% endif %}" href="{% url 'core:customer_profile' %}">
+            <i class="bi bi-person"></i>
+            <span>My Profile</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link customer-nav-link {% if request.resolver_match.app_name == 'notifications' %}active{% endif %}" href="{% url 'notifications:index' %}">
+            <i class="bi bi-bell"></i>
+            <span>Notifications</span>
+          </a>
+        </li>
+      </ul>
+
+      <!-- User Avatar Profile Menu -->
+      <div class="dropdown customer-user-dropdown my-1 my-lg-0">
+        <button class="customer-avatar-btn" type="button" id="customerUserMenu" data-bs-toggle="dropdown" aria-expanded="false" title="{{ user.get_full_name|default:user.email }}">
+          <div class="customer-avatar-circle">
+            {% if user.first_name and user.last_name %}
+              {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+            {% elif user.first_name %}
+              {{ user.first_name|slice:":2"|upper }}
+            {% else %}
+              {{ user.email|slice:":2"|upper }}
+            {% endif %}
+          </div>
+          <i class="bi bi-chevron-down customer-avatar-chevron"></i>
+        </button>
+
+        <ul class="dropdown-menu dropdown-menu-end customer-dropdown-menu shadow-sm" aria-labelledby="customerUserMenu">
+          <li class="px-3 py-2 border-bottom">
+            <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ user.get_full_name|default:user.email }}</div>
+            <small class="text-muted d-block text-truncate" style="max-width: 200px; font-size: 0.78rem;">{{ user.email }}</small>
+            <span class="badge bg-light text-dark border mt-1 font-monospace" style="font-size: 0.68rem;">Customer</span>
+          </li>
+          <li class="pt-1">
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'core:customer_profile' %}">
+              <i class="bi bi-person text-muted"></i>
+              <span>My Profile</span>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'mfa_index' %}">
+              <i class="bi bi-shield-lock text-muted"></i>
+              <span>Account Security</span>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'accounts:password_change' %}">
+              <i class="bi bi-key text-muted"></i>
+              <span>Change Password</span>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'accounts:logout_all_devices' %}">
+              <i class="bi bi-phone text-muted"></i>
+              <span>Log out all devices</span>
+            </a>
+          </li>
+          <li><hr class="dropdown-divider my-1"></li>
+          <li>
+            <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+              {% csrf_token %}
+              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger border-0 bg-transparent w-100 text-start">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Log out</span>
+              </button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+

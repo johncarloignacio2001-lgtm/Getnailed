@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Confirm MFA | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="content-card" style="max-width: 620px;">
+  <div class="eyebrow">REAUTHENTICATION REQUIRED</div>
+  <h2 class="h4">Confirm with MFA</h2>
+  <p class="text-muted">Enter an authenticator or recovery code before changing sensitive security settings.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="mb-3"><label class="form-label" for="{{ form.code.id_for_label }}">Code</label>{{ form.code }}{% for error in form.code.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+    <button class="btn btn-brand" type="submit">Confirm identity</button>
+  </form>
+</div>
+{% endblock %}

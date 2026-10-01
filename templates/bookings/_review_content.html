@@ -1,0 +1,14 @@
+<section class="public-hero min-vh-100 d-flex align-items-center py-5">
+  <div class="container">
+    <div class="content-card mx-auto" style="max-width: 760px;">
+      <div class="eyebrow">PUBLIC BOOKING{% if step %} · STEP {{ step }} OF 4{% endif %}</div>
+      <h1 class="h2">{{ step_title|default:"Book an appointment" }}</h1>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-brand" type="submit">{{ button_label|default:"Submit booking request" }}</button>
+      </form>
+      <div class="d-flex flex-wrap gap-3 mt-4"><a href="{% url 'bookings:verify' %}">Verify a booking</a><a href="{% url 'bookings:status_lookup' %}">Check booking status</a></div>
+    </div>
+  </div>
+</section>

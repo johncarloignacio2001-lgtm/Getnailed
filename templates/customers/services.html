@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Services &amp; Pricing | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">SALON MENU</div>
+    <h2>Services &amp; Pricing</h2>
+    <p class="text-muted mb-0">Browse our complete menu of nail care, spa treatments, and premium packages.</p>
+  </div>
+  <a class="btn btn-brand" href="{% url 'bookings:index' %}">
+    <i class="bi bi-calendar-plus me-1"></i> Book an appointment
+  </a>
+</div>
+
+<!-- Category & Search Filter -->
+<div class="content-card mb-4 p-3">
+  <form method="get" action="{% url 'core:customer_services' %}" class="row g-2 align-items-center">
+    <div class="col-md-5">
+      <div class="input-group">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" name="q" class="form-control" placeholder="Search service name or description..." value="{{ query }}">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <select name="category" class="form-select">
+        <option value="">All Categories</option>
+        {% for cat in all_categories %}
+          <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-brand w-100">Filter</button>
+      {% if query or selected_category %}
+        <a href="{% url 'core:customer_services' %}" class="btn btn-outline-secondary">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Services Grid -->
+{% if services %}
+  <div class="service-grid">
+    {% for service in services %}
+      <div class="service-card h-100">
+        <div class="service-card-body d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge bg-light text-dark border">{{ service.category.name|default:"General" }}</span>
+            <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ service.duration_minutes }} mins</span>
+          </div>
+          <h3 class="h5 mb-2 fw-bold text-dark">{{ service.name }}</h3>
+          <p class="text-muted small flex-grow-1">{{ service.description|default:"Professional nail and spa service tailored to pamper and refresh you." }}</p>
+          <div class="service-meta d-flex justify-content-between align-items-center pt-3 border-top mt-auto">
+            <strong class="fs-5" style="color: var(--deep-rose, #8b4f5c);">₱{{ service.price|floatformat:2 }}</strong>
+            <a class="btn btn-brand btn-sm" href="{% url 'bookings:index' %}?service={{ service.pk }}">
+              Book Now <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="content-card text-center py-5">
+    <div class="display-6 text-muted mb-3"><i class="bi bi-search"></i></div>
+    <h4 class="h6 text-muted mb-2">No services found</h4>
+    <p class="text-muted small mb-3">Try adjusting your search criteria or view all available services.</p>
+    <a href="{% url 'core:customer_services' %}" class="btn btn-outline-brand btn-sm">Clear filters</a>
+  </div>
+{% endif %}
+{% endblock %}
+

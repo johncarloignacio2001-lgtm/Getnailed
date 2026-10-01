@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">OWNER MANAGEMENT</p><h2>{{ title }}</h2></div>
+</div>
+<div class="content-card service-form-card">
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="form-check mb-3">
+          {{ field }}
+          <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+      {% else %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+    <div class="d-flex flex-wrap gap-2 pt-2">
+      <button class="btn btn-brand" type="submit">Save changes</button>
+      <a class="btn btn-outline-dark" href="{% url cancel_url %}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

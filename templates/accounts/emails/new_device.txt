@@ -1,0 +1,3 @@
+A sign-in from a new device was detected for your {{ brand_name }} account at {{ occurred_at }}.
+
+If this was not you, change your password and contact the account owner immediately.

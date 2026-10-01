@@ -1,0 +1,9 @@
+Hello {{ booking.customer_name }},
+
+Use this code to verify booking {{ booking.reference }}:
+
+{{ code }}
+
+Verify at {{ verify_url }}
+
+The request and code expire automatically. If you did not submit this request, ignore this email.

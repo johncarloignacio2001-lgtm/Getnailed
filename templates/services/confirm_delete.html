@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">SENSITIVE ACTION</p><h2>{{ title }}</h2></div></div>
+<div class="content-card service-form-card">
+  <p>Delete <strong>{{ object }}</strong>?</p>
+  <p class="text-secondary">This action cannot be undone. Related protected records may prevent deletion.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn-danger" type="submit">Delete permanently</button>
+    <a class="btn btn-outline-dark" href="{% url cancel_url %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

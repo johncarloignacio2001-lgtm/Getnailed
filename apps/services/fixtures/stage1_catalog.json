@@ -1,0 +1,292 @@
+[
+  {
+    "model": "services.servicecategory",
+    "pk": 1,
+    "fields": {
+      "name": "Manicure and Pedicure",
+      "description": "Essential nail grooming, shaping, and polish services.",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.servicecategory",
+    "pk": 2,
+    "fields": {
+      "name": "Gel and Acrylic Enhancements",
+      "description": "Long-wear color, extensions, overlays, and maintenance.",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.servicecategory",
+    "pk": 3,
+    "fields": {
+      "name": "Nail Art",
+      "description": "Creative finishes from clean accents to detailed hand-painted designs.",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.servicecategory",
+    "pk": 4,
+    "fields": {
+      "name": "Spa Care",
+      "description": "Relaxing hand and foot treatments with skin-conditioning care.",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.servicecategory",
+    "pk": 5,
+    "fields": {
+      "name": "Add-ons and Maintenance",
+      "description": "Removal, repair, and finishing services added to a primary treatment.",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 101,
+    "fields": {
+      "name": "Classic Manicure",
+      "category": 1,
+      "description": "Nail shaping, cuticle care, light hand massage, and regular polish.",
+      "duration_minutes": 45,
+      "price": "350.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 102,
+    "fields": {
+      "name": "Classic Pedicure",
+      "category": 1,
+      "description": "Foot soak, nail and cuticle care, smoothing, massage, and regular polish.",
+      "duration_minutes": 60,
+      "price": "450.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 103,
+    "fields": {
+      "name": "Express Polish Change",
+      "category": 1,
+      "description": "Quick polish removal, light shaping, and a fresh regular color.",
+      "duration_minutes": 25,
+      "price": "220.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 201,
+    "fields": {
+      "name": "Gel Manicure",
+      "category": 2,
+      "description": "Complete manicure finished with durable, high-shine gel color.",
+      "duration_minutes": 60,
+      "price": "650.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 202,
+    "fields": {
+      "name": "Gel Pedicure",
+      "category": 2,
+      "description": "Complete pedicure with long-wear gel color and glossy finish.",
+      "duration_minutes": 75,
+      "price": "750.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 203,
+    "fields": {
+      "name": "Soft Gel Extensions",
+      "category": 2,
+      "description": "Lightweight full-cover extensions shaped and finished with gel color.",
+      "duration_minutes": 120,
+      "price": "1200.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 204,
+    "fields": {
+      "name": "Acrylic Full Set",
+      "category": 2,
+      "description": "Sculpted acrylic enhancements with shaping and a polished finish.",
+      "duration_minutes": 150,
+      "price": "1500.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 205,
+    "fields": {
+      "name": "Acrylic Refill",
+      "category": 2,
+      "description": "Maintenance fill, rebalance, shaping, and refreshed color.",
+      "duration_minutes": 90,
+      "price": "900.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 301,
+    "fields": {
+      "name": "Minimal Accent Nail Art",
+      "category": 3,
+      "description": "Simple lines, dots, foil, or glitter accents on selected nails.",
+      "duration_minutes": 20,
+      "price": "150.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 302,
+    "fields": {
+      "name": "Hand-painted Nail Art Set",
+      "category": 3,
+      "description": "Detailed custom hand-painted art across a coordinated full set.",
+      "duration_minutes": 45,
+      "price": "500.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 303,
+    "fields": {
+      "name": "French Tip Finish",
+      "category": 3,
+      "description": "Crisp classic or colored French tips added to a manicure service.",
+      "duration_minutes": 25,
+      "price": "250.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 401,
+    "fields": {
+      "name": "Signature Foot Spa",
+      "category": 4,
+      "description": "Aromatic soak, exfoliation, callus smoothing, mask, and extended massage.",
+      "duration_minutes": 75,
+      "price": "650.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 402,
+    "fields": {
+      "name": "Hydrating Hand Spa",
+      "category": 4,
+      "description": "Exfoliation, nourishing mask, warm wrap, and relaxing hand massage.",
+      "duration_minutes": 45,
+      "price": "450.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 403,
+    "fields": {
+      "name": "Paraffin Treatment",
+      "category": 4,
+      "description": "Warm paraffin conditioning treatment for dry hands or feet.",
+      "duration_minutes": 30,
+      "price": "350.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 501,
+    "fields": {
+      "name": "Gel Polish Removal",
+      "category": 5,
+      "description": "Careful gel removal with light shaping and conditioning oil.",
+      "duration_minutes": 30,
+      "price": "250.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 502,
+    "fields": {
+      "name": "Single Extension Repair",
+      "category": 5,
+      "description": "Repair or replacement of one damaged extension, excluding new nail art.",
+      "duration_minutes": 20,
+      "price": "150.00",
+      "is_active": true,
+      "image": "",
+      "created_at": "2026-07-23T00:00:00Z",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  }
+]

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Regenerate Recovery Codes | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="content-card" style="max-width: 700px;">
+  <div class="eyebrow">SENSITIVE ACTION</div><h2 class="h4">Regenerate recovery codes</h2>
+  <p class="text-muted">All previous recovery codes will immediately stop working. Reauthentication is required.</p>
+  <form method="post">{% csrf_token %}<div class="form-check mb-3">{{ form.confirm }} <label class="form-check-label" for="{{ form.confirm.id_for_label }}">{{ form.confirm.label }}</label></div>{% for error in form.confirm.errors %}<div class="text-danger small mb-3">{{ error }}</div>{% endfor %}<button class="btn btn-danger" type="submit">Generate new codes</button></form>
+</div>
+{% endblock %}

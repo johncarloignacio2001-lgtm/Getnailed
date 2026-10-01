@@ -1,0 +1,8 @@
+Hello {{ booking.customer_name }},
+
+Booking {{ booking.reference }} is confirmed.
+
+Use this private link to view, cancel, or reschedule only this booking:
+{{ access_url }}
+
+Do not share this link. It expires automatically.

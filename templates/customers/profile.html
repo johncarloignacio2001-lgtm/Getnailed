@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}My Profile | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">ACCOUNT SETTINGS</div>
+    <h2>My Profile</h2>
+    <p class="text-muted mb-0">Update your contact information and manage account security preferences.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Profile Edit Form (Left / Main) -->
+  <div class="col-lg-7">
+    <section class="content-card">
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="rounded-circle p-2 text-white" style="background: var(--deep-rose, #8b4f5c); width: 36px; height: 36px; display: grid; place-items: center;">
+          <i class="bi bi-person-fill"></i>
+        </div>
+        <div>
+          <h3 class="h5 mb-0">Personal Information</h3>
+          <small class="text-muted">Keep your contact information updated for booking notifications.</small>
+        </div>
+      </div>
+
+      <form method="post" action="{% url 'core:customer_profile' %}">
+        {% csrf_token %}
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label small fw-semibold" for="id_first_name">First Name</label>
+            <input type="text" name="first_name" id="id_first_name" class="form-control" value="{{ user.first_name }}" required>
+          </div>
+
+          <div class="col-sm-6">
+            <label class="form-label small fw-semibold" for="id_last_name">Last Name</label>
+            <input type="text" name="last_name" id="id_last_name" class="form-control" value="{{ user.last_name }}" required>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label small fw-semibold" for="id_email">Email Address</label>
+            <input type="email" id="id_email" class="form-control bg-light" value="{{ user.email }}" readonly>
+            <div class="form-text small">Your email address is your login identifier and cannot be modified directly.</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label small fw-semibold" for="id_phone">Phone Number</label>
+            <input type="text" name="phone" id="id_phone" class="form-control" value="{{ user.phone_number|default:customer.phone|default:'' }}" placeholder="+63 9XX XXX XXXX">
+            <div class="form-text small">Used for booking SMS reminders and status confirmations.</div>
+          </div>
+
+          <div class="col-12 pt-2">
+            <button type="submit" class="btn btn-brand w-100">
+              <i class="bi bi-check2-circle me-1"></i> Save Changes
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <!-- Account Summary & Security (Right) -->
+  <div class="col-lg-5">
+    <!-- User Overview Card -->
+    <div class="content-card mb-4 text-center">
+      <div class="customer-avatar-circle mx-auto mb-3" style="width: 64px; height: 64px; font-size: 1.4rem;">
+        {% if user.first_name and user.last_name %}
+          {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+        {% elif user.first_name %}
+          {{ user.first_name|slice:":2"|upper }}
+        {% else %}
+          {{ user.email|slice:":2"|upper }}
+        {% endif %}
+      </div>
+      <h3 class="h5 mb-1">{{ user.get_full_name|default:user.email }}</h3>
+      <p class="text-muted small mb-3">{{ user.email }}</p>
+      <div class="border-top pt-3 text-center">
+        <small class="text-muted d-block">Appointments &amp; Visits</small>
+        <strong class="fs-4" style="color: var(--deep-rose, #8b4f5c);">{{ appointment_count }}</strong>
+      </div>
+    </div>
+
+    <!-- Security Links Card -->
+    <div class="content-card">
+      <h3 class="h6 mb-3 fw-bold">Security &amp; Login Options</h3>
+      <div class="list-group list-group-flush">
+        <a href="{% url 'mfa_index' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-shield-lock text-muted fs-5"></i>
+            <div>
+              <div class="fw-semibold small">Account Security</div>
+              <small class="text-muted">Two-factor authentication &amp; recovery codes</small>
+            </div>
+          </div>
+          <i class="bi bi-chevron-right text-muted small"></i>
+        </a>
+        <a href="{% url 'accounts:password_change' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-key text-muted fs-5"></i>
+            <div>
+              <div class="fw-semibold small">Change Password</div>
+              <small class="text-muted">Update your account login password</small>
+            </div>
+          </div>
+          <i class="bi bi-chevron-right text-muted small"></i>
+        </a>
+        <a href="{% url 'accounts:logout_all_devices' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-phone text-muted fs-5"></i>
+            <div>
+              <div class="fw-semibold small">Log Out All Devices</div>
+              <small class="text-muted">Invalidate active sessions on other browsers</small>
+            </div>
+          </div>
+          <i class="bi bi-chevron-right text-muted small"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,1 @@
+{% extends 'accounts/emails/base.html' %}{% block email_content %}<h1 style="font-size:24px;">Suspicious sign-in activity</h1><p>Repeated unsuccessful sign-in attempts temporarily locked access to your account at {{ occurred_at }}.</p><p>The lockout expires automatically. If this was not you, contact the account owner.</p>{% endblock %}

@@ -1,0 +1,37 @@
+{% load static %}
+<aside class="sidebar">
+  <a class="brand" href="{% url 'core:dashboard_router' %}">
+    <img src="{% static 'images/get-nailed-logo.png' %}" class="brand-logo" alt="Get Nailed logo">
+    <span><strong>Get Nailed</strong><small>Nail Bar and Spa</small></span>
+  </a>
+  <div class="role-chip">{{ user.get_role_display }}</div>
+  <nav class="sidebar-nav">
+    <a href="{% url 'core:dashboard_router' %}">Dashboard</a>
+    {% if user.is_customer %}
+      <a href="{% url 'bookings:index' %}">Book Appointment</a>
+      <a href="{% url 'core:customer_appointments' %}">My Appointments</a>
+      <a href="{% url 'core:customer_services' %}">Services & Pricing</a>
+      <a href="{% url 'core:customer_profile' %}">My Profile</a>
+    {% endif %}
+    {% if user.is_owner or user.is_cashier or user.can_manage_bookings %}<a href="{% url 'bookings:manage' %}">Appointments</a>{% elif user.is_service_staff %}<a href="{% url 'bookings:assigned' %}">My Appointments</a>{% endif %}
+    {% if user.is_owner or user.is_cashier or user.can_use_pos %}<a href="{% url 'pos:index' %}">Point of Sale</a>{% endif %}
+    {% if user.is_owner or user.is_cashier or user.can_manage_customers %}<a href="{% url 'customers:index' %}">Customers</a>{% endif %}
+    {% if user.is_owner or user.is_cashier or user.is_service_staff %}<a href="{% url 'monitoring:index' %}">Service Monitoring</a>{% endif %}
+    {% if user.is_owner or user.is_cashier or user.can_assign_services %}<a href="{% url 'monitoring:assignments' %}">Service Assignments</a>{% endif %}
+    {% if user.is_cashier %}<a href="{% url 'reports:daily_summary' %}">Daily Summary</a>{% endif %}
+    {% if user.is_owner or user.is_cashier %}<a href="{% url 'services:index' %}">Services</a>{% endif %}
+    {% if user.is_owner %}
+      <a href="{% url 'accounts:invite_internal' %}">Internal Accounts</a>
+      <a href="{% url 'accounts:mfa_configuration' %}">MFA Requirements</a>
+      <a href="{% url 'accounts:login_lockouts' %}">Login Lockouts</a>
+      <a href="{% url 'services:staff_list' %}">Staff Profiles</a>
+      <a href="{% url 'pos:void_approval' %}">Void Approval</a>
+      <a href="{% url 'reports:index' %}">Reports</a>
+      <a href="{% url 'forecasting:index' %}">Sales Forecasting</a>
+      <a href="{% url 'audittrail:index' %}">Audit Trail</a>
+    {% endif %}
+    <a href="{% url 'mfa_index' %}">Account Security</a>
+    <a href="{% url 'notifications:index' %}">Notifications</a>
+  </nav>
+</aside>
+

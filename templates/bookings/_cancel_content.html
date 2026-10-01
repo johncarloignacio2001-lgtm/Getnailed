@@ -1,0 +1,14 @@
+<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="login-card">
+    <div class="eyebrow">VERIFIED BOOKING ACTION</div>
+    <h1 class="h4 mb-3">Cancel Booking <span class="font-monospace text-brand">#{{ booking.reference }}</span>?</h1>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-check mb-3">
+        {{ form.confirm }}
+        <label class="form-check-label" for="{{ form.confirm.id_for_label }}">{{ form.confirm.label }}</label>
+      </div>
+      <button class="btn btn-danger w-100" type="submit">Cancel booking</button>
+    </form>
+  </div>
+</div>

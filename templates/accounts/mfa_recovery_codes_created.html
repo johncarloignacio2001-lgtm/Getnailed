@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Save Recovery Codes | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="content-card" style="max-width: 760px;">
+  <div class="eyebrow">SHOWN ONCE</div><h2 class="h4">Save your recovery codes now</h2>
+  <div class="alert alert-warning">These codes will not be shown again. Each code can be used once if your authenticator app is unavailable.</div>
+  <div class="row g-2 mb-4">{% for code in recovery_codes %}<div class="col-sm-6"><code class="d-block border rounded p-2 bg-light">{{ code }}</code></div>{% endfor %}</div>
+  {{ recovery_codes|json_script:"mfa-recovery-code-data" }}
+  <button class="btn btn-brand" id="download-recovery-codes" type="button">Download codes</button>
+  <a class="btn btn-outline-dark" href="{% url 'mfa_index' %}">I saved my codes</a>
+</div>
+<script>
+document.getElementById('download-recovery-codes').addEventListener('click', function () {
+  const codes = JSON.parse(document.getElementById('mfa-recovery-code-data').textContent);
+  const blob = new Blob(['{{ BRAND_NAME|escapejs }} recovery codes\n\n' + codes.join('\n') + '\n'], {type: 'text/plain'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'get-nailed-recovery-codes.txt';
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+</script>
+{% endblock %}

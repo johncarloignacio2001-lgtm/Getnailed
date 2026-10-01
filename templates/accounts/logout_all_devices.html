@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Log Out All Devices | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="content-card" style="max-width: 680px;">
+  <div class="eyebrow">ACCOUNT SECURITY</div>
+  <h2 class="h4">Log out every device?</h2>
+  <p class="text-muted">This immediately revokes every active session, including this device. Recent reauthentication is required.</p>
+  <form method="post">{% csrf_token %}<button class="btn btn-danger" type="submit">Log out all devices</button> <a class="btn btn-outline-dark" href="{% url 'core:dashboard_router' %}">Cancel</a></form>
+</div>
+{% endblock %}

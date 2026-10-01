@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Login Lockouts | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">OWNER SECURITY</div><h2 class="mb-0">Temporary login lockouts</h2></div></div>
+<div class="content-card">
+  <p class="text-muted">Only active lockouts tied to an existing account are shown. Clearing a lockout requires recent reauthentication.</p>
+  {% if lockouts %}
+    <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Account</th><th>IP address</th><th>Failures</th><th>Expires</th><th></th></tr></thead><tbody>
+    {% for lockout in lockouts %}<tr><td>{{ lockout.username }}</td><td><code>{{ lockout.ip_address|default:'Unavailable' }}</code></td><td>{{ lockout.failures }}</td><td>{{ lockout.expires_at }}</td><td class="text-end"><form method="post">{% csrf_token %}<input type="hidden" name="lockout" value="{{ lockout.token }}"><button class="btn btn-outline-danger btn-sm" type="submit">Clear lockout</button></form></td></tr>{% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="mb-0">There are no active account lockouts.</p>{% endif %}
+</div>
+{% endblock %}

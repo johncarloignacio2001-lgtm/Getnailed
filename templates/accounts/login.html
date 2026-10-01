@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block public_content %}
+<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <img src="{% static 'images/get-nailed-logo.png' %}" class="login-logo" alt="Get Nailed logo">
+      <h1 class="h3 mt-3">Welcome back</h1>
+      {% if request.resolver_match.url_name == 'customer_login' %}<p class="text-muted">Sign in to manage your appointments.</p>{% else %}<p class="text-muted">Sign in to your assigned workspace.</p>{% endif %}
+    </div>
+    {% include 'partials/messages.html' %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="mb-3"><label class="form-label" for="{{ form.login.id_for_label }}">Email address</label>{{ form.login }}</div>
+      <div class="mb-3"><label class="form-label">Password</label>{{ form.password }}</div>
+      {% if form.remember %}<div class="form-check mb-3">{{ form.remember }} <label class="form-check-label" for="{{ form.remember.id_for_label }}">Remember me</label></div>{% endif %}
+      {% if form.captcha %}<div class="mb-3 captcha-field"><label class="form-label" for="{{ form.captcha.id_for_label }}">Security check</label>{{ form.captcha }}{% for error in form.captcha.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>{% endif %}
+      <button class="btn btn-brand w-100 py-2" type="submit">Sign in</button>
+    </form>
+    <div class="text-center mt-3"><a href="{% url 'accounts:password_reset' %}">Forgot your password?</a></div>
+    {% if request.resolver_match.url_name == 'customer_login' %}<div class="text-center mt-2">Don't have an account? <a href="{% url 'customers:register_customer' %}">Create account</a></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Recovery Codes | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="content-card" style="max-width: 700px;">
+  <div class="eyebrow">MFA RECOVERY</div><h2 class="h4">Recovery codes</h2>
+  <p class="text-muted">You have {{ unused_count }} unused recovery code{{ unused_count|pluralize }}. Codes are shown only when generated and each code works once.</p>
+  <a class="btn btn-brand" href="{% url 'mfa_regenerate_recovery_codes' %}">Regenerate recovery codes</a>
+  <a class="btn btn-outline-dark" href="{% url 'mfa_index' %}">Back to security</a>
+</div>
+{% endblock %}

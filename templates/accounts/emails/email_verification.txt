@@ -1,0 +1,5 @@
+Verify your {{ brand_name }} email address using this secure link:
+
+{{ verification_url }}
+
+If you did not request this verification, ignore this email.

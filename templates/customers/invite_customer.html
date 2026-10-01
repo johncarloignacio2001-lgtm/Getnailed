@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Create Customer Account | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">OWNER ACCESS</div>
+    <h2 class="mb-0">Create customer account</h2>
+  </div>
+</div>
+<div class="content-card service-form-card">
+  <p class="text-muted mb-4">The customer will receive a time-limited activation link, set a password, and use the customer login to manage bookings.</p>
+  <form method="post" novalidate class="row g-3">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="col-12"><div class="alert alert-danger">{{ form.non_field_errors }}</div></div>{% endif %}
+    {% for field in form %}
+      <div class="{% if field.name in 'first_name,last_name' %}col-md-6{% else %}col-12{% endif %}">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+    <div class="col-12 d-flex flex-wrap gap-2 pt-2">
+      <button class="btn btn-brand" type="submit">Create and send activation</button>
+      <a class="btn btn-outline-dark" href="{% url 'customers:index' %}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}System Health | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">SYSTEM HEALTH</p>
+    <h2>System Health</h2>
+    <p class="text-secondary mb-0">Safe diagnostics and last backup information for OWNER.</p>
+  </div>
+</div>
+
+<div class="content-card">
+  <h3 class="h6">Application</h3>
+  <ul>
+    <li>Debug: {{ checks.environment.debug }}</li>
+    <li>Installed apps: {{ checks.environment.installed_apps_count }}</li>
+  </ul>
+
+  <h3 class="h6">Database</h3>
+  {% if checks.database.ok %}
+    <div class="text-success">Connection OK</div>
+  {% else %}
+    <div class="text-danger">Connection error: {{ checks.database.message }}</div>
+  {% endif %}
+
+  <h3 class="h6">Email</h3>
+  <ul>
+    <li>Backend: {{ checks.email.backend }}</li>
+    {% if checks.email.host %}<li>Host: {{ checks.email.host }}:{{ checks.email.port }} (resolves: {{ checks.email.resolves }})</li>{% endif %}
+  </ul>
+
+  <h3 class="h6">Last Backup</h3>
+  {% if checks.last_backup %}
+    <ul>
+      <li>Time: {{ checks.last_backup.timestamp }}</li>
+      <li>File: {{ checks.last_backup.filename }}</li>
+      <li>Size: {{ checks.last_backup.size_bytes }} bytes</li>
+    </ul>
+  {% else %}
+    <div class="text-secondary">No backup metadata found.</div>
+  {% endif %}
+
+  <h3 class="h6">Forecasting</h3>
+  {% if checks.forecast_model_available %}
+    <div class="text-success">Trained model available</div>
+  {% else %}
+    <div class="text-secondary">No trained model file found</div>
+  {% endif %}
+
+  <h3 class="h6">Security Alerts</h3>
+  <div>Failed login events recorded: {{ checks.failed_login_count }}</div>
+</div>
+{% endblock %}

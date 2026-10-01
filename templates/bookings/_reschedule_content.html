@@ -1,0 +1,17 @@
+<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="login-card">
+    <div class="eyebrow">VERIFIED BOOKING ACTION</div>
+    <h1 class="h4 mb-3">Reschedule Booking <span class="font-monospace text-brand">#{{ booking.reference }}</span></h1>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ form.scheduled_for.id_for_label }}">New appointment time</label>
+        {{ form.scheduled_for }}
+        {% for error in form.scheduled_for.errors %}
+        <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <button class="btn btn-brand w-100" type="submit">Save new time</button>
+    </form>
+  </div>
+</div>

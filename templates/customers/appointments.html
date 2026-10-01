@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}My Appointments | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">CUSTOMER WORKSPACE</div>
+    <h2>My Appointments</h2>
+    <p class="text-muted mb-0">View and manage your upcoming visits and salon service history.</p>
+  </div>
+  <a class="btn btn-brand" href="{% url 'bookings:index' %}">
+    <i class="bi bi-calendar-plus me-1"></i> Book an appointment
+  </a>
+</div>
+
+<!-- Upcoming Appointments Card -->
+<section class="content-card mb-4" id="upcoming">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="eyebrow">SCHEDULED VISITS</div>
+      <h3 class="h5 mb-0">Upcoming appointments ({{ upcoming_count }})</h3>
+    </div>
+    <a class="btn btn-outline-brand btn-sm" href="{% url 'bookings:index' %}">+ New booking</a>
+  </div>
+
+  {% if upcoming_appointments %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Service(s)</th>
+            <th>Staff</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for appt in upcoming_appointments %}
+            <tr>
+              <td>
+                <span class="fw-semibold">#{{ appt.reference }}</span>
+              </td>
+              <td>{{ appt.appointment_date }}</td>
+              <td>{{ appt.start_time }}</td>
+              <td>
+                {% for item in appt.appointment_services.all %}
+                  <span class="badge bg-light text-dark border">{{ item.service.name }}</span>
+                {% empty %}
+                  <span class="text-muted">General Service</span>
+                {% endfor %}
+              </td>
+              <td>{{ appt.assigned_staff.get_full_name|default:'No preference' }}</td>
+              <td>
+                {% if appt.status == 'PENDING' %}
+                  <span class="badge bg-warning text-dark">{{ appt.get_status_display }}</span>
+                {% elif appt.status == 'APPROVED' %}
+                  <span class="badge bg-success">{{ appt.get_status_display }}</span>
+                {% elif appt.status == 'RESCHEDULED' %}
+                  <span class="badge bg-info text-dark">{{ appt.get_status_display }}</span>
+                {% elif appt.status == 'ONGOING' %}
+                  <span class="badge bg-primary">{{ appt.get_status_display }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ appt.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="d-inline-flex gap-1">
+                  <!-- Status view -->
+                  <form method="post" action="{% url 'core:customer_appointments' %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="view_status">
+                    <input type="hidden" name="reference" value="{{ appt.booking_reference }}">
+                    <button class="btn btn-outline-secondary btn-sm" style="font-size: .8rem; padding: 3px 8px;" type="submit" title="View tracking">Status</button>
+                  </form>
+
+                  <!-- Reschedule -->
+                  <form method="post" action="{% url 'core:customer_appointments' %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reschedule">
+                    <input type="hidden" name="reference" value="{{ appt.booking_reference }}">
+                    <button class="btn btn-outline-brand btn-sm" style="font-size: .8rem; padding: 3px 8px;" type="submit">Reschedule</button>
+                  </form>
+
+                  <!-- Cancel button -->
+                  <button type="button" class="btn btn-outline-danger btn-sm" style="font-size: .8rem; padding: 3px 8px;" data-bs-toggle="modal" data-bs-target="#cancelModal{{ appt.pk }}">
+                    Cancel
+                  </button>
+                </div>
+
+                <!-- Cancel Modal -->
+                <div class="modal fade text-start" id="cancelModal{{ appt.pk }}" tabindex="-1" aria-labelledby="cancelModalLabel{{ appt.pk }}" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                      <form method="post" action="{% url 'core:customer_appointments' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel">
+                        <input type="hidden" name="reference" value="{{ appt.booking_reference }}">
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="cancelModalLabel{{ appt.pk }}">Cancel Appointment #{{ appt.reference }}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                          <p class="mb-2">Are you sure you want to cancel your appointment on <strong>{{ appt.appointment_date }} at {{ appt.start_time }}</strong>?</p>
+                          <div class="mb-3">
+                            <label class="form-label small text-muted" for="reason{{ appt.pk }}">Reason for cancellation (optional):</label>
+                            <input type="text" name="reason" id="reason{{ appt.pk }}" class="form-control form-control-sm" placeholder="e.g. Schedule conflict">
+                          </div>
+                          <small class="text-muted">You can always book another appointment anytime through the booking portal.</small>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Keep Appointment</button>
+                          <button type="submit" class="btn btn-danger btn-sm">Confirm Cancel</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <div class="display-6 text-muted mb-3"><i class="bi bi-calendar-x"></i></div>
+      <h4 class="h6 text-muted mb-2">No upcoming appointments</h4>
+      <p class="text-muted small mb-3">You don't have any appointments scheduled right now.</p>
+      <a class="btn btn-brand btn-sm" href="{% url 'bookings:index' %}">Book your next visit</a>
+    </div>
+  {% endif %}
+</section>
+
+<!-- Past Appointments Card -->
+<section class="content-card" id="history">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="eyebrow">HISTORY</div>
+      <h3 class="h5 mb-0">Past visits &amp; history ({{ past_count }})</h3>
+    </div>
+  </div>
+
+  {% if past_appointments %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Service(s)</th>
+            <th>Staff</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for appt in past_appointments %}
+            <tr>
+              <td><span class="fw-semibold">#{{ appt.reference }}</span></td>
+              <td>{{ appt.appointment_date }}</td>
+              <td>{{ appt.start_time }}</td>
+              <td>
+                {% for item in appt.appointment_services.all %}
+                  <span class="badge bg-light text-dark border">{{ item.service.name }}</span>
+                {% empty %}
+                  <span class="text-muted">General Service</span>
+                {% endfor %}
+              </td>
+              <td>{{ appt.assigned_staff.get_full_name|default:'No preference' }}</td>
+              <td>
+                {% if appt.status == 'COMPLETED' %}
+                  <span class="badge bg-success">{{ appt.get_status_display }}</span>
+                {% elif appt.status == 'CANCELLED' %}
+                  <span class="badge bg-danger">{{ appt.get_status_display }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ appt.get_status_display }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted text-center py-4 mb-0">No past appointment history recorded yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
+

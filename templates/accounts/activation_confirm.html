@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Confirm Activation | {{ BRAND_NAME }}{% endblock %}
+{% block public_content %}
+<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="login-card text-center">
+    <h1 class="h3">Activate your account</h1>
+    <p class="text-muted">Continue to create your password and finish activating your account.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button class="btn btn-brand w-100" type="submit">Continue securely</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

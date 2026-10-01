@@ -1,0 +1,5 @@
+Your {{ brand_name }} MFA security changed.
+
+{{ action }}
+
+If you did not make this change, contact the account owner immediately.

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Sign In Temporarily Unavailable | {{ BRAND_NAME }}{% endblock %}
+{% block public_content %}
+<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
+  <div class="login-card text-center">
+    <div class="eyebrow">TEMPORARY PROTECTION</div>
+    <h1 class="h3">Sign in temporarily unavailable</h1>
+    <p class="text-muted">Too many unsuccessful attempts were received. Wait a few minutes before trying again, or contact the account owner.</p>
+    <a class="btn btn-outline-dark" href="{% url 'core:home' %}">Return home</a>
+  </div>
+</div>
+{% endblock %}

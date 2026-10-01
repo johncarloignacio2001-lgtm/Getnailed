@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Audit Trail | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">SECURITY OVERSIGHT</p>
+    <h2>Audit Trail</h2>
+    <p class="text-secondary mb-0">Read-only authentication, authorization, and state-change records.</p>
+  </div>
+</div>
+
+<div class="content-card mb-4">
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <h3 class="h5 mb-0">Security Events</h3>
+    <div class="d-flex gap-2 align-items-center">
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'audittrail:export_events_csv' %}">Export CSV</a>
+      <span class="badge text-bg-light">Latest 200</span>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">Time</th>
+          <th scope="col">Action</th>
+          <th scope="col">Result</th>
+          <th scope="col">User</th>
+          <th scope="col">Target</th>
+          <th scope="col">IP address</th>
+          <th scope="col">Request ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in events %}
+          <tr>
+            <td class="text-nowrap">{{ event.created_at|date:'Y-m-d H:i:s' }}</td>
+            <td>{{ event.get_action_display }}</td>
+            <td><span class="badge {% if event.result == 'SUCCESS' %}text-bg-success{% else %}text-bg-danger{% endif %}">{{ event.get_result_display }}</span></td>
+            <td>{{ event.user|default:'Anonymous' }}</td>
+            <td>{% if event.target_type %}<code>{{ event.target_type }}{% if event.target_id %}:{{ event.target_id }}{% endif %}</code>{% else %}-{% endif %}</td>
+            <td>{{ event.ip_address|default:'-' }}</td>
+            <td><code>{{ event.request_id }}</code></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-center text-secondary py-4">No security events have been recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="content-card">
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <h3 class="h5 mb-0">State-Changing Requests</h3>
+    <span class="badge text-bg-light">Latest 100</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">Time</th>
+          <th scope="col">User</th>
+          <th scope="col">Request</th>
+          <th scope="col">Status</th>
+          <th scope="col">IP address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in request_logs %}
+          <tr>
+            <td class="text-nowrap">{{ log.created_at|date:'Y-m-d H:i:s' }}</td>
+            <td>{{ log.user|default:'Deleted user' }}</td>
+            <td><code>{{ log.method }} {{ log.path }}</code></td>
+            <td>{{ log.status_code }}</td>
+            <td>{{ log.ip_address|default:'-' }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-secondary py-4">No state-changing requests have been recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

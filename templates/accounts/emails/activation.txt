@@ -1,0 +1,8 @@
+Hello {{ user.first_name|default:user.email }},
+
+An internal {{ brand_name }} account was created for this email address.
+
+Create your password and activate the account using this link:
+{{ activation_url }}
+
+This single-use link expires at {{ expires_at }}. If you did not expect this invitation, ignore this email and contact the account owner.

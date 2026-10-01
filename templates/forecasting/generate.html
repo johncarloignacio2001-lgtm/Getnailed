@@ -1,0 +1,3 @@
+{% extends 'base.html' %}
+{% block title %}Generate Forecast | {{ BRAND_NAME }}{% endblock %}
+{% block content %}<div class="content-card service-form-card"><div class="eyebrow">PREDICTION</div><h2>Generate forecasts</h2><p>Run {{ run.public_id }} will forecast each trained service category beginning {{ run.training_end|date:"Y-m-d" }} plus one day.</p><form method="post" novalidate>{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class="mb-3"><label class="form-label">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button class="btn btn-brand" type="submit">Generate and persist</button> <a class="btn btn-link" href="{% url 'forecasting:detail' public_id=run.public_id %}">Cancel</a></form></div>{% endblock %}

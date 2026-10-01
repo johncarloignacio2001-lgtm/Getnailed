@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}{{ customer.full_name }} | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <p class="eyebrow">CUSTOMER PROFILE</p>
+    <h2>{{ customer.full_name }}</h2>
+  </div>
+  <a class="btn btn-outline-brand" href="{% url 'customers:index' %}">Back to customers</a>
+</div>
+
+<div class="dashboard-kpis mb-4">
+  <div class="stat-card">
+    <span>Appointments</span>
+    <strong>{{ customer.appointments.count }}</strong>
+    <small>Total linked bookings</small>
+  </div>
+  <div class="stat-card">
+    <span>Phone</span>
+    <strong>{{ customer.phone|default:"—" }}</strong>
+    <small>Primary contact</small>
+  </div>
+  <div class="stat-card">
+    <span>Email</span>
+    <strong>{{ customer.email|default:"—" }}</strong>
+    <small>Primary email</small>
+  </div>
+  <div class="stat-card">
+    <span>Status</span>
+    <strong>Active</strong>
+    <small>Customer record</small>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="content-card">
+      <h3 class="h5 mb-3">Contact and notes</h3>
+      <form method="post" class="row g-3">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        {% for field in form %}
+          <div class="col-12">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+              <div class="text-danger small mt-1">{{ field.errors|join:' ' }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        <div class="col-12 d-flex justify-content-end">
+          <button class="btn btn-brand" type="submit">Save customer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="content-card">
+      <h3 class="h5 mb-3">Appointment history</h3>
+
+      {% for appointment in customer.appointments.all %}
+        <div class="border-top py-3{% if forloop.first %} border-0 pt-0{% endif %}">
+          <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+            <div>
+              <a href="{% url 'bookings:detail' reference=appointment.reference %}"><strong>{{ appointment.reference }}</strong></a>
+              <div class="text-secondary small">{{ appointment.appointment_date }} • {{ appointment.start_time }}</div>
+            </div>
+            <span class="badge text-bg-light text-dark">{{ appointment.get_status_display }}</span>
+          </div>
+          <div class="text-secondary">{{ appointment.service_name }}{% if appointment.assigned_staff %} • {{ appointment.assigned_staff.get_full_name }}{% endif %}</div>
+        </div>
+      {% empty %}
+        <p class="mb-0 text-secondary">No appointments recorded.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
