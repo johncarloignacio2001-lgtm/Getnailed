@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,10 +21,7 @@ if ENVIRONMENT not in {'development', 'test', 'production'}:
 IS_PRODUCTION = ENVIRONMENT == 'production'
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'getnailed.vercel.app']
-if not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
-if 'getnailed.vercel.app' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('getnailed.vercel.app')
+
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -115,16 +113,23 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': os.getenv('DB_NAME', BASE_DIR / 'db.sqlite3'),
-        'USER': os.getenv('DB_USER', ''),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', ''),
-        'PORT': os.getenv('DB_PORT', ''),
+if os.getenv("DATABASE_URL"):
+    DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
+            "NAME": (
+                os.getenv("DB_NAME")
+                if os.getenv("DB_NAME")
+                else ("/tmp/db.sqlite3" if IS_PRODUCTION else BASE_DIR / "db.sqlite3")
+            ),
+            "USER": os.getenv("DB_USER", ""),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", ""),
+            "PORT": os.getenv("DB_PORT", ""),
+        }
     }
-}
 
 CACHE_BACKEND = os.getenv(
     'DJANGO_CACHE_BACKEND',
