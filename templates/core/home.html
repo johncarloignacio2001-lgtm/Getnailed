@@ -1,17 +1,18 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block public_content %}
-<section class="public-hero min-vh-100 d-flex align-items-center">
-  <div class="container py-5">
+
+{% block content %}
+<section class="public-hero d-flex align-items-center py-5">
+  <div class="container py-4">
     <div class="row align-items-center g-5">
       <div class="col-lg-6">
         <img src="{% static 'images/get-nailed-logo.png' %}" class="hero-logo mb-4" alt="Get Nailed logo">
         <p class="eyebrow">GET NAILED NAIL BAR AND SPA</p>
-        <h1>Beautiful nails. Organized appointments. Better service.</h1>
-        <p class="lead text-muted">A polished booking and salon management experience designed for customers, staff, and management.</p>
+        <h1>Your Nails Deserve<br>The Best Care</h1>
+        <p class="lead text-muted">Experience premium nail care services in a relaxing atmosphere. Professional technicians, quality products, and exceptional service.</p>
         <div class="d-flex gap-3 flex-wrap">
-          <a class="btn btn-brand btn-lg" href="{% url 'bookings:index' %}">Book an appointment</a>
-          <a class="btn btn-outline-dark btn-lg" href="{% url 'accounts:login' %}">Staff login</a>
+          <a class="btn btn-brand btn-lg" href="{% url 'bookings:index' %}">Book Now</a>
+          <a class="btn btn-outline-dark btn-lg" href="{% url 'core:dashboard_router' %}">Go to Dashboard</a>
         </div>
       </div>
       <div class="col-lg-6">
@@ -22,4 +23,33 @@
     </div>
   </div>
 </section>
+{% include 'core/_our_services.html' %}
+{% include 'core/_visit_us.html' %}
+{% endblock %}
+
+{% block public_content %}
+{% include 'core/_topbar.html' %}
+<section class="public-hero min-vh-100 d-flex align-items-center">
+  <div class="container py-5">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <img src="{% static 'images/get-nailed-logo.png' %}" class="hero-logo mb-4" alt="Get Nailed logo">
+        <p class="eyebrow">GET NAILED NAIL BAR AND SPA</p>
+        <h1>Your Nails Deserve<br>The Best Care</h1>
+        <p class="lead text-muted">Experience premium nail care services in a relaxing atmosphere. Professional technicians, quality products, and exceptional service.</p>
+        <div class="d-flex gap-3 flex-wrap">
+          <a class="btn btn-brand btn-lg" href="{% url 'customers:customer_login' %}">Book Now</a>
+          <a class="btn btn-outline-dark btn-lg" href="{% url 'accounts:login' %}">Login</a>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="gallery-grid">
+          <img src="{% static 'images/nails-gallery.png' %}" alt="Nail art gallery">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% include 'core/_our_services.html' %}
+{% include 'core/_visit_us.html' %}
 {% endblock %}

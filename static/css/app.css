@@ -397,8 +397,319 @@ a { text-decoration: none; }
   .trend-row strong { grid-column: 2; text-align: left; font-size: .85rem; }
   .forecast-meta, .forecast-run-options ul { grid-template-columns: 1fr; }
 }
+
+/* Landing Page Topbar (Exact match to top navigation bar) */
+.landing-topbar {
+  background: var(--charcoal) !important;
+  padding: 12px 0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18) !important;
+  z-index: 1030 !important;
+  width: 100% !important;
+}
+
+.landing-brand {
+  text-decoration: none !important;
+}
+
+.landing-brand-logo {
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  background: #ffffff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+  flex-shrink: 0 !important;
+}
+
+.landing-brand-text {
+  display: flex !important;
+  flex-direction: column !important;
+  line-height: 1.15 !important;
+}
+
+.landing-brand-name {
+  color: #ffffff !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.landing-brand-sub {
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.05em !important;
+}
+
+.landing-nav-links {
+  list-style: none !important;
+}
+
+.landing-nav-link {
+  color: #ffffff !important;
+  text-decoration: underline !important;
+  text-underline-offset: 4px !important;
+  text-decoration-thickness: 1.5px !important;
+  font-size: 1.02rem !important;
+  font-weight: 600 !important;
+  padding: 6px 14px !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.landing-nav-link:hover {
+  color: #ffffff !important;
+  opacity: 0.8 !important;
+}
+
+.landing-pill-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #d6d6d6 !important;
+  color: #383838 !important;
+  font-weight: 700 !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  padding: 7px 22px !important;
+  border-radius: 999px !important;
+  text-decoration: none !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.landing-pill-btn:hover {
+  background: #ebebeb !important;
+  color: #222222 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22) !important;
+}
+
+.landing-toggler {
+  color: #ffffff !important;
+}
+
+.landing-toggler .navbar-toggler-icon {
+  filter: invert(1) grayscale(100%) brightness(200%) !important;
+}
+
+@media (max-width: 991.98px) {
+  .landing-nav-links {
+    padding-top: 14px !important;
+    gap: 10px !important;
+  }
+  .landing-nav-link {
+    padding: 8px 0 !important;
+    font-size: 1.05rem !important;
+  }
+  .landing-pill-btn {
+    width: fit-content !important;
+    margin-top: 4px !important;
+    margin-left: 0 !important;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.landing-services-section,
+.visit-us-section {
+  scroll-margin-top: 65px;
+}
+
+/* Our Services Section (Landing Page Middle) */
+.landing-services-section {
+  background: var(--blush);
+  border-top: 1.5px solid #d4c2c4;
+  padding: 65px 0 75px;
+}
+
+.landing-services-header {
+  margin-bottom: 2.75rem;
+}
+
+.landing-services-title {
+  font-size: clamp(2.2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: #383435;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.landing-services-subtitle {
+  font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+  font-weight: 600;
+  color: #554d4f;
+  letter-spacing: 0.04em;
+  margin-bottom: 0;
+}
+
+.landing-service-card-link {
+  display: block;
+  text-decoration: none !important;
+  color: inherit !important;
+  height: 100%;
+}
+
+.landing-service-card {
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(71, 71, 71, 0.07);
+  border: 1px solid rgba(230, 217, 218, 0.6);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-service-card-link:hover .landing-service-card {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(139, 79, 92, 0.16);
+  border-color: var(--dusty-rose);
+}
+
+.landing-service-img-wrap {
+  width: 100%;
+  aspect-ratio: 277 / 174;
+  overflow: hidden;
+  background: #eddfe0;
+  position: relative;
+}
+
+.landing-service-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.landing-service-card-link:hover .landing-service-img {
+  transform: scale(1.04);
+}
+
+.landing-service-body {
+  padding: 22px 24px 28px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.landing-service-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #1e1e1e;
+  margin-bottom: 0.45rem;
+  letter-spacing: -0.01em;
+}
+
+.landing-service-desc {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2b2b2b;
+  line-height: 1.35;
+  margin-bottom: 0;
+}
+
+/* Visit Us Section (Landing Page Bottom) */
+.visit-us-section {
+
+  background: #ede4e5;
+  border-top: 1.5px solid #c9aeb1;
+  padding: 55px 0 65px;
+  color: var(--charcoal);
+}
+
+.visit-us-heading {
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  font-weight: 700;
+  color: var(--charcoal);
+  margin-bottom: 2.5rem;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.visit-column-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--charcoal);
+  margin-bottom: 1.15rem;
+}
+
+.visit-list {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.visit-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 0.65rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--charcoal);
+}
+
+.visit-bullet {
+  font-size: 1.1rem;
+  line-height: 1.25;
+  color: var(--charcoal);
+  user-select: none;
+}
+
+.visit-text {
+  display: inline-flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.visit-icon {
+  display: inline-block;
+  font-size: 1rem;
+  line-height: 1.35;
+  user-select: none;
+}
+
+.visit-link {
+  color: var(--charcoal) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.visit-link:hover {
+  color: var(--deep-rose) !important;
+  text-decoration-color: var(--deep-rose) !important;
+}
+
+.visit-social-label {
+  color: var(--charcoal);
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.visit-social-item {
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
 @media print {
   .receipt-page { background: white; padding: 0; }
   .receipt { box-shadow: none; width: 80mm; padding: 6mm; }
   .receipt-actions { display: none; }
 }
+

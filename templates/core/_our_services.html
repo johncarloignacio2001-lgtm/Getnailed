@@ -1,0 +1,68 @@
+{% load static %}
+<section id="services" class="landing-services-section">
+  <div class="container">
+    <div class="landing-services-header text-center">
+      <h2 class="landing-services-title">Our Services</h2>
+      <p class="landing-services-subtitle">Professional Nail Care With Premium Products</p>
+    </div>
+
+    <div class="row g-4 g-lg-5 justify-content-center">
+      <!-- Manicure -->
+      <div class="col-12 col-md-4">
+        {% if user.is_authenticated %}
+          <a href="{% url 'bookings:index' %}" class="landing-service-card-link">
+        {% else %}
+          <a href="{% url 'customers:customer_login' %}" class="landing-service-card-link">
+        {% endif %}
+          <div class="landing-service-card">
+            <div class="landing-service-img-wrap">
+              <img src="{% static 'images/services/service-manicure.png' %}" alt="Manicure" class="landing-service-img">
+            </div>
+            <div class="landing-service-body">
+              <h3 class="landing-service-title">Manicure</h3>
+              <p class="landing-service-desc">Professional Nail Care And Styling</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Gel Polish -->
+      <div class="col-12 col-md-4">
+        {% if user.is_authenticated %}
+          <a href="{% url 'bookings:index' %}" class="landing-service-card-link">
+        {% else %}
+          <a href="{% url 'customers:customer_login' %}" class="landing-service-card-link">
+        {% endif %}
+          <div class="landing-service-card">
+            <div class="landing-service-img-wrap">
+              <img src="{% static 'images/services/service-gel-polish.png' %}" alt="Gel Polish" class="landing-service-img">
+            </div>
+            <div class="landing-service-body">
+              <h3 class="landing-service-title">Gel Polish</h3>
+              <p class="landing-service-desc">Long-Lasting Gel Manicure</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Nail Art -->
+      <div class="col-12 col-md-4">
+        {% if user.is_authenticated %}
+          <a href="{% url 'bookings:index' %}" class="landing-service-card-link">
+        {% else %}
+          <a href="{% url 'customers:customer_login' %}" class="landing-service-card-link">
+        {% endif %}
+          <div class="landing-service-card">
+            <div class="landing-service-img-wrap">
+              <img src="{% static 'images/services/service-nail-art.png' %}" alt="Nail Art" class="landing-service-img">
+            </div>
+            <div class="landing-service-body">
+              <h3 class="landing-service-title">Nail Art</h3>
+              <p class="landing-service-desc">Custom Designs And Decorations</p>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
