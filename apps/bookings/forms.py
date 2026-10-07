@@ -96,15 +96,29 @@ class PublicScheduleForm(forms.Form):
         widget=forms.Select(attrs=FORM_CONTROL),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, services=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["assigned_staff"].queryset = User.objects.filter(
+        qs = User.objects.filter(
             role=User.Role.STAFF,
             is_active=True,
             is_active_staff_member=True,
             staff_profile__is_active=True,
             staff_profile__availability_status=StaffProfile.Availability.AVAILABLE,
-        ).order_by("first_name", "last_name", "email")
+        ).select_related("staff_profile").order_by("first_name", "last_name", "email")
+
+        if services:
+            qualified_ids = [
+                u.pk for u in qs
+                if hasattr(u, "staff_profile") and all(u.staff_profile.can_perform(s) for s in services)
+            ]
+            qs = qs.filter(pk__in=qualified_ids)
+
+        self.fields["assigned_staff"].queryset = qs
+        self.fields["assigned_staff"].label_from_instance = (
+            lambda u: f"{u.get_full_name()} — {u.staff_profile.specialty}"
+            if getattr(u, "staff_profile", None) and u.staff_profile.specialty
+            else u.get_full_name() or u.email
+        )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -177,7 +191,12 @@ class AppointmentScheduleForm(forms.ModelForm):
             is_active_staff_member=True,
             staff_profile__is_active=True,
             staff_profile__availability_status=StaffProfile.Availability.AVAILABLE,
-        ).order_by("first_name", "last_name", "email")
+        ).select_related("staff_profile").order_by("first_name", "last_name", "email")
+        self.fields["assigned_staff"].label_from_instance = (
+            lambda u: f"{u.get_full_name()} — {u.staff_profile.specialty}"
+            if getattr(u, "staff_profile", None) and u.staff_profile.specialty
+            else u.get_full_name() or u.email
+        )
 
     def clean(self):
         cleaned_data = super().clean()

@@ -2,11 +2,16 @@
 {% block title %}Staff Profiles | {{ BRAND_NAME }}{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><p class="eyebrow">SALON ROSTER</p><h2>Staff Profiles</h2><p class="text-secondary mb-0">Operational specialties and appointment availability.</p></div>
-  <a class="btn btn-brand" href="{% url 'services:staff_create' %}">Add profile</a>
+  <div><p class="eyebrow">SALON ROSTER</p><h2>Staff Profiles</h2><p class="text-secondary mb-0">Operational specialties, service qualifications, and appointment availability.</p></div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-dark" href="{% url 'services:schedule_list' %}">Staff Schedules</a>
+    <a class="btn btn-outline-dark" href="{% url 'services:time_block_list' %}">Time Blocks</a>
+    <a class="btn btn-brand" href="{% url 'services:staff_create' %}">Add profile</a>
+  </div>
 </div>
 <form class="content-card service-filter mb-4" method="get">
   <div><label class="form-label" for="{{ filter_form.q.id_for_label }}">Search</label>{{ filter_form.q }}</div>
+  <div><label class="form-label" for="{{ filter_form.specialty.id_for_label }}">Specialty</label>{{ filter_form.specialty }}</div>
   <div><label class="form-label" for="{{ filter_form.availability.id_for_label }}">Availability</label>{{ filter_form.availability }}</div>
   <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Profile status</label>{{ filter_form.status }}</div>
   <div class="d-flex align-items-end gap-2"><button class="btn btn-brand" type="submit">Apply</button><a class="btn btn-outline-secondary" href="{% url 'services:staff_list' %}">Reset</a></div>
@@ -14,22 +19,53 @@
 <div class="content-card">
   <div class="table-responsive">
     <table class="table align-middle mb-0">
-      <thead><tr><th scope="col">Staff member</th><th scope="col">Specialty</th><th scope="col">Availability</th><th scope="col">Profile</th><th scope="col" class="text-end">Actions</th></tr></thead>
+      <thead>
+        <tr>
+          <th scope="col">Staff member</th>
+          <th scope="col">Specialty</th>
+          <th scope="col">Qualified Skills</th>
+          <th scope="col">Availability</th>
+          <th scope="col">Profile</th>
+          <th scope="col" class="text-end">Actions</th>
+        </tr>
+      </thead>
       <tbody>
         {% for profile in page_obj %}
           <tr>
-            <td><strong>{{ profile.user }}</strong><br><small class="text-secondary">{{ profile.user.email }}</small></td>
-            <td>{{ profile.specialty|default:'General nail care' }}</td>
+            <td>
+              <strong>{{ profile.user.get_full_name|default:profile.user.email }}</strong>
+              {% if profile.user.can_use_pos %}
+                <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="Authorized Cashier / POS"><i class="bi bi-cash-coin me-1"></i>Cashier</span>
+              {% endif %}
+              <br><small class="text-secondary">{{ profile.user.email }}</small>
+            </td>
+            <td><span class="badge text-bg-dark-subtle text-dark border">{{ profile.specialty|default:'General nail care' }}</span></td>
+            <td>
+              {% if profile.skills.exists %}
+                <span class="badge text-bg-light border" title="{% for s in profile.skills.all %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                  <i class="bi bi-stars me-1"></i> {{ profile.skills.count }} qualified service(s)
+                </span>
+              {% else %}
+                <span class="badge text-bg-success-subtle text-success border border-success-subtle">
+                  <i class="bi bi-check-circle me-1"></i> Qualified for all services
+                </span>
+              {% endif %}
+            </td>
             <td><span class="badge text-bg-light">{{ profile.get_availability_status_display }}</span></td>
             <td>{% if profile.is_active %}<span class="text-success">Active</span>{% else %}<span class="text-secondary">Inactive</span>{% endif %}</td>
-            <td class="text-end text-nowrap"><a class="btn btn-sm btn-outline-dark" href="{% url 'services:staff_update' profile.pk %}">Edit</a> <a class="btn btn-sm btn-outline-danger" href="{% url 'services:staff_delete' profile.pk %}">Delete</a></td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'services:schedule_list' %}?staff={{ profile.user.pk }}" title="View/manage working shifts">Shifts</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'services:time_block_list' %}?staff={{ profile.user.pk }}" title="View/manage breaks and leaves">Time Blocks</a>
+              <a class="btn btn-sm btn-outline-dark" href="{% url 'services:staff_update' profile.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'services:staff_delete' profile.pk %}">Delete</a>
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="text-center text-secondary py-4">No staff profiles match these filters.</td></tr>
+          <tr><td colspan="6" class="text-center text-secondary py-4">No staff profiles match these filters.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-{% include 'services/pagination.html' with page_obj=page_obj q=filter_form.q.value availability=filter_form.availability.value status=filter_form.status.value %}
+{% include 'services/pagination.html' with page_obj=page_obj q=filter_form.q.value specialty=filter_form.specialty.value availability=filter_form.availability.value status=filter_form.status.value %}
 {% endblock %}

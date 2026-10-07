@@ -192,6 +192,19 @@ class AuthorizationMatrixTests(TestCase):
         )
         self.assertRedirects(
             response,
+            reverse("customers:customer_login_verify_otp"),
+            fetch_redirect_response=False,
+        )
+        import re
+        from django.core import mail
+        match = re.search(r"\b\d{6}\b", mail.outbox[-1].body)
+        self.assertIsNotNone(match)
+        verify_resp = customer_client.post(
+            reverse("customers:customer_login_verify_otp"),
+            {"code": match.group(0)},
+        )
+        self.assertRedirects(
+            verify_resp,
             reverse("core:customer_dashboard"),
             fetch_redirect_response=False,
         )
@@ -225,18 +238,25 @@ class AuthorizationMatrixTests(TestCase):
         self.assertContains(staff_response, 'class="sidebar"')
         self.assertNotContains(staff_response, 'customer-navbar')
 
-    def test_customer_logout_redirects_to_customer_login(self):
+    def test_customer_logout_redirects_to_landing_page(self):
         self.client.force_login(self.customer)
         response = self.client.post(reverse("accounts:logout"))
-        self.assertRedirects(response, reverse("customers:customer_login"))
+        self.assertRedirects(response, reverse("core:home"))
 
-    def test_customer_logout_all_devices_redirects_to_customer_login(self):
+    def test_customer_logout_all_devices_redirects_to_landing_page(self):
         self.client.post(
-            reverse("accounts:login"),
+            reverse("customers:customer_login"),
             {"login": self.customer.email, "password": PASSWORD},
         )
+        import re
+        from django.core import mail
+        match = re.search(r"\b\d{6}\b", mail.outbox[-1].body)
+        self.client.post(
+            reverse("customers:customer_login_verify_otp"),
+            {"code": match.group(0)},
+        )
         response = self.client.post(reverse("accounts:logout_all_devices"))
-        self.assertRedirects(response, reverse("customers:customer_login"))
+        self.assertRedirects(response, reverse("core:home"))
 
     def test_fine_grained_capabilities_are_not_role_field_tampering(self):
         self.assertTrue(has_capability(self.cashier, CAPABILITY_USE_POS))

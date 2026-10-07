@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block title %}Close Register & Till Reconciliation | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">CASHIER MANAGEMENT</div>
+    <h2>Close Register & Reconcile Till</h2>
+    <p class="text-muted mb-0">End shift #{{ shift.pk }}, count drawer cash, and reconcile physical cash against recorded sales.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'pos:shift_dashboard' %}">← Back to Till</a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="content-card mb-4">
+      <h4 class="mb-3">Shift Financial Summary</h4>
+      
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small text-uppercase d-block">Opening Float</span>
+            <strong class="fs-5">₱{{ shift.opening_cash|floatformat:2 }}</strong>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small text-uppercase d-block">Cash Sales</span>
+            <strong class="fs-5 text-success">+₱{{ cash_sales|floatformat:2 }}</strong>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small text-uppercase d-block">E-Wallet Sales</span>
+            <strong class="fs-5 text-info">₱{{ ewallet_sales|floatformat:2 }}</strong>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center border border-primary border-2">
+            <span class="text-primary small text-uppercase fw-bold d-block">Expected Cash</span>
+            <strong class="fs-5 text-primary">₱{{ expected_cash|floatformat:2 }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning mb-4">
+        <strong>Important:</strong> Expected cash in drawer is calculated as <code>Opening Float (₱{{ shift.opening_cash|floatformat:2 }}) + Cash Sales (₱{{ cash_sales|floatformat:2 }}) = ₱{{ expected_cash|floatformat:2 }}</code>. Non-cash payments (GCash, Maya, cards) stay outside the cash drawer.
+      </div>
+
+      <form method="post" novalidate id="close-shift-form">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="mb-4">
+          <label class="form-label fw-bold" for="{{ form.closing_cash.id_for_label }}">Actual Counted Cash in Drawer (₱)</label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text bg-light">₱</span>
+            {{ form.closing_cash }}
+          </div>
+          {% if form.closing_cash.errors %}
+            <div class="text-danger small mt-1">{{ form.closing_cash.errors }}</div>
+          {% endif %}
+          <div class="form-text">Count every bill and coin physically present in the drawer right now.</div>
+        </div>
+
+        <div class="p-3 bg-light rounded mb-4" id="variance-preview-box">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-muted small text-uppercase">Reconciliation Variance (Over / Short):</span>
+              <h4 class="mb-0" id="variance-amount">₱0.00</h4>
+            </div>
+            <div id="variance-badge">
+              <span class="badge bg-secondary fs-6">Enter Count</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label" for="{{ form.notes.id_for_label }}">Discrepancy Explanation & Notes</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}
+            <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+          {% endif %}
+          <div class="form-text">Provide an explanation if there is an overage or shortage.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-brand btn-lg flex-grow-1" onclick="return confirm('Are you sure you want to close shift #{{ shift.pk }}? This action is permanent.');">
+            Finalize Reconciliation & Close Register
+          </button>
+          <a href="{% url 'pos:shift_dashboard' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const expected = parseFloat("{{ expected_cash }}") || 0;
+    const closingInput = document.getElementById("{{ form.closing_cash.id_for_label }}");
+    const varianceAmount = document.getElementById("variance-amount");
+    const varianceBadge = document.getElementById("variance-badge");
+
+    function updateVariance() {
+      if (!closingInput || !varianceAmount) return;
+      const counted = parseFloat(closingInput.value);
+      if (isNaN(counted)) {
+        varianceAmount.textContent = "₱0.00";
+        varianceBadge.innerHTML = '<span class="badge bg-secondary fs-6">Enter Count</span>';
+        return;
+      }
+      const diff = counted - expected;
+      const formatted = Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      if (Math.abs(diff) < 0.005) {
+        varianceAmount.textContent = "₱0.00 (Balanced)";
+        varianceBadge.innerHTML = '<span class="badge bg-success fs-6">Exact Match</span>';
+      } else if (diff > 0) {
+        varianceAmount.textContent = "+₱" + formatted + " (Overage)";
+        varianceBadge.innerHTML = '<span class="badge bg-info text-dark fs-6">Cash Over</span>';
+      } else {
+        varianceAmount.textContent = "-₱" + formatted + " (Shortage)";
+        varianceBadge.innerHTML = '<span class="badge bg-danger fs-6">Cash Short</span>';
+      }
+    }
+
+    if (closingInput) {
+      closingInput.addEventListener("input", updateVariance);
+      updateVariance();
+    }
+  });
+</script>
+{% endblock %}
+

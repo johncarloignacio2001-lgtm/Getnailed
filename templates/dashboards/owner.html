@@ -1,3 +1,520 @@
 {% extends 'base.html' %}
+{% load humanize static %}
 {% block title %}Owner Dashboard | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading service-heading"><div><div class="eyebrow">OWNER WORKSPACE · {{ today }}</div><h2>Business overview</h2></div><a class="btn btn-brand" href="{% url 'reports:index' %}">Open reports</a></div><div class="dashboard-kpis"><div class="stat-card"><span>Today's net sales</span><strong>₱{{ today_sales.net|floatformat:2 }}</strong><small>{{ today_sales.transactions }} completed transactions</small></div><div class="stat-card"><span>Customers</span><strong>{{ customer_count }}</strong><small>Verified customer records</small></div><div class="stat-card"><span>Appointments</span><strong>{{ appointment_count }}</strong><small>Verified appointment records</small></div><div class="stat-card"><span>Ongoing services</span><strong>{{ ongoing_services }}</strong><small>Live service work</small></div></div><div class="dashboard-grid mt-4"><section class="content-card dashboard-wide"><div class="d-flex justify-content-between align-items-center"><div><div class="eyebrow">LAST 7 DAYS</div><h3 class="h5">Sales trend</h3></div><strong>Peak ₱{{ sales_trend_max|floatformat:2 }}</strong></div><div class="sales-trend">{% for point in sales_trend %}<div class="trend-row"><span>{{ point.date|date:"D" }}</span><div><i style="width:{{ point.percent }}%"></i></div><strong>₱{{ point.total|floatformat:2 }}</strong></div>{% endfor %}</div></section><section class="content-card"><div class="eyebrow">BY QUANTITY</div><h3 class="h5">Top services</h3>{% for row in top_services %}<div class="rank-row"><span>{{ forloop.counter }}</span><div><strong>{{ row.service_name }}</strong><small>{{ row.quantity }} sold · ₱{{ row.revenue|floatformat:2 }}</small></div></div>{% empty %}<p class="text-muted">No completed sales yet.</p>{% endfor %}</section><section class="content-card"><div class="eyebrow">COMPLETED WORK</div><h3 class="h5">Top staff</h3>{% for staff in top_staff %}<div class="rank-row"><span>{{ forloop.counter }}</span><div><strong>{{ staff }}</strong><small>{{ staff.completed_services }} completed services</small></div></div>{% empty %}<p class="text-muted">No completed service work yet.</p>{% endfor %}</section><section class="content-card dashboard-wide"><div class="d-flex justify-content-between"><div><div class="eyebrow">LATEST</div><h3 class="h5">Recent transactions</h3></div><a href="{% url 'pos:history' %}">View history</a></div><div class="table-responsive"><table class="table"><thead><tr><th>Receipt</th><th>Customer</th><th>Cashier</th><th>Total</th><th>Time</th></tr></thead><tbody>{% for sale in recent_transactions %}<tr><td><a href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">{{ sale.receipt_number }}</a></td><td>{{ sale.customer_name_snapshot }}</td><td>{{ sale.cashier_name_snapshot }}</td><td>₱{{ sale.total|floatformat:2 }}</td><td>{{ sale.created_at }}</td></tr>{% empty %}<tr><td colspan="5">No completed transactions.</td></tr>{% endfor %}</tbody></table></div></section></div>{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading flex-wrap gap-3">
+  <div>
+    <div class="eyebrow">OWNER WORKSPACE · {{ today }}</div>
+    <h2 class="mb-1">Business overview</h2>
+    <p class="text-muted small mb-0">Live salon performance metrics, revenue tracking, and operational KPIs.</p>
+  </div>
+  <div class="d-flex align-items-center flex-wrap gap-2">
+    <div class="btn-group btn-group-sm" role="group" aria-label="KPI Period Filter">
+      <a href="{% url 'core:owner_dashboard' %}?period=today" class="btn {% if period == 'today' %}btn-brand{% else %}btn-outline-secondary{% endif %}">Today</a>
+      <a href="{% url 'core:owner_dashboard' %}?period=week" class="btn {% if period == 'week' %}btn-brand{% else %}btn-outline-secondary{% endif %}">7 Days</a>
+      <a href="{% url 'core:owner_dashboard' %}?period=month" class="btn {% if period == 'month' %}btn-brand{% else %}btn-outline-secondary{% endif %}">This Month</a>
+      <a href="{% url 'core:owner_dashboard' %}?period=all" class="btn {% if period == 'all' %}btn-brand{% else %}btn-outline-secondary{% endif %}">All Time</a>
+    </div>
+    <a class="btn btn-outline-dark btn-sm" href="{% url 'services:time_block_list' %}">
+      <i class="bi bi-calendar3-range me-1"></i> Time Blocks
+    </a>
+    <a class="btn btn-brand btn-sm" href="{% url 'reports:index' %}">
+      <i class="bi bi-graph-up-arrow me-1"></i> Reports
+    </a>
+    <a class="btn btn-outline-brand btn-sm" href="{% url 'pos:index' %}">
+      <i class="bi bi-cart3 me-1"></i> POS
+    </a>
+  </div>
+</div>
+
+{% if pending_appointments_count > 0 %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center mb-4 py-2 px-3 rounded-4 shadow-sm border-warning">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-circle-fill text-warning fs-5"></i>
+    <span><strong>Action Required:</strong> You have <strong>{{ pending_appointments_count }}</strong> pending appointment{{ pending_appointments_count|pluralize }} awaiting confirmation.</span>
+  </div>
+  <a href="{% url 'bookings:manage' %}?status=PENDING" class="btn btn-sm btn-warning text-dark fw-semibold">Review Appointments →</a>
+</div>
+{% endif %}
+
+{% if period != 'today' %}
+<div class="alert alert-light border d-flex justify-content-between align-items-center mb-4 py-2 px-3 rounded-4 shadow-sm">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-funnel-fill text-brand fs-5"></i>
+    <span>Filtered View: <strong>{{ period_label }}</strong> &bull; Net Sales: <strong>₱{{ period_sales.net|floatformat:2 }}</strong> ({{ period_sales.transactions }} transaction{{ period_sales.transactions|pluralize }} &bull; Avg ₱{{ period_avg_ticket|floatformat:2 }}) &bull; {{ period_appointments_count }} appointment{{ period_appointments_count|pluralize }}</span>
+  </div>
+  <a href="{% url 'core:owner_dashboard' %}" class="btn btn-sm btn-outline-secondary">Reset to Today</a>
+</div>
+{% endif %}
+
+<div class="dashboard-kpis">
+  <a href="{% url 'reports:daily' %}" class="stat-card stat-card-interactive" title="View Daily Sales Report">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Today's net sales</span>
+      <i class="bi bi-cash-stack text-success card-icon"></i>
+    </div>
+    <strong>₱{{ today_sales.net|floatformat:2 }}</strong>
+    <small>{{ today_sales.transactions }} completed transaction{{ today_sales.transactions|pluralize }} &bull; Avg ₱{{ today_avg_ticket|floatformat:2 }}</small>
+  </a>
+
+  <a href="{% url 'reports:monthly' %}" class="stat-card stat-card-interactive" title="View Monthly Sales Report">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>This month's sales</span>
+      <i class="bi bi-graph-up text-primary card-icon"></i>
+    </div>
+    <strong>₱{{ month_sales.net|floatformat:2 }}</strong>
+    <small>{{ month_sales.transactions }} transaction{{ month_sales.transactions|pluralize }} &bull; Gross ₱{{ month_sales.gross|floatformat:2 }}</small>
+  </a>
+
+  <a href="{% url 'bookings:manage' %}?date={{ today|date:'Y-m-d' }}" class="stat-card stat-card-interactive" title="Manage Today's Appointments">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Today's bookings</span>
+      <i class="bi bi-calendar-check text-info card-icon"></i>
+    </div>
+    <div class="d-flex align-items-baseline gap-2">
+      <strong>{{ today_appointments_count }}</strong>
+      {% if pending_appointments_count > 0 %}
+        <span class="badge bg-warning text-dark">{{ pending_appointments_count }} pending</span>
+      {% endif %}
+    </div>
+    <small>{{ today_completed_appointments }} completed today &bull; {{ appointment_count }} all-time</small>
+  </a>
+
+  <a href="{% url 'monitoring:index' %}" class="stat-card stat-card-interactive" title="Open Live Service Board">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Ongoing services</span>
+      <i class="bi bi-scissors text-danger card-icon"></i>
+    </div>
+    <strong>{{ ongoing_services }}</strong>
+    <small>Live service work in progress</small>
+  </a>
+
+  <a href="{% url 'services:staff_list' %}" class="stat-card stat-card-interactive" title="View Staff Profiles">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Staff on duty</span>
+      <i class="bi bi-person-badge text-secondary card-icon"></i>
+    </div>
+    <div class="d-flex align-items-baseline gap-2">
+      <strong>{{ staff_on_duty_today }}</strong>
+      <span class="text-muted small">/ {{ active_staff_count }} roster</span>
+    </div>
+    <small>{% if active_shifts_count %}{{ active_shifts_count }} open till shift{{ active_shifts_count|pluralize }}{% else %}No till shifts open{% endif %}</small>
+  </a>
+
+  <a href="{% url 'customers:index' %}" class="stat-card stat-card-interactive" title="View Customer Records">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Customers</span>
+      <i class="bi bi-people text-warning card-icon"></i>
+    </div>
+    <strong>{{ customer_count }}</strong>
+    <small>Verified records &bull; +{{ new_customers_this_month }} new this month</small>
+  </a>
+</div>
+
+<!-- 3 KPI Graphs Row based on visual specs -->
+<div class="kpi-graphs-grid">
+  <!-- Card 1: Sales by Category -->
+  <div class="kpi-card">
+    <div class="kpi-card-header">
+      <div>
+        <h3 class="kpi-card-title">Sales by Category</h3>
+        <p class="kpi-card-subtitle">Revenue share per service category</p>
+      </div>
+      <div class="kpi-card-icon-badge" title="Sales by Category">
+        <i class="bi bi-clock"></i>
+      </div>
+    </div>
+    <div class="kpi-chart-container">
+      <canvas id="categorySalesChart"></canvas>
+      {% if not kpi_charts_payload.category.has_data %}
+      <div class="kpi-empty-overlay">No sales in this period</div>
+      {% endif %}
+    </div>
+    <div class="kpi-legend">
+      {% for item in category_sales_list %}
+      <div class="kpi-legend-item">
+        <span class="kpi-legend-dot" style="background-color: {{ item.color }};"></span>
+        <span>{{ item.name }}</span>
+      </div>
+      {% empty %}
+      <span class="text-muted small">No categories recorded</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Card 2: Payment Method Breakdown -->
+  <div class="kpi-card">
+    <div class="kpi-card-header">
+      <div>
+        <h3 class="kpi-card-title">Payment Method Breakdown</h3>
+        <p class="kpi-card-subtitle">Cash vs GCash vs Maya collections</p>
+      </div>
+      <div class="kpi-card-icon-badge" title="Payment Methods">
+        <i class="bi bi-wallet2"></i>
+      </div>
+    </div>
+    <div class="kpi-chart-container">
+      <canvas id="paymentMethodChart"></canvas>
+      {% if not kpi_charts_payload.payment.has_data %}
+      <div class="kpi-empty-overlay">No payments in this period</div>
+      {% endif %}
+    </div>
+    <div class="kpi-legend">
+      {% for item in payment_method_list %}
+      <div class="kpi-legend-item">
+        <span class="kpi-legend-dot" style="background-color: {{ item.color }};"></span>
+        <span>{{ item.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="kpi-payment-stats">
+      <div>
+        <div class="kpi-payment-stat-label">Cash</div>
+        <div class="kpi-payment-stat-value">₱{{ payment_totals.cash|floatformat:2|intcomma }}</div>
+      </div>
+      <div>
+        <div class="kpi-payment-stat-label">GCash</div>
+        <div class="kpi-payment-stat-value">₱{{ payment_totals.gcash|floatformat:2|intcomma }}</div>
+      </div>
+      <div>
+        <div class="kpi-payment-stat-label">Maya</div>
+        <div class="kpi-payment-stat-value">₱{{ payment_totals.maya|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+    {% if payment_totals.card > 0 or payment_totals.bank > 0 %}
+    <div class="d-flex justify-content-center gap-3 mt-2 pt-2 border-top border-secondary-subtle small">
+      {% if payment_totals.card > 0 %}
+      <div><span class="text-muted">Card:</span> <strong>₱{{ payment_totals.card|floatformat:2|intcomma }}</strong></div>
+      {% endif %}
+      {% if payment_totals.bank > 0 %}
+      <div><span class="text-muted">Bank:</span> <strong>₱{{ payment_totals.bank|floatformat:2|intcomma }}</strong></div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Card 3: Peak Rush Hours -->
+  <div class="kpi-card">
+    <div class="kpi-card-header">
+      <div>
+        <h3 class="kpi-card-title">Peak Rush Hours</h3>
+        <p class="kpi-card-subtitle">Store traffic &amp; order volume by hour</p>
+      </div>
+      <div class="kpi-card-icon-badge" title="Peak Rush Hours">
+        <i class="bi bi-clock"></i>
+      </div>
+    </div>
+    <div class="kpi-chart-container">
+      <canvas id="peakRushHoursChart"></canvas>
+    </div>
+    <div class="kpi-rush-footer mt-auto pt-2 text-center text-muted small">
+      <span>Hourly order volume &amp; store traffic</span>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid mt-4">
+
+  <section class="content-card">
+    <div class="eyebrow">BY QUANTITY</div>
+    <h3 class="h5">Top services</h3>
+    {% for row in top_services %}
+    <div class="rank-row">
+      <span>{{ forloop.counter }}</span>
+      <div>
+        <strong>{{ row.service_name }}</strong>
+        <small>{{ row.quantity }} sold · ₱{{ row.revenue|floatformat:2 }}</small>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No completed sales yet.</p>
+    {% endfor %}
+  </section>
+
+  <section class="content-card">
+    <div class="eyebrow">COMPLETED WORK</div>
+    <h3 class="h5">Top staff</h3>
+    {% for staff in top_staff %}
+    <div class="rank-row">
+      <span>{{ forloop.counter }}</span>
+      <div>
+        <strong>{{ staff }}</strong>
+        <small>{{ staff.completed_services }} completed services</small>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No completed service work yet.</p>
+    {% endfor %}
+  </section>
+
+  <section class="content-card dashboard-wide">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <div class="eyebrow">LATEST</div>
+        <h3 class="h5 mb-0">Recent transactions</h3>
+      </div>
+      <a class="btn btn-outline-brand btn-sm" href="{% url 'pos:history' %}">View history</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Receipt</th>
+            <th>Customer</th>
+            <th>Cashier</th>
+            <th>Total</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in recent_transactions %}
+          <tr>
+            <td><a class="fw-semibold" href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">{{ sale.receipt_number }}</a></td>
+            <td>{{ sale.customer_name_snapshot }}</td>
+            <td>{{ sale.cashier_name_snapshot }}</td>
+            <td>₱{{ sale.total|floatformat:2 }}</td>
+            <td>{{ sale.created_at|date:"M d, Y h:i A" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-muted text-center py-4">No completed transactions.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{{ kpi_charts_payload|json_script:"kpi-charts-payload" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
+<script>
+  if (typeof Chart === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>');
+  }
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const payloadEl = document.getElementById("kpi-charts-payload");
+    if (!payloadEl) return;
+    let kpiPayload = {};
+    try {
+      kpiPayload = JSON.parse(payloadEl.textContent);
+    } catch(e) {
+      console.error("Failed to parse KPI chart data:", e);
+      return;
+    }
+
+    if (window.Chart) {
+      Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    }
+
+    // 1. Sales by Category (Doughnut)
+    const catPayload = kpiPayload.category || {};
+    const catCtx = document.getElementById("categorySalesChart");
+    if (catCtx && window.Chart) {
+      if (catPayload.has_data && catPayload.data && catPayload.data.length > 0) {
+        new Chart(catCtx, {
+          type: "doughnut",
+          data: {
+            labels: catPayload.labels,
+            datasets: [{
+              data: catPayload.data,
+              backgroundColor: catPayload.colors,
+              borderWidth: 2,
+              borderColor: "#ebf5ee",
+              hoverOffset: 4,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "70%",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "rgba(17, 24, 39, 0.95)",
+                titleFont: { size: 12, weight: "bold" },
+                bodyFont: { size: 12 },
+                padding: 10,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function(context) {
+                    const val = Number(context.parsed) || 0;
+                    const total = catPayload.total || 1;
+                    const pct = ((val / total) * 100).toFixed(1);
+                    return ` ${context.label}: ₱${val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } else {
+        new Chart(catCtx, {
+          type: "doughnut",
+          data: {
+            labels: ["No sales"],
+            datasets: [{
+              data: [1],
+              backgroundColor: ["#d1e7d8"],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "70%",
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false }
+            }
+          }
+        });
+      }
+    }
+
+    // 2. Payment Method Breakdown (Doughnut)
+    const payPayload = kpiPayload.payment || {};
+    const payCtx = document.getElementById("paymentMethodChart");
+    if (payCtx && window.Chart) {
+      if (payPayload.has_data && payPayload.data && payPayload.data.length > 0) {
+        new Chart(payCtx, {
+          type: "doughnut",
+          data: {
+            labels: payPayload.labels,
+            datasets: [{
+              data: payPayload.data,
+              backgroundColor: payPayload.colors,
+              borderWidth: 2,
+              borderColor: "#ebf5ee",
+              hoverOffset: 4,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "70%",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "rgba(17, 24, 39, 0.95)",
+                titleFont: { size: 12, weight: "bold" },
+                bodyFont: { size: 12 },
+                padding: 10,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function(context) {
+                    const val = Number(context.parsed) || 0;
+                    const total = payPayload.total || 1;
+                    const pct = ((val / total) * 100).toFixed(1);
+                    return ` ${context.label}: ₱${val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } else {
+        new Chart(payCtx, {
+          type: "doughnut",
+          data: {
+            labels: ["No payments"],
+            datasets: [{
+              data: [1],
+              backgroundColor: ["#d1e7d8"],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "70%",
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false }
+            }
+          }
+        });
+      }
+    }
+
+    // 3. Peak Rush Hours (Bar)
+    const peakPayload = kpiPayload.peak_hours || {};
+    const peakCtx = document.getElementById("peakRushHoursChart");
+    if (peakCtx && window.Chart) {
+      const dataArr = peakPayload.data || [];
+      const maxVal = Math.max(...dataArr, 0);
+      new Chart(peakCtx, {
+        type: "bar",
+        data: {
+          labels: peakPayload.labels || [],
+          datasets: [{
+            label: "Volume",
+            data: dataArr,
+            backgroundColor: "#f59e0b",
+            hoverBackgroundColor: "#d97706",
+            borderRadius: 4,
+            borderSkipped: false,
+            maxBarThickness: 16,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "rgba(17, 24, 39, 0.95)",
+              titleFont: { size: 12, weight: "bold" },
+              bodyFont: { size: 12 },
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                title: function(context) {
+                  return context[0].label;
+                },
+                label: function(context) {
+                  const val = context.parsed.y;
+                  return ` ${val} ${val === 1 ? 'order / visit' : 'orders / visits'}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: "#4b5563",
+                font: { size: 10 },
+                maxRotation: 45,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 9,
+              }
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax: Math.max(maxVal + 1, 5),
+              ticks: {
+                stepSize: 1,
+                precision: 0,
+                color: "#4b5563",
+                font: { size: 11 },
+              },
+              grid: {
+                color: "rgba(0, 0, 0, 0.06)",
+                drawBorder: false,
+              }
+            }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

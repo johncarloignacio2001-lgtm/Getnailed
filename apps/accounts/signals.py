@@ -40,6 +40,7 @@ def rotate_identifier_after_login(sender, request, **kwargs):
 def notify_new_login_device(sender, request, user, **kwargs):
     if request.path not in {
         "/accounts/login/",
+        "/customers/login/verify/",
         "/security/login/",
         "/security/2fa/authenticate/",
         "/admin/login/",

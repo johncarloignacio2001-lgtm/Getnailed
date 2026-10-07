@@ -1,9 +1,24 @@
+import re
+
 from django import forms
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.password_validation import (
+    CommonPasswordValidator,
+    MinimumLengthValidator,
+    NumericPasswordValidator,
+    UserAttributeSimilarityValidator,
+    validate_password,
+)
 from django.core.exceptions import ValidationError
 
 from .models import Customer
 from apps.accounts.models import User
+
+CUSTOMER_PASSWORD_VALIDATORS = [
+    UserAttributeSimilarityValidator(),
+    MinimumLengthValidator(min_length=8),
+    CommonPasswordValidator(),
+    NumericPasswordValidator(),
+]
 
 
 class CustomerAccountForm(forms.Form):
@@ -24,28 +39,28 @@ class CustomerAccountForm(forms.Form):
 class CustomerRegistrationForm(forms.Form):
     first_name = forms.CharField(
         max_length=100,
-        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "given-name"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "given-name", "placeholder": "First name"}),
     )
     last_name = forms.CharField(
         max_length=100,
-        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "family-name"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "family-name", "placeholder": "Last name"}),
     )
     email = forms.EmailField(
-        widget=forms.EmailInput(attrs={"class": "form-control", "autocomplete": "email"})
+        widget=forms.EmailInput(attrs={"class": "form-control", "autocomplete": "email", "placeholder": "name@example.com"})
     )
     phone = forms.CharField(
         required=False,
         max_length=30,
-        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "tel"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "tel", "placeholder": "09XXXXXXXXX"}),
     )
     password = forms.CharField(
         strip=False,
-        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password"}),
+        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password", "placeholder": "Enter password"}),
     )
     password_confirmation = forms.CharField(
         label="Confirm password",
         strip=False,
-        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password"}),
+        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password", "placeholder": "Confirm password"}),
     )
 
     def clean_email(self):
@@ -57,8 +72,21 @@ class CustomerRegistrationForm(forms.Form):
         return email
 
     def clean_password(self):
-        password = self.cleaned_data["password"]
-        validate_password(password)
+        password = self.cleaned_data.get("password", "")
+        errors = []
+        if len(password) < 8:
+            errors.append("Password must be at least 8 characters long.")
+        if not re.search(r"[A-Z]", password):
+            errors.append("Password must contain at least one uppercase letter [A-Z].")
+        if not re.search(r"[a-z]", password):
+            errors.append("Password must contain at least one lowercase letter [a-z].")
+        if not re.search(r"\d", password):
+            errors.append("Password must contain at least one numeric character [0-9].")
+        if not re.search(r"""[!@#$%^&*(),.?":{}|<>'_\-+=\[\]\\/~`]""", password):
+            errors.append("Password must contain at least one special character ['!@$% etc].")
+        if errors:
+            raise ValidationError(errors)
+        validate_password(password, password_validators=CUSTOMER_PASSWORD_VALIDATORS)
         return password
 
     def clean(self):

@@ -44,7 +44,8 @@ def dashboard_router(request):
 
 @owner_required
 def owner_dashboard(request):
-    return render(request, "dashboards/owner.html", owner_dashboard_data())
+    period = request.GET.get("period", "today")
+    return render(request, "dashboards/owner.html", owner_dashboard_data(period=period))
 
 
 @owner_required

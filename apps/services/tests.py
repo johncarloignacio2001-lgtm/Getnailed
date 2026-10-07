@@ -1,5 +1,6 @@
 import os
 import tempfile
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from io import BytesIO
 
@@ -16,7 +17,13 @@ from PIL import Image
 from apps.accounts.models import User
 
 from .forms import ServiceCategoryForm, ServiceForm, StaffProfileForm
-from .models import Service, ServiceCategory, StaffProfile
+from .models import (
+    Service,
+    ServiceCategory,
+    StaffProfile,
+    StaffSchedule,
+    StaffTimeBlock,
+)
 
 
 PASSWORD = "Correct-Horse-Battery-47!"
@@ -449,3 +456,430 @@ class ServicesModuleTests(TestCase):
             self.assertTrue(model_admin.has_view_permission(owner_request))
             self.assertFalse(model_admin.has_view_permission(cashier_request))
             self.assertFalse(model_admin.has_delete_permission(owner_request))
+
+    def test_service_has_no_physical_inventory(self):
+        service = self.create_service("Gel Polish")
+        self.assertFalse(service.has_physical_inventory)
+
+    def test_staff_skills_schedules_and_blocks(self):
+        from datetime import time
+        service1 = self.create_service("Pedicure Deluxe")
+        service2 = self.create_service("Acrylic Extensions")
+
+        profile, _ = StaffProfile.objects.get_or_create(user=self.staff)
+        profile.skills.add(service1)
+
+        self.assertTrue(profile.can_perform(service1))
+        self.assertFalse(profile.can_perform(service2))
+
+        # Schedule creation for Monday (day 0)
+        schedule = StaffSchedule.objects.create(
+            staff=self.staff,
+            day_of_week=0,
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+            is_working=True,
+        )
+        self.assertEqual(schedule.day_of_week, 0)
+
+        # Time block creation
+        block = StaffTimeBlock.objects.create(
+            staff=self.staff,
+            date=timezone.localdate(),
+            start_time=time(12, 0),
+            end_time=time(13, 0),
+            reason="Lunch break",
+        )
+        self.assertEqual(block.reason, "Lunch break")
+
+    def test_schedule_crud_views(self):
+        client = Client()
+        client.force_login(self.owner)
+        list_resp = client.get(reverse("services:schedule_list"))
+        self.assertEqual(list_resp.status_code, 200)
+
+        # Create schedule
+        create_resp = client.post(
+            reverse("services:schedule_create"),
+            {
+                "staff": self.staff.pk,
+                "day_of_week": 1,
+                "start_time": "09:00",
+                "end_time": "18:00",
+                "is_working": "on",
+            },
+        )
+        self.assertRedirects(create_resp, reverse("services:schedule_list"))
+        schedule = StaffSchedule.objects.get(staff=self.staff, day_of_week=1)
+        self.assertTrue(schedule.is_working)
+
+        # Update schedule
+        update_resp = client.post(
+            reverse("services:schedule_update", kwargs={"pk": schedule.pk}),
+            {
+                "staff": self.staff.pk,
+                "day_of_week": 1,
+                "start_time": "10:00",
+                "end_time": "19:00",
+                "is_working": "on",
+            },
+        )
+        self.assertRedirects(update_resp, reverse("services:schedule_list"))
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.start_time.strftime("%H:%M"), "10:00")
+
+    def test_time_block_crud_views(self):
+        client = Client()
+        client.force_login(self.owner)
+        list_resp = client.get(reverse("services:time_block_list"))
+        self.assertEqual(list_resp.status_code, 200)
+        self.assertEqual(len(list_resp.context["hours_display"]), 13)
+        self.assertEqual(list_resp.context["hours_display"][0]["label"], "9 am")
+        self.assertEqual(list_resp.context["hours_display"][-1]["label"], "9 pm")
+
+        today_str = timezone.localdate().isoformat()
+        create_resp = client.post(
+            reverse("services:time_block_create"),
+            {
+                "staff": self.staff.pk,
+                "date": today_str,
+                "start_time": "13:00",
+                "end_time": "14:00",
+                "reason": "Doctor appointment",
+            },
+        )
+        self.assertRedirects(create_resp, reverse("services:time_block_list"))
+        block = StaffTimeBlock.objects.get(staff=self.staff, reason="Doctor appointment")
+        self.assertEqual(block.start_time.strftime("%H:%M"), "13:00")
+
+    def test_visual_time_blocking_grid_and_multi_day_repeat(self):
+        client = Client()
+        client.force_login(self.owner)
+        today = timezone.localdate()
+        tomorrow = today + timedelta(days=1)
+        day_after = today + timedelta(days=2)
+
+        # Multi-day repeating time block creation
+        resp = client.post(
+            reverse("services:time_block_create"),
+            {
+                "staff": self.staff.pk,
+                "date": today.isoformat(),
+                "start_time": "12:00",
+                "end_time": "13:00",
+                "reason": "lunch",
+                "repeat_dates": [tomorrow.isoformat(), day_after.isoformat()],
+            },
+        )
+        self.assertRedirects(resp, reverse("services:time_block_list"))
+        self.assertEqual(StaffTimeBlock.objects.filter(staff=self.staff, reason="lunch").count(), 3)
+
+        # Visual grid renders the blocks and color classes
+        list_resp = client.get(reverse("services:time_block_list"), {"date": today.isoformat()})
+        self.assertEqual(list_resp.status_code, 200)
+        self.assertContains(list_resp, "Time Blocking Schedule")
+        self.assertContains(list_resp, "block-color-lime")
+        self.assertContains(list_resp, "lunch")
+        self.assertContains(list_resp, "Lunch")
+        self.assertContains(list_resp, "Work Time")
+        self.assertContains(list_resp, "Leave")
+        self.assertNotContains(list_resp, "Deep Work / Prep / Social")
+        self.assertNotContains(list_resp, "Personal / Lunch / Admin")
+        self.assertNotContains(list_resp, "Work Block / Meetings")
+        self.assertNotContains(list_resp, "Leave / Doctor / Off")
+
+    def test_category_color_mappings(self):
+        from apps.services.views import _get_block_color_class
+        self.assertEqual(_get_block_color_class("Lunch"), "block-color-lime")
+        self.assertEqual(_get_block_color_class("lunch"), "block-color-lime")
+        self.assertEqual(_get_block_color_class("Work Time"), "block-color-blue")
+        self.assertEqual(_get_block_color_class("work time"), "block-color-blue")
+        self.assertEqual(_get_block_color_class("Leave"), "block-color-rose")
+        self.assertEqual(_get_block_color_class("leave"), "block-color-rose")
+        self.assertEqual(_get_block_color_class("Doctor"), "block-color-rose")
+
+    def test_staff_time_block_django_admin_registered(self):
+        from django.contrib import admin
+        from apps.services.models import StaffTimeBlock, StaffSchedule
+        self.assertIn(StaffTimeBlock, admin.site._registry)
+        self.assertIn(StaffSchedule, admin.site._registry)
+
+    def test_staff_specialty_filter_and_setup_staff_command(self):
+        from django.core.management import call_command
+        from io import StringIO
+        from unittest.mock import patch
+
+        out = StringIO()
+        with patch.dict("os.environ", {"GETNAILED_STAFF_PASSWORD": "Test-only-Staff-Password-123!"}):
+            call_command("setup_staff", stdout=out)
+        output = out.getvalue()
+        self.assertIn("Successfully set up all 11 staff members!", output)
+        self.assertNotIn("Test-only-Staff-Password-123!", output)
+
+        # Check all 11 staff users exist with role STAFF
+        self.assertEqual(User.objects.filter(role=User.Role.STAFF).count(), 11)
+
+        # Check cashiers have can_use_pos=True
+        cashier_emails = [
+            "phen.abino@getnailed.com",
+            "verna.agustin@getnailed.com",
+            "aila.ramos@getnailed.com",
+            "sheng.lucilla@getnailed.com",
+        ]
+        for email in cashier_emails:
+            user = User.objects.get(email=email)
+            self.assertTrue(user.can_use_pos)
+
+        # Non-cashiers have can_use_pos=False
+        nory = User.objects.get(email="nory.pecaso@getnailed.com")
+        self.assertFalse(nory.can_use_pos)
+
+        # Verify specialty filter on staff list view
+        self.client.force_login(self.owner)
+        resp_nail = self.client.get(reverse("services:staff_list"), {"specialty": "NAIL ART"})
+        self.assertEqual(resp_nail.status_code, 200)
+        self.assertContains(resp_nail, "Rita Inoferio")
+        self.assertNotContains(resp_nail, "Josephine (Phen)")
+
+        resp_cashier = self.client.get(reverse("services:staff_list"), {"specialty": "CASHIER"})
+        self.assertEqual(resp_cashier.status_code, 200)
+        self.assertContains(resp_cashier, "Vernalyn (Verna)")
+        self.assertNotContains(resp_cashier, "Mary Ann (Ann)")
+
+    def test_multiple_add_time_blocks_with_minute_precision(self):
+        client = Client()
+        client.force_login(self.owner)
+        today = timezone.localdate()
+
+        resp = client.post(
+            reverse("services:time_block_create"),
+            {
+                "staff": self.staff.pk,
+                "date": today.isoformat(),
+                "start_time": ["09:15", "13:30", "15:45"],
+                "end_time": ["12:00", "15:00", "16:30"],
+                "reason": ["Work Time", "Work Time", "Break"],
+            },
+        )
+        self.assertRedirects(resp, reverse("services:time_block_list"))
+
+        blocks = StaffTimeBlock.objects.filter(staff=self.staff, date=today).order_by("start_time")
+        self.assertEqual(blocks.count(), 3)
+        self.assertEqual(blocks[0].start_time.strftime("%H:%M"), "09:15")
+        self.assertEqual(blocks[0].end_time.strftime("%H:%M"), "12:00")
+        self.assertEqual(blocks[1].start_time.strftime("%H:%M"), "13:30")
+        self.assertEqual(blocks[2].start_time.strftime("%H:%M"), "15:45")
+        self.assertEqual(blocks[2].reason, "Break")
+
+    def test_multiple_staff_all_active_technicians_creation(self):
+        client = Client()
+        client.force_login(self.owner)
+        today = timezone.localdate()
+        active_staff_count = User.objects.filter(role=User.Role.STAFF, is_active=True).count()
+
+        resp = client.post(
+            reverse("services:time_block_create"),
+            {
+                "all_staff": "true",
+                "date": today.isoformat(),
+                "start_time": "12:15",
+                "end_time": "13:15",
+                "reason": "Team Lunch",
+            },
+        )
+        self.assertRedirects(resp, reverse("services:time_block_list"))
+        self.assertEqual(StaffTimeBlock.objects.filter(date=today, reason="Team Lunch").count(), active_staff_count)
+
+    def test_overlapping_side_by_side_cluster_layout(self):
+        from apps.services.views import _layout_day_blocks, START_HOUR, END_HOUR
+        today = timezone.localdate()
+
+        b1 = StaffTimeBlock.objects.create(
+            staff=self.staff,
+            date=today,
+            start_time=datetime.strptime("09:00", "%H:%M").time(),
+            end_time=datetime.strptime("10:00", "%H:%M").time(),
+            reason="Work Time",
+        )
+        b2 = StaffTimeBlock.objects.create(
+            staff=self.staff,
+            date=today,
+            start_time=datetime.strptime("09:30", "%H:%M").time(),
+            end_time=datetime.strptime("10:30", "%H:%M").time(),
+            reason="Lunch",
+        )
+
+        grid_start_min = START_HOUR * 60
+        grid_end_min = END_HOUR * 60
+        layout = _layout_day_blocks([b1, b2], grid_start_min, grid_end_min)
+
+        self.assertEqual(len(layout), 2)
+        # Both overlap from 9:30 to 10:00 -> num_cols should be 2
+        self.assertEqual(layout[0]["num_cols"], 2)
+        self.assertEqual(layout[1]["num_cols"], 2)
+        self.assertEqual(layout[0]["width_pct"], 50.0)
+        self.assertEqual(layout[1]["width_pct"], 50.0)
+        self.assertNotEqual(layout[0]["left_pct"], layout[1]["left_pct"])
+
+    def test_staff_schedule_leave_and_lunch_break_policy(self):
+        from apps.services.schedules import (
+            apply_staff_weekly_schedules,
+            sync_staff_time_blocks,
+            DEFAULT_STAFF_LEAVE_ASSIGNMENTS,
+        )
+
+        # Apply schedules to all active staff
+        updated = apply_staff_weekly_schedules()
+        self.assertGreater(updated, 0)
+
+        # Verify each staff member has exactly 1 day off (leave) and 6 working days
+        for staff in User.objects.filter(role=User.Role.STAFF, is_active=True):
+            schedules = staff.schedules.all()
+            self.assertEqual(schedules.count(), 7)
+            working_count = schedules.filter(is_working=True).count()
+            leave_count = schedules.filter(is_working=False).count()
+            self.assertEqual(working_count, 6)
+            self.assertEqual(leave_count, 1)
+
+            # Check working shifts have 12:00 PM to 1:00 PM lunch break
+            for ws in schedules.filter(is_working=True):
+                self.assertEqual(ws.lunch_start.strftime("%H:%M"), "12:00")
+                self.assertEqual(ws.lunch_end.strftime("%H:%M"), "13:00")
+                self.assertEqual(ws.start_time.strftime("%H:%M"), "09:00")
+                self.assertEqual(ws.end_time.strftime("%H:%M"), "21:00")
+
+        # Test sync_staff_time_blocks populates Lunch and Leave blocks
+        today = timezone.localdate()
+        tb_count = sync_staff_time_blocks(ref_date=today, weeks=2)
+        self.assertGreater(tb_count, 0)
+        self.assertTrue(StaffTimeBlock.objects.filter(reason="Lunch").exists())
+        self.assertTrue(StaffTimeBlock.objects.filter(reason="Leave").exists())
+
+    def test_schedule_list_owner_view_filters_and_sync(self):
+        from apps.services.schedules import apply_staff_weekly_schedules
+        apply_staff_weekly_schedules()
+
+        client = Client()
+        client.force_login(self.owner)
+
+        # 1. Main schedule list view renders summary cards and table
+        resp = client.get(reverse("services:schedule_list"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Monday to Sunday")
+        self.assertContains(resp, "12:00 PM – 01:00 PM")
+        self.assertContains(resp, "1 Day Leave per Staff")
+        self.assertContains(resp, "Universal Lunch Break")
+
+        # 2. Filter by day of week (Monday = 0)
+        resp_mon = client.get(reverse("services:schedule_list"), {"day": "0"})
+        self.assertEqual(resp_mon.status_code, 200)
+        self.assertContains(resp_mon, "Monday")
+
+        # 3. Filter by status (leave / day off)
+        resp_leave = client.get(reverse("services:schedule_list"), {"status": "leave"})
+        self.assertEqual(resp_leave.status_code, 200)
+        self.assertContains(resp_leave, "Day Off (Leave)")
+
+        # 4. POST sync_time_blocks action works
+        post_sync = client.post(
+            reverse("services:schedule_list"),
+            {"action": "sync_time_blocks"},
+        )
+        self.assertRedirects(post_sync, reverse("services:schedule_list"))
+
+    def test_booking_availability_blocks_lunch_and_leave(self):
+        from datetime import time
+        from apps.bookings.services import (
+            _validate_staff_availability,
+            get_available_time_slots,
+        )
+
+        today = timezone.localdate()
+        # Find next Monday and next Tuesday
+        monday_offset = (0 - today.weekday()) % 7
+        if monday_offset == 0:
+            monday_offset = 7
+        target_monday = today + timedelta(days=monday_offset)
+
+        # Ensure self.staff has schedule with Monday as leave and other days working
+        StaffSchedule.objects.update_or_create(
+            staff=self.staff,
+            day_of_week=0,  # Monday
+            defaults={
+                "start_time": "09:00:00",
+                "end_time": "21:00:00",
+                "lunch_start": "12:00:00",
+                "lunch_end": "13:00:00",
+                "is_working": False,  # On leave Monday
+            },
+        )
+        StaffSchedule.objects.update_or_create(
+            staff=self.staff,
+            day_of_week=1,  # Tuesday
+            defaults={
+                "start_time": "09:00:00",
+                "end_time": "21:00:00",
+                "lunch_start": "12:00:00",
+                "lunch_end": "13:00:00",
+                "is_working": True,  # Working Tuesday
+            },
+        )
+
+        profile, _ = StaffProfile.objects.get_or_create(
+            user=self.staff,
+            defaults={
+                "availability_status": StaffProfile.Availability.AVAILABLE,
+                "is_active": True,
+            },
+        )
+        profile.availability_status = StaffProfile.Availability.AVAILABLE
+        profile.is_active = True
+        profile.save()
+
+        svc = self.create_service("Basic Polish", duration_minutes=30)
+        profile.skills.add(svc)
+
+        # 1. Attempting appointment on Monday (Leave day) raises ValidationError
+        with self.assertRaises(ValidationError) as ctx:
+            _validate_staff_availability(
+                self.staff,
+                target_monday,
+                time(10, 0),
+                time(10, 30),
+                services=[svc],
+            )
+        self.assertIn("not scheduled to work", str(ctx.exception))
+
+        # 2. Attempting appointment on Tuesday during lunch break (12:00 - 12:30) raises ValidationError
+        target_tuesday = target_monday + timedelta(days=1)
+        with self.assertRaises(ValidationError) as ctx:
+            _validate_staff_availability(
+                self.staff,
+                target_tuesday,
+                time(12, 0),
+                time(12, 30),
+                services=[svc],
+            )
+        self.assertIn("lunch break", str(ctx.exception).lower())
+
+        # 3. Attempting appointment on Tuesday outside lunch (10:00 - 10:30) succeeds
+        result = _validate_staff_availability(
+            self.staff,
+            target_tuesday,
+            time(10, 0),
+            time(10, 30),
+            services=[svc],
+        )
+        self.assertEqual(result, self.staff)
+
+        # 4. get_available_time_slots excludes 12:00 PM and 12:30 PM for this staff
+        slots = get_available_time_slots(target_tuesday, [svc.pk], staff_id=self.staff.pk)
+        self.assertNotIn("12:00", slots)
+        self.assertNotIn("12:30", slots)
+        self.assertIn("10:00", slots)
+
+
+
+
+
+

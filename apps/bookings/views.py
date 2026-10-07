@@ -1,6 +1,9 @@
+from datetime import datetime
+
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
@@ -36,6 +39,7 @@ from .services import (
     cancel_public_booking,
     create_public_appointment,
     create_public_booking,
+    get_available_time_slots,
     get_public_booking,
     resend_verification,
     reschedule_public_booking,
@@ -127,7 +131,11 @@ def select_schedule(request):
     data = _wizard_data(request)
     if "contact" not in data or not data.get("service_ids"):
         return redirect("bookings:index")
-    form = PublicScheduleForm(request.POST if request.method == "POST" else None)
+    services = list(Service.objects.filter(pk__in=data.get("service_ids", []), is_active=True))
+    form = PublicScheduleForm(
+        request.POST if request.method == "POST" else None,
+        services=services,
+    )
     if request.method == "POST" and form.is_valid():
         data["schedule"] = {
             "appointment_date": form.cleaned_data["appointment_date"].isoformat(),
@@ -136,11 +144,50 @@ def select_schedule(request):
         }
         request.session[WIZARD_SESSION_KEY] = data
         return redirect("bookings:review")
+    total_duration = sum(s.duration_minutes for s in services)
     return render(
         request,
         "bookings/public_booking.html",
-        {"form": form, "step": 3, "step_title": "Schedule", "button_label": "Review request"},
+        {
+            "form": form,
+            "step": 3,
+            "step_title": "Schedule",
+            "button_label": "Review request",
+            "service_ids": data.get("service_ids", []),
+            "services": services,
+            "total_duration": total_duration,
+        },
     )
+
+
+@never_cache
+@require_http_methods(["GET"])
+def api_available_slots(request):
+    date_str = request.GET.get("date")
+    if not date_str:
+        return JsonResponse({"slots": []})
+    try:
+        appointment_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return JsonResponse({"slots": [], "error": "Invalid date format."})
+
+    service_ids = request.GET.getlist("services")
+    if not service_ids and request.GET.get("service_ids"):
+        service_ids = [s.strip() for s in request.GET.get("service_ids").split(",") if s.strip()]
+
+    if not service_ids:
+        data = _wizard_data(request)
+        service_ids = data.get("service_ids", [])
+
+    staff_id = request.GET.get("staff")
+    if staff_id and staff_id.isdigit():
+        staff_id = int(staff_id)
+    else:
+        staff_id = None
+
+    slots = get_available_time_slots(appointment_date, service_ids, staff_id=staff_id)
+    return JsonResponse({"slots": slots})
+
 
 
 @never_cache

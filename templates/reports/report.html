@@ -1,3 +1,149 @@
-{% extends 'base.html' %}{% load report_tags %}
+{% extends 'base.html' %}
+{% load report_tags %}
 {% block title %}{% if report %}{{ report.title }}{% else %}Report{% endif %} | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading service-heading"><div><div class="eyebrow">OWNER REPORT</div><h2>{% if report %}{{ report.title }}{% else %}Report{% endif %}</h2>{% if report %}<p class="text-muted mb-0">{{ report.description }}</p>{% endif %}</div><a href="{% url 'reports:index' %}">All reports</a></div><div class="content-card mb-4"><form class="row g-3 align-items-end" method="get">{{ form.non_field_errors }}{% for field in form %}<div class="col-md-4"><label class="form-label">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<div class="col-md-4"><button class="btn btn-brand" type="submit">Run report</button></div></form></div>{% if report %}<div class="d-flex flex-wrap gap-2 mb-3"><a class="btn btn-outline-brand" href="{% url 'reports:export' report_type=report_type export_format='csv' %}?{{ request.GET.urlencode }}">Export CSV</a><a class="btn btn-outline-brand" href="{% url 'reports:export' report_type=report_type export_format='xlsx' %}?{{ request.GET.urlencode }}">Export XLSX</a><a class="btn btn-outline-brand" href="{% url 'reports:export' report_type=report_type export_format='pdf' %}?{{ request.GET.urlencode }}">Export PDF</a></div>{% if report.totals.net != None %}<div class="dashboard-kpis mb-4"><div class="stat-card"><span>Transactions</span><strong>{{ report.totals.transactions }}</strong></div><div class="stat-card"><span>Gross</span><strong>₱{{ report.totals.gross|floatformat:2 }}</strong></div><div class="stat-card"><span>Discounts</span><strong>₱{{ report.totals.discounts|floatformat:2 }}</strong></div><div class="stat-card"><span>Net</span><strong>₱{{ report.totals.net|floatformat:2 }}</strong></div></div>{% endif %}<div class="content-card"><div class="table-responsive"><table class="table"><thead><tr>{% for column in report.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in report.rows %}<tr>{% for key, value in row.items %}<td>{{ value|report_value }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ report.columns|length }}">No records match this date range.</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}{% endblock %}
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">OWNER REPORT</div>
+    <h2>{% if report %}{{ report.title }}{% else %}Report{% endif %}</h2>
+    {% if report %}<p class="text-muted mb-0">{{ report.description }}</p>{% endif %}
+  </div>
+  <a href="{% url 'reports:index' %}" class="btn btn-outline-secondary btn-sm">← All reports</a>
+</div>
+
+<div class="content-card mb-4">
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <span class="text-muted small fw-bold text-uppercase me-1">Quick Filters:</span>
+    <a href="?preset=day" class="btn btn-sm {% if request.GET.preset == 'day' %}btn-brand{% else %}btn-outline-secondary{% endif %}">Today</a>
+    <a href="?preset=week" class="btn btn-sm {% if request.GET.preset == 'week' %}btn-brand{% else %}btn-outline-secondary{% endif %}">This Week</a>
+    <a href="?preset=month" class="btn btn-sm {% if request.GET.preset == 'month' %}btn-brand{% else %}btn-outline-secondary{% endif %}">This Month</a>
+    <a href="?preset=year" class="btn btn-sm {% if request.GET.preset == 'year' %}btn-brand{% else %}btn-outline-secondary{% endif %}">This Year</a>
+  </div>
+
+  <form class="row g-3 align-items-end" method="get" id="report-filter-form">
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <div class="col-md-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <div class="col-md-3">
+      <button class="btn btn-brand w-100" type="submit">Run report</button>
+    </div>
+  </form>
+</div>
+
+{% if report %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-brand btn-sm" href="{% url 'reports:export' report_type=report_type export_format='csv' %}?{{ request.GET.urlencode }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-file-earmark-text me-1" viewBox="0 0 16 16"><path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5"/><path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/></svg>Export CSV
+    </a>
+    <a class="btn btn-outline-brand btn-sm" href="{% url 'reports:export' report_type=report_type export_format='xlsx' %}?{{ request.GET.urlencode }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-file-earmark-spreadsheet me-1" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V9H3V2a1 1 0 0 1 1-1h5.5zM3 12v-2h2v2zm0 1h2v2H4a1 1 0 0 1-1-1zm3 2v-2h3v2zm4 0v-2h3v1a1 1 0 0 1-1 1zm3-3h-3v-2h3zm-4 0v-2h-3v2zm-4 0v-2H3v2z"/></svg>Export XLSX
+    </a>
+    <a class="btn btn-outline-brand btn-sm" href="{% url 'reports:export' report_type=report_type export_format='pdf' %}?{{ request.GET.urlencode }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-file-earmark-pdf me-1" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/><path d="M4.603 14.087a.8.8 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 0 1 1.482-.645 20 20 0 0 0 1.062-2.227 7.3 7.3 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.422c.166.34.199.734.12 1.158a8.7 8.7 0 0 1-.633 1.99 17 17 0 0 0 2.08 1.257c.36.177.72.33 1.077.466.241.09.474.178.699.263a1 1 0 0 1 .632.77c.07.37-.07.756-.33 1.013-.25.248-.59.398-.93.407-.54.014-1.11-.194-1.7-.587a16 16 0 0 1-2.201-1.859l-.42-.04a10 10 0 0 0-1.46.188 3.5 3.5 0 0 0-.794.391c-.23.162-.38.368-.433.615-.055.257.016.512.18.683.157.164.382.24.62.222.308-.024.613-.158.88-.365.158-.124.308-.27.447-.433z"/></svg>Export PDF
+    </a>
+  </div>
+  <div class="text-muted small">
+    Showing <strong>{{ report.rows|length }}</strong> rows ({{ report.start_date }} to {{ report.end_date }})
+  </div>
+</div>
+
+{% if report.totals.net != None %}
+<div class="dashboard-kpis mb-4">
+  <div class="stat-card"><span>Transactions</span><strong>{{ report.totals.transactions }}</strong></div>
+  <div class="stat-card"><span>Gross</span><strong>₱{{ report.totals.gross|floatformat:2 }}</strong></div>
+  <div class="stat-card"><span>Discounts</span><strong>₱{{ report.totals.discounts|floatformat:2 }}</strong></div>
+  <div class="stat-card"><span>Net</span><strong>₱{{ report.totals.net|floatformat:2 }}</strong></div>
+</div>
+{% elif report.totals.assigned != None %}
+<div class="dashboard-kpis mb-4">
+  <div class="stat-card"><span>Total Assigned Services</span><strong>{{ report.totals.assigned }}</strong></div>
+  {% if report.totals.completed != None %}<div class="stat-card"><span>Total Completed</span><strong>{{ report.totals.completed }}</strong></div>{% endif %}
+  {% if report.totals.revenue != None %}<div class="stat-card"><span>Total Revenue</span><strong>₱{{ report.totals.revenue|floatformat:2 }}</strong></div>{% endif %}
+</div>
+{% elif report.totals.total_bookings != None %}
+<div class="dashboard-kpis mb-4">
+  <div class="stat-card"><span>Total Bookings</span><strong>{{ report.totals.total_bookings }}</strong></div>
+  <div class="stat-card"><span>Completed</span><strong>{{ report.totals.completed }}</strong></div>
+  <div class="stat-card"><span>Revenue</span><strong>₱{{ report.totals.revenue|floatformat:2 }}</strong></div>
+</div>
+{% endif %}
+
+<div class="content-card">
+  <div class="table-responsive">
+    <table class="table align-middle table-hover">
+      <thead class="table-light">
+        <tr>
+          {% for column in report.columns %}
+            <th scope="col">
+              <a href="{% sort_url column %}" class="text-decoration-none text-dark d-inline-flex align-items-center gap-1 sort-header">
+                <span>{{ column }}</span>
+                {% if sort_column == column %}
+                  <span class="sort-icon small text-brand">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                {% else %}
+                  <span class="sort-icon small text-muted opacity-50">⇅</span>
+                {% endif %}
+              </a>
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report.rows %}
+          <tr>
+            {% for column in report.columns %}
+              <td>{{ row|get_item:column|report_value }}</td>
+            {% endfor %}
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{{ report.columns|length }}" class="text-center text-muted py-4">No records match this date range.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const presetSelect = document.getElementById("preset-select");
+    const startDateInput = document.getElementById("id_start_date");
+    const endDateInput = document.getElementById("id_end_date");
+    if (presetSelect && startDateInput && endDateInput) {
+      presetSelect.addEventListener("change", function() {
+        const today = new Date();
+        const formatDate = (d) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        if (this.value === "day") {
+          startDateInput.value = formatDate(today);
+          endDateInput.value = formatDate(today);
+        } else if (this.value === "week") {
+          const weekAgo = new Date();
+          weekAgo.setDate(today.getDate() - 6);
+          startDateInput.value = formatDate(weekAgo);
+          endDateInput.value = formatDate(today);
+        } else if (this.value === "month") {
+          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+          startDateInput.value = formatDate(monthStart);
+          endDateInput.value = formatDate(today);
+        } else if (this.value === "year") {
+          const yearStart = new Date(today.getFullYear(), 0, 1);
+          startDateInput.value = formatDate(yearStart);
+          endDateInput.value = formatDate(today);
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

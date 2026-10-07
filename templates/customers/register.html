@@ -3,7 +3,7 @@
 {% block title %}Create Customer Account | {{ BRAND_NAME }}{% endblock %}
 {% block public_content %}
 <div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
-  <div class="login-card">
+  <div class="login-card register-card">
     <div class="text-center mb-4">
       <img src="{% static 'images/get-nailed-logo.png' %}" class="login-logo" alt="Get Nailed logo">
       <p class="eyebrow mb-2">NEW CUSTOMER</p>
@@ -11,21 +11,209 @@
       <p class="text-muted mb-0">Register to manage your appointments.</p>
     </div>
     {% include 'partials/messages.html' %}
-    <form method="post" novalidate>
+    <form method="post" novalidate id="register-form">
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
       <div class="row g-3">
-        {% for field in form %}
-          <div class="{% if field.name in 'first_name,last_name,password,password_confirmation' %}col-md-6{% else %}col-12{% endif %}">
-            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        <div class="col-md-6">
+          <label class="form-label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+          {{ form.first_name }}
+          {% for error in form.first_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+          {{ form.last_name }}
+          {% for error in form.last_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+          {{ form.email }}
+          {% for error in form.email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
+          {{ form.phone }}
+          {% for error in form.phone.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+          <div class="input-group">
+            {{ form.password }}
+            <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="{{ form.password.id_for_label }}" aria-label="Toggle password visibility">
+              <i class="bi bi-eye"></i>
+            </button>
           </div>
-        {% endfor %}
+          {% for error in form.password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+
+          <!-- Password Requirements Checklist (Always Visible & Interactive) -->
+          <div class="password-requirements-box" id="password-requirements">
+            <div class="password-requirements-title">
+              <i class="bi bi-shield-lock"></i> Password requirements:
+            </div>
+            <div class="requirement-item" id="req-length">
+              <i class="bi bi-circle req-icon"></i>
+              <span>Minimum length 8 characters</span>
+            </div>
+            <div class="requirement-item" id="req-upper">
+              <i class="bi bi-circle req-icon"></i>
+              <span>One uppercase letter [A-Z]</span>
+            </div>
+            <div class="requirement-item" id="req-lower">
+              <i class="bi bi-circle req-icon"></i>
+              <span>One lowercase letter [a-z]</span>
+            </div>
+            <div class="requirement-item" id="req-number">
+              <i class="bi bi-circle req-icon"></i>
+              <span>One numeric character [0-9]</span>
+            </div>
+            <div class="requirement-item" id="req-special">
+              <i class="bi bi-circle req-icon"></i>
+              <span>One special character ['!@$% etc]</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="{{ form.password_confirmation.id_for_label }}">{{ form.password_confirmation.label }}</label>
+          <div class="input-group">
+            {{ form.password_confirmation }}
+            <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="{{ form.password_confirmation.id_for_label }}" aria-label="Toggle password confirmation visibility">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <div id="password-match-indicator" style="display: none;"></div>
+          {% for error in form.password_confirmation.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
       </div>
-      <button class="btn btn-brand w-100 py-2 mt-3" type="submit">Create account</button>
+      <button class="btn btn-brand w-100 py-2 mt-4" type="submit">Create account</button>
     </form>
     <div class="text-center mt-3"><a href="{% url 'customers:customer_login' %}">Already have an account? Sign in</a></div>
   </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const passwordInput = document.getElementById("{{ form.password.id_for_label }}");
+  const confirmInput = document.getElementById("{{ form.password_confirmation.id_for_label }}");
+  const matchIndicator = document.getElementById("password-match-indicator");
+  const reqBox = document.getElementById("password-requirements");
+
+  const rules = {
+    length: {
+      el: document.getElementById("req-length"),
+      check: (val) => val.length >= 8
+    },
+    upper: {
+      el: document.getElementById("req-upper"),
+      check: (val) => /[A-Z]/.test(val)
+    },
+    lower: {
+      el: document.getElementById("req-lower"),
+      check: (val) => /[a-z]/.test(val)
+    },
+    number: {
+      el: document.getElementById("req-number"),
+      check: (val) => /[0-9]/.test(val)
+    },
+    special: {
+      el: document.getElementById("req-special"),
+      check: (val) => /[^A-Za-z0-9]/.test(val)
+    }
+  };
+
+  function updateCriteria() {
+    if (!passwordInput) return;
+    const val = passwordInput.value || "";
+    let allValid = val.length > 0;
+
+    for (const key in rules) {
+      const rule = rules[key];
+      if (!rule.el) continue;
+      const isValid = rule.check(val);
+      const icon = rule.el.querySelector(".req-icon");
+
+      if (isValid) {
+        rule.el.classList.add("valid");
+        if (icon) {
+          icon.className = "bi bi-check-lg req-icon";
+        }
+      } else {
+        rule.el.classList.remove("valid");
+        allValid = false;
+        if (icon) {
+          icon.className = "bi bi-circle req-icon";
+        }
+      }
+    }
+
+    if (reqBox) {
+      if (allValid && val.length > 0) {
+        reqBox.classList.add("all-valid");
+      } else {
+        reqBox.classList.remove("all-valid");
+      }
+    }
+
+    updateConfirm();
+  }
+
+  function updateConfirm() {
+    if (!confirmInput || !matchIndicator) return;
+    const p1 = passwordInput ? passwordInput.value : "";
+    const p2 = confirmInput.value;
+
+    if (!p2) {
+      matchIndicator.style.display = "none";
+      matchIndicator.innerHTML = "";
+      return;
+    }
+
+    matchIndicator.style.display = "flex";
+    if (p1 === p2 && p1.length > 0) {
+      matchIndicator.className = "password-match-badge text-success small";
+      matchIndicator.innerHTML = '<i class="bi bi-check-circle-fill"></i> <span>Passwords match</span>';
+    } else {
+      matchIndicator.className = "password-match-badge text-danger small";
+      matchIndicator.innerHTML = '<i class="bi bi-x-circle-fill"></i> <span>Passwords do not match</span>';
+    }
+  }
+
+  if (passwordInput) {
+    passwordInput.addEventListener("input", updateCriteria);
+    passwordInput.addEventListener("keyup", updateCriteria);
+    passwordInput.addEventListener("change", updateCriteria);
+  }
+
+  if (confirmInput) {
+    confirmInput.addEventListener("input", updateConfirm);
+    confirmInput.addEventListener("keyup", updateConfirm);
+    confirmInput.addEventListener("change", updateConfirm);
+  }
+
+  // Toggle password visibility
+  document.querySelectorAll(".toggle-password-btn").forEach((btn) => {
+    btn.addEventListener("click", function () {
+      const targetId = this.getAttribute("data-target");
+      const targetInput = document.getElementById(targetId);
+      if (!targetInput) return;
+      const icon = this.querySelector("i");
+      if (targetInput.type === "password") {
+        targetInput.type = "text";
+        if (icon) {
+          icon.classList.remove("bi-eye");
+          icon.classList.add("bi-eye-slash");
+        }
+      } else {
+        targetInput.type = "password";
+        if (icon) {
+          icon.classList.remove("bi-eye-slash");
+          icon.classList.add("bi-eye");
+        }
+      }
+    });
+  });
+
+  // Initial update
+  updateCriteria();
+});
+</script>
 {% endblock %}

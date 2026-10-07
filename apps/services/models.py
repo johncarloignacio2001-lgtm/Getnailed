@@ -91,6 +91,11 @@ class Service(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def has_physical_inventory(self):
+        """Services do not consume physical inventory. Their primary constraint is scheduled time blocks."""
+        return False
+
 
 class StaffProfile(models.Model):
     class Availability(models.TextChoices):
@@ -105,6 +110,12 @@ class StaffProfile(models.Model):
         limit_choices_to={"role": User.Role.STAFF},
     )
     specialty = models.CharField(max_length=160, blank=True)
+    skills = models.ManyToManyField(
+        Service,
+        blank=True,
+        related_name="qualified_technicians",
+        help_text="Services this technician is trained and qualified to perform.",
+    )
     availability_status = models.CharField(
         max_length=20,
         choices=Availability.choices,
@@ -138,5 +149,96 @@ class StaffProfile(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    def can_perform(self, service):
+        """Check if technician has skill for this service. If technician has no specific skills assigned, they can perform all active services."""
+        if not self.skills.exists():
+            return True
+        return self.skills.filter(pk=service.pk).exists()
+
     def __str__(self):
         return str(self.user)
+
+
+class StaffSchedule(models.Model):
+    class DayOfWeek(models.IntegerChoices):
+        MONDAY = 0, "Monday"
+        TUESDAY = 1, "Tuesday"
+        WEDNESDAY = 2, "Wednesday"
+        THURSDAY = 3, "Thursday"
+        FRIDAY = 4, "Friday"
+        SATURDAY = 5, "Saturday"
+        SUNDAY = 6, "Sunday"
+
+    staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="schedules",
+        limit_choices_to={"role": User.Role.STAFF},
+    )
+    day_of_week = models.PositiveSmallIntegerField(
+        choices=DayOfWeek.choices,
+        validators=(MinValueValidator(0), MaxValueValidator(6)),
+    )
+    start_time = models.TimeField(default="09:00:00")
+    end_time = models.TimeField(default="18:00:00")
+    lunch_start = models.TimeField(default="12:00:00", null=True, blank=True)
+    lunch_end = models.TimeField(default="13:00:00", null=True, blank=True)
+    is_working = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("staff", "day_of_week")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("staff", "day_of_week"),
+                name="staff_schedule_day_unique",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.end_time <= self.start_time:
+            raise ValidationError({"end_time": "Shift end time must be after start time."})
+        if self.lunch_start and self.lunch_end:
+            if self.lunch_end <= self.lunch_start:
+                raise ValidationError({"lunch_end": "Lunch break end time must be after start time."})
+            if self.lunch_start < self.start_time or self.lunch_end > self.end_time:
+                raise ValidationError({"lunch_start": "Lunch break must be within shift working hours."})
+
+    def __str__(self):
+        if not self.is_working:
+            return f"{self.staff} - {self.get_day_of_week_display()}: Day Off / Leave"
+        return f"{self.staff} - {self.get_day_of_week_display()}: {self.start_time}-{self.end_time}"
+
+
+class StaffTimeBlock(models.Model):
+    staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="time_blocks",
+        limit_choices_to={"role": User.Role.STAFF},
+    )
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    reason = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("date", "start_time")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="staff_time_block_end_after_start",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.end_time and self.start_time and self.end_time <= self.start_time:
+            raise ValidationError({"end_time": "Block end time must be after start time."})
+
+    def __str__(self):
+        return f"{self.staff} Block on {self.date}: {self.start_time}-{self.end_time} ({self.reason})"
+

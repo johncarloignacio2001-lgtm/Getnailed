@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}Till Reconciliation Report #{{ shift.pk }} | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">TILL RECONCILIATION REPORT</div>
+    <h2>Shift #{{ shift.pk }} Till Summary</h2>
+    <p class="text-muted mb-0">Closed on {{ shift.closed_at|date:"F d, Y h:i A" }} by {{ shift.closed_by|default:shift.cashier }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary" onclick="window.print()">Print Report</button>
+    <a class="btn btn-outline-brand" href="{% url 'pos:shift_dashboard' %}">Till Dashboard</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="content-card mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+          <h4 class="mb-1">Cash Drawer Reconciliation</h4>
+          <span class="text-muted small">Verification of physical currency in drawer against POS sales</span>
+        </div>
+        <div>
+          {% if shift.cash_variance == 0 %}
+            <span class="badge bg-success fs-6 p-2 px-3">BALANCED (EXACT)</span>
+          {% elif shift.cash_variance > 0 %}
+            <span class="badge bg-info text-dark fs-6 p-2 px-3">+₱{{ shift.cash_variance|floatformat:2 }} OVERAGE</span>
+          {% else %}
+            <span class="badge bg-danger fs-6 p-2 px-3">₱{{ shift.cash_variance|floatformat:2 }} SHORTAGE</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered align-middle">
+          <tbody>
+            <tr>
+              <th class="bg-light w-50">Opening Cash Float</th>
+              <td class="text-end font-monospace fs-5">₱{{ shift.opening_cash|floatformat:2 }}</td>
+            </tr>
+            <tr>
+              <th class="bg-light">+ Cash Sales Recorded</th>
+              <td class="text-end font-monospace fs-5 text-success">+ ₱{{ shift.cash_sales_total|floatformat:2 }}</td>
+            </tr>
+            <tr class="table-primary">
+              <th class="fw-bold">= Expected Cash in Drawer</th>
+              <td class="text-end font-monospace fs-4 fw-bold text-primary">₱{{ shift.expected_cash|floatformat:2 }}</td>
+            </tr>
+            <tr>
+              <th class="bg-light fw-bold">Actual Counted Cash (Physical Float + Take)</th>
+              <td class="text-end font-monospace fs-4 fw-bold">₱{{ shift.closing_cash|floatformat:2 }}</td>
+            </tr>
+            <tr class="{% if shift.cash_variance == 0 %}table-success{% elif shift.cash_variance > 0 %}table-info{% else %}table-danger{% endif %}">
+              <th class="fw-bold">Variance (Actual Count - Expected)</th>
+              <td class="text-end font-monospace fs-4 fw-bold">
+                {% if shift.cash_variance > 0 %}+{% endif %}₱{{ shift.cash_variance|floatformat:2 }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h5 class="mb-3">Non-Cash Payment Summary (Digital & Card)</h5>
+      <p class="text-muted small mb-3">These payments were deposited digitally and do not affect physical cash in the till.</p>
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small text-uppercase d-block">E-Wallets (GCash / Maya)</span>
+            <strong class="fs-5">₱{{ shift.ewallet_sales_total|floatformat:2 }}</strong>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small text-uppercase d-block">Debit / Credit Card</span>
+            <strong class="fs-5">₱{{ shift.card_sales_total|floatformat:2 }}</strong>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small text-uppercase d-block">Bank Transfer</span>
+            <strong class="fs-5">₱{{ shift.bank_sales_total|floatformat:2 }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-light rounded d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted text-uppercase small d-block">Total Shift Revenue (All Channels)</span>
+          <h3 class="mb-0 text-brand">₱{{ shift.total_sales_volume|floatformat:2 }}</h3>
+        </div>
+        <span class="badge bg-secondary fs-6">{{ shift.sales.count }} Transaction{{ shift.sales.count|pluralize }}</span>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <h5 class="mb-3">Shift Transactions</h5>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Receipt</th>
+              <th>Customer</th>
+              <th>Payment Method</th>
+              <th>Status</th>
+              <th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sale in shift.sales.all %}
+              <tr>
+                <td><a href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">{{ sale.receipt_number }}</a></td>
+                <td>{{ sale.customer_name_snapshot }}</td>
+                <td>{{ sale.payment.get_payment_method_display }}</td>
+                <td>{{ sale.get_status_display }}</td>
+                <td class="text-end font-monospace">₱{{ sale.total|floatformat:2 }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-3">No sales processed during this shift.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="content-card mb-4">
+      <h5 class="mb-3">Shift Details</h5>
+      <ul class="list-unstyled mb-0">
+        <li class="py-2 border-bottom d-flex justify-content-between">
+          <span class="text-muted">Shift Reference:</span>
+          <strong>#{{ shift.pk }}</strong>
+        </li>
+        <li class="py-2 border-bottom d-flex justify-content-between">
+          <span class="text-muted">Cashier:</span>
+          <strong>{{ shift.cashier }}</strong>
+        </li>
+        <li class="py-2 border-bottom d-flex justify-content-between">
+          <span class="text-muted">Opened:</span>
+          <span>{{ shift.opened_at|date:"M d, Y h:i A" }}</span>
+        </li>
+        <li class="py-2 border-bottom d-flex justify-content-between">
+          <span class="text-muted">Closed:</span>
+          <span>{{ shift.closed_at|date:"M d, Y h:i A" }}</span>
+        </li>
+        <li class="py-2 border-bottom d-flex justify-content-between">
+          <span class="text-muted">Closed By:</span>
+          <strong>{{ shift.closed_by|default:shift.cashier }}</strong>
+        </li>
+        <li class="py-2 d-flex justify-content-between">
+          <span class="text-muted">Status:</span>
+          <span class="badge bg-secondary">{{ shift.status }}</span>
+        </li>
+      </ul>
+    </div>
+
+    {% if shift.notes %}
+    <div class="content-card">
+      <h5 class="mb-2">Shift Notes & Remarks</h5>
+      <p class="text-muted mb-0 bg-light p-3 rounded">{{ shift.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

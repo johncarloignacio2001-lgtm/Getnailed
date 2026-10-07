@@ -1,36 +1,487 @@
 {% extends 'base.html' %}
 {% block title %}Point of Sale | {{ BRAND_NAME }}{% endblock %}
 {% block content %}
-<div class="page-heading service-heading"><div><div class="eyebrow">TRANSACTIONAL CHECKOUT</div><h2>Point of Sale</h2></div><a class="btn btn-outline-brand" href="{% url 'pos:history' %}">Transaction history</a></div>
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">TRANSACTIONAL CHECKOUT</div>
+    <div class="d-flex align-items-center gap-3">
+      <h2 class="mb-0">Point of Sale</h2>
+      {% if active_shift %}
+        <a href="{% url 'pos:shift_dashboard' %}" class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none py-2 px-3">
+          <i class="bi bi-safe me-1"></i> Shift #{{ active_shift.pk }} Open (Float: ₱{{ active_shift.opening_cash|floatformat:2 }})
+        </a>
+      {% else %}
+        <a href="{% url 'pos:shift_open' %}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-decoration-none py-2 px-3">
+          <i class="bi bi-exclamation-triangle me-1"></i> Till Unopened (Click to Open Shift)
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-brand" href="{% url 'pos:shift_dashboard' %}"><i class="bi bi-safe me-1"></i> Till & Shifts</a>
+    <a class="btn btn-outline-brand" href="{% url 'pos:history' %}"><i class="bi bi-receipt me-1"></i> Transaction history</a>
+  </div>
+</div>
+
 <form method="post" novalidate id="pos-form">{% csrf_token %}
   {{ form.non_field_errors }}{{ item_formset.non_form_errors }}{{ item_formset.management_form }}
   <div class="pos-layout">
-    <section class="content-card"><h3 class="h5 mb-3">Services</h3><div class="pos-items">
-      {% for item_form in item_formset %}<div class="pos-item-row"><span class="pos-item-number">{{ forloop.counter }}</span>{% for field in item_form %}<div><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}</div>{% endfor %}
-    </div></section>
-    <aside class="content-card pos-checkout"><div><div class="eyebrow">CUSTOMER</div>{% for field in form %}{% if field.name == 'customer' or field.name == 'appointment' or field.name == 'mark_appointment_completed' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div><div><div class="eyebrow">DISCOUNT</div>{% for field in form %}{% if field.name == 'discount_type' or field.name == 'discount_value' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div><div><div class="eyebrow">PAYMENT</div>{% for field in form %}{% if field.name == 'payment_method' or field.name == 'amount_tendered' or field.name == 'payment_reference' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div><div class="pos-total"><span>Estimated total</span><strong id="pos-total">₱0.00</strong></div><button class="btn btn-brand btn-lg w-100" type="submit">Complete sale</button></aside>
+    <section class="content-card">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="h5 mb-0">Services</h3>
+        <span class="small text-muted"><i class="bi bi-info-circle me-1"></i> Services consume technician time blocks.</span>
+      </div>
+      <div class="pos-items">
+        {% for item_form in item_formset %}
+          <div class="pos-item-row">
+            <span class="pos-item-number">{{ forloop.counter }}</span>
+            <div class="row g-2 flex-grow-1 align-items-end">
+              <div class="col-md-5">
+                <label class="form-label small mb-1" for="{{ item_form.service.id_for_label }}">Service</label>
+                {{ item_form.service }}
+                {% for error in item_form.service.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1" for="{{ item_form.assigned_staff.id_for_label }}">Technician</label>
+                {{ item_form.assigned_staff }}
+                {% for error in item_form.assigned_staff.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small mb-1" for="{{ item_form.service_time.id_for_label }}">Time</label>
+                {{ item_form.service_time }}
+                {{ item_form.quantity }}
+                {% for error in item_form.service_time.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                {% for error in item_form.quantity.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="content-card pos-checkout">
+      <div>
+        <div class="eyebrow">CUSTOMER</div>
+        {% for field in form %}
+          {% if field.name == 'customer' or field.name == 'appointment' or field.name == 'mark_appointment_completed' %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {{ field.errors }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div class="border-top pt-3">
+        <div class="eyebrow">DISCOUNT MANAGEMENT & CAPS</div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.discount_type.id_for_label }}">Discount Scheme</label>
+          {{ form.discount_type }}
+          {{ form.discount_type.errors }}
+        </div>
+        <div id="custom-discount-group" class="mb-3">
+          <label class="form-label" for="{{ form.discount_value.id_for_label }}">Discount Value</label>
+          {{ form.discount_value }}
+          {{ form.discount_value.errors }}
+        </div>
+        <div id="senior-pwd-group" class="mb-3 p-3 rounded-2" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border); display: none;">
+          <div class="small fw-bold text-uppercase mb-2" style="color: var(--deep-rose);"><i class="bi bi-shield-check me-1"></i> Senior Citizen / PWD (RA 9994 / RA 10754)</div>
+          <div class="mb-2">
+            <label class="form-label small" for="{{ form.discount_id_number.id_for_label }}">ID Number <span class="text-danger">*</span></label>
+            {{ form.discount_id_number }}
+            {{ form.discount_id_number.errors }}
+          </div>
+          <div>
+            <label class="form-label small" for="{{ form.discount_id_name.id_for_label }}">Cardholder Full Name</label>
+            {{ form.discount_id_name }}
+            {{ form.discount_id_name.errors }}
+          </div>
+          <div class="form-text small mt-1">20% statutory discount applied. Per-item & no double-discounting regulation.</div>
+        </div>
+        <div id="voucher-group" class="mb-3 p-3 rounded-2" style="background: rgba(198,161,91,0.1); border: 1px solid var(--border); display: none;">
+          <div class="small fw-bold text-uppercase mb-2 text-dark"><i class="bi bi-ticket-perforated me-1"></i> Promo Voucher Code</div>
+          <div class="mb-2">
+            <label class="form-label small" for="{{ form.voucher_code.id_for_label }}">Code</label>
+            {{ form.voucher_code }}
+            {{ form.voucher_code.errors }}
+          </div>
+          <div>
+            <label class="form-label small" for="{{ form.max_discount_cap.id_for_label }}">Discount Cap (₱)</label>
+            {{ form.max_discount_cap }}
+            {{ form.max_discount_cap.errors }}
+          </div>
+          <div class="form-text small mt-1">Discounts are capped according to promo policy.</div>
+        </div>
+      </div>
+
+      <div class="border-top pt-3">
+        <div class="eyebrow">PAYMENT METHOD</div>
+        
+        <!-- Segmented Payment Method Switcher -->
+        <div class="btn-group w-100 mb-3" role="group" id="payment-method-selector">
+          <button type="button" class="btn payment-method-tab active" data-method="CASH" style="background-color: #8b4f5c; border-color: #8b4f5c; color: #ffffff;">
+            <i class="bi bi-cash-stack me-1"></i> Cash
+          </button>
+          <button type="button" class="btn payment-method-tab" data-method="GCASH" style="background-color: #ffffff; border-color: #005ce6; color: #005ce6;">
+            <i class="bi bi-phone-fill me-1"></i> GCash
+          </button>
+          <button type="button" class="btn payment-method-tab" data-method="MAYA" style="background-color: #ffffff; border-color: #00a854; color: #008744;">
+            <i class="bi bi-wallet2 me-1"></i> Maya
+          </button>
+        </div>
+
+        <!-- Hidden input bound to form.payment_method -->
+        <div class="d-none">
+          {{ form.payment_method }}
+        </div>
+        {% for error in form.payment_method.errors %}
+          <div class="text-danger small mb-2">{{ error }}</div>
+        {% endfor %}
+
+        <!-- Cash Payment Panel -->
+        <div id="payment-panel-cash" class="payment-method-panel">
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.amount_tendered.id_for_label }}">Cash Tendered (₱)</label>
+            {{ form.amount_tendered }}
+            {% for error in form.amount_tendered.errors %}
+              <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+            <div class="d-flex flex-wrap gap-1 mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-type="exact">Exact</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="50">+₱50</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="100">+₱100</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="500">+₱500</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="1000">+₱1,000</button>
+            </div>
+            <div class="d-flex justify-content-between align-items-center p-2 px-3 rounded-2 mt-2" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border);">
+              <span class="small text-muted">Change (Sukli):</span>
+              <strong id="pos-change" class="text-success fs-5">₱0.00</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- GCash Payment Panel -->
+        <div id="payment-panel-gcash" class="payment-method-panel" style="display: none;">
+          <div class="p-3 rounded-3 mb-3" style="background: rgba(0, 92, 230, 0.08); border: 1.5px solid rgba(0, 92, 230, 0.28);">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="badge" style="background: #005ce6; color: white; font-weight: 600; font-size: 0.82rem;">
+                <i class="bi bi-phone-fill me-1"></i> GCash
+              </span>
+              <span class="small text-muted">Amount: <strong class="text-primary pos-exact-total">₱0.00</strong></span>
+            </div>
+            <label class="form-label small fw-semibold mb-1" for="gcash-reference-input">GCash Reference Number</label>
+            <input type="text" id="gcash-reference-input" class="form-control" placeholder="e.g. 1029 3847 5612">
+            <div class="form-text small text-muted">Customer scans GCash QR and confirms payment.</div>
+          </div>
+        </div>
+
+        <!-- Maya Payment Panel -->
+        <div id="payment-panel-maya" class="payment-method-panel" style="display: none;">
+          <div class="p-3 rounded-3 mb-3" style="background: rgba(0, 214, 100, 0.08); border: 1.5px solid rgba(0, 214, 100, 0.28);">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="badge" style="background: #111827; color: #00d664; font-weight: 600; font-size: 0.82rem;">
+                <i class="bi bi-wallet2 me-1"></i> Maya
+              </span>
+              <span class="small text-muted">Amount: <strong class="text-success pos-exact-total">₱0.00</strong></span>
+            </div>
+            <label class="form-label small fw-semibold mb-1" for="maya-reference-input">Maya Reference / Transaction ID</label>
+            <input type="text" id="maya-reference-input" class="form-control" placeholder="e.g. 9876543210">
+            <div class="form-text small text-muted">Customer pays via Maya QR or card terminal.</div>
+          </div>
+        </div>
+
+        <!-- Form Payment Reference Field (Hidden synced input) -->
+        <input type="hidden" name="payment_reference" id="id_payment_reference" value="{{ form.payment_reference.value|default:'' }}">
+        {% for error in form.payment_reference.errors %}
+          <div class="text-danger small mb-2">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="border-top pt-3">
+        <div class="d-flex justify-content-between mb-1 small text-muted">
+          <span>Subtotal:</span>
+          <strong id="pos-subtotal" class="text-dark">₱0.00</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1 small text-muted">
+          <span>Discount Applied:</span>
+          <strong id="pos-discount" class="text-danger">-₱0.00</strong>
+        </div>
+        <div class="pos-total mt-2">
+          <span>Final Total</span>
+          <strong id="pos-total">₱0.00</strong>
+        </div>
+      </div>
+
+      <button class="btn btn-brand btn-lg w-100 mt-3" type="submit" id="btn-complete-sale">
+        <i class="bi bi-check2-circle me-1"></i> Complete Sale (Cash)
+      </button>
+    </aside>
   </div>
 </form>
+
 {{ service_prices|json_script:"service-prices" }}
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const prices = JSON.parse(document.getElementById("service-prices").textContent);
-  const total = document.getElementById("pos-total");
+  const servicePrices = JSON.parse(document.getElementById("service-prices").textContent);
+  const subtotalElem = document.getElementById("pos-subtotal");
+  const discountElem = document.getElementById("pos-discount");
+  const totalElem = document.getElementById("pos-total");
+
+  const discountTypeSelect = document.getElementById("id_discount_type");
+  const customGroup = document.getElementById("custom-discount-group");
+  const seniorPwdGroup = document.getElementById("senior-pwd-group");
+  const voucherGroup = document.getElementById("voucher-group");
+
+  function toggleDiscountInputs() {
+    const val = discountTypeSelect.value;
+    if (val === "SENIOR_CITIZEN" || val === "PWD") {
+      seniorPwdGroup.style.display = "block";
+      customGroup.style.display = "none";
+      voucherGroup.style.display = "none";
+    } else if (val === "PROMO_VOUCHER") {
+      seniorPwdGroup.style.display = "none";
+      customGroup.style.display = "none";
+      voucherGroup.style.display = "block";
+    } else if (val === "PERCENT" || val === "FIXED") {
+      seniorPwdGroup.style.display = "none";
+      customGroup.style.display = "block";
+      voucherGroup.style.display = "none";
+    } else {
+      seniorPwdGroup.style.display = "none";
+      customGroup.style.display = "none";
+      voucherGroup.style.display = "none";
+    }
+  }
+
+  let currentTotal = 0;
+
   function calculate() {
     let subtotal = 0;
     document.querySelectorAll(".pos-item-row").forEach(function (row) {
       const service = row.querySelector(".pos-service");
       const quantity = row.querySelector('input[name$="-quantity"]');
-      subtotal += Number(prices[service.value] || 0) * Number(quantity.value || 0);
+      const qty = Number(quantity ? quantity.value : 1) || 1;
+
+      if (service && service.value) {
+        subtotal += Number(servicePrices[service.value] || 0) * qty;
+      }
     });
-    const type = document.getElementById("id_discount_type").value;
+
+    const type = discountTypeSelect.value;
     const value = Number(document.getElementById("id_discount_value").value || 0);
-    const discount = type === "PERCENT" ? subtotal * value / 100 : (type === "FIXED" ? value : 0);
-    total.textContent = "₱" + Math.max(0, subtotal - discount).toFixed(2);
+    const cap = Number(document.getElementById("id_max_discount_cap")?.value || 0);
+
+    let discount = 0;
+    if (type === "SENIOR_CITIZEN" || type === "PWD") {
+      // 20% standard regulatory discount
+      discount = subtotal * 0.20;
+      if (cap > 0) discount = Math.min(discount, cap);
+    } else if (type === "PERCENT") {
+      discount = subtotal * (value / 100);
+      if (cap > 0) discount = Math.min(discount, cap);
+    } else if (type === "FIXED") {
+      discount = value;
+      if (cap > 0) discount = Math.min(discount, cap);
+    }
+
+    discount = Math.min(discount, subtotal);
+    const total = Math.max(0, subtotal - discount);
+    currentTotal = total;
+
+    if (subtotalElem) subtotalElem.textContent = "₱" + subtotal.toFixed(2);
+    if (discountElem) discountElem.textContent = "-₱" + discount.toFixed(2);
+    if (totalElem) totalElem.textContent = "₱" + total.toFixed(2);
+
+    document.querySelectorAll(".pos-exact-total").forEach(function (el) {
+      el.textContent = "₱" + total.toFixed(2);
+    });
+
+    const amountInput = document.getElementById("id_amount_tendered");
+    const tendered = Number(amountInput?.value || 0);
+    const change = Math.max(0, tendered - total);
+    const changeEl = document.getElementById("pos-change");
+    if (changeEl) changeEl.textContent = "₱" + change.toFixed(2);
   }
+
+  const paymentMethodSelect = document.getElementById("id_payment_method");
+  const paymentTabs = document.querySelectorAll(".payment-method-tab");
+  const cashPanel = document.getElementById("payment-panel-cash");
+  const gcashPanel = document.getElementById("payment-panel-gcash");
+  const mayaPanel = document.getElementById("payment-panel-maya");
+  const completeBtn = document.getElementById("btn-complete-sale");
+  const paymentRefHidden = document.getElementById("id_payment_reference");
+  const gcashRefInput = document.getElementById("gcash-reference-input");
+  const mayaRefInput = document.getElementById("maya-reference-input");
+
+  function setPaymentMethod(method) {
+    if (paymentMethodSelect) paymentMethodSelect.value = method;
+
+    paymentTabs.forEach(function (tab) {
+      const isSelected = tab.dataset.method === method;
+      tab.classList.toggle("active", isSelected);
+      if (tab.dataset.method === "CASH") {
+        if (isSelected) {
+          tab.style.backgroundColor = "#8b4f5c";
+          tab.style.borderColor = "#8b4f5c";
+          tab.style.color = "#ffffff";
+        } else {
+          tab.style.backgroundColor = "#ffffff";
+          tab.style.borderColor = "#8b4f5c";
+          tab.style.color = "#8b4f5c";
+        }
+      } else if (tab.dataset.method === "GCASH") {
+        if (isSelected) {
+          tab.style.backgroundColor = "#005ce6";
+          tab.style.borderColor = "#005ce6";
+          tab.style.color = "#ffffff";
+        } else {
+          tab.style.backgroundColor = "#ffffff";
+          tab.style.borderColor = "#005ce6";
+          tab.style.color = "#005ce6";
+        }
+      } else if (tab.dataset.method === "MAYA") {
+        if (isSelected) {
+          tab.style.backgroundColor = "#00a854";
+          tab.style.borderColor = "#00a854";
+          tab.style.color = "#ffffff";
+        } else {
+          tab.style.backgroundColor = "#ffffff";
+          tab.style.borderColor = "#00a854";
+          tab.style.color = "#008744";
+        }
+      }
+    });
+
+    if (cashPanel) cashPanel.style.display = method === "CASH" ? "block" : "none";
+    if (gcashPanel) gcashPanel.style.display = method === "GCASH" ? "block" : "none";
+    if (mayaPanel) mayaPanel.style.display = method === "MAYA" ? "block" : "none";
+
+    if (completeBtn) {
+      if (method === "CASH") {
+        completeBtn.innerHTML = '<i class="bi bi-cash-stack me-1"></i> Complete Sale (Cash)';
+      } else if (method === "GCASH") {
+        completeBtn.innerHTML = '<i class="bi bi-phone-fill me-1"></i> Complete Sale (GCash)';
+      } else if (method === "MAYA") {
+        completeBtn.innerHTML = '<i class="bi bi-wallet2 me-1"></i> Complete Sale (Maya)';
+      }
+    }
+
+    if (method === "GCASH" && gcashRefInput && paymentRefHidden) {
+      paymentRefHidden.value = gcashRefInput.value;
+    } else if (method === "MAYA" && mayaRefInput && paymentRefHidden) {
+      paymentRefHidden.value = mayaRefInput.value;
+    } else if (method === "CASH" && paymentRefHidden) {
+      paymentRefHidden.value = "";
+    }
+  }
+
+  paymentTabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      setPaymentMethod(this.dataset.method);
+    });
+  });
+
+  if (gcashRefInput) {
+    gcashRefInput.addEventListener("input", function () {
+      if (paymentRefHidden) paymentRefHidden.value = this.value;
+    });
+  }
+
+  if (mayaRefInput) {
+    mayaRefInput.addEventListener("input", function () {
+      if (paymentRefHidden) paymentRefHidden.value = this.value;
+    });
+  }
+
+  document.querySelectorAll(".quick-cash-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const amountInput = document.getElementById("id_amount_tendered");
+      if (!amountInput) return;
+      if (this.dataset.type === "exact") {
+        amountInput.value = currentTotal.toFixed(2);
+      } else if (this.dataset.add) {
+        const current = Number(amountInput.value || 0);
+        amountInput.value = (current + Number(this.dataset.add)).toFixed(2);
+      }
+      calculate();
+    });
+  });
+
+  const amountTenderedInput = document.getElementById("id_amount_tendered");
+  if (amountTenderedInput) {
+    amountTenderedInput.addEventListener("input", calculate);
+  }
+
+  const initialMethod = paymentMethodSelect ? paymentMethodSelect.value || "CASH" : "CASH";
+  setPaymentMethod(initialMethod);
+  if (paymentRefHidden && paymentRefHidden.value) {
+    if (initialMethod === "GCASH" && gcashRefInput) gcashRefInput.value = paymentRefHidden.value;
+    if (initialMethod === "MAYA" && mayaRefInput) mayaRefInput.value = paymentRefHidden.value;
+  }
+
+  const appointmentSelect = document.getElementById("id_appointment");
+  const customerSelect = document.getElementById("id_customer");
+
+  function loadAppointment(apptId) {
+    if (!apptId) return;
+    fetch(`/pos/api/appointment/${apptId}/`)
+      .then(response => {
+        if (!response.ok) throw new Error("Could not load appointment details");
+        return response.json();
+      })
+      .then(data => {
+        if (customerSelect && data.customer_id) {
+          customerSelect.value = data.customer_id;
+        }
+        const rows = document.querySelectorAll(".pos-item-row");
+        if (data.items && data.items.length > 0) {
+          data.items.forEach((item, index) => {
+            if (index < rows.length) {
+              const row = rows[index];
+              const serviceElem = row.querySelector(".pos-service");
+              const staffElem = row.querySelector('select[name$="-assigned_staff"]');
+              const timeElem = row.querySelector('input[name$="-service_time"]');
+              if (serviceElem) serviceElem.value = item.service_id;
+              if (staffElem && item.assigned_staff_id) staffElem.value = item.assigned_staff_id;
+              if (timeElem) timeElem.value = item.service_time || data.start_time || "";
+            }
+          });
+          for (let i = data.items.length; i < rows.length; i++) {
+            const row = rows[i];
+            const serviceElem = row.querySelector(".pos-service");
+            const staffElem = row.querySelector('select[name$="-assigned_staff"]');
+            const timeElem = row.querySelector('input[name$="-service_time"]');
+            if (serviceElem) serviceElem.value = "";
+            if (staffElem) staffElem.value = "";
+            if (timeElem) timeElem.value = "";
+          }
+        }
+        calculate();
+      })
+      .catch(err => {
+        console.error("Error loading appointment details:", err);
+      });
+  }
+
+  if (appointmentSelect) {
+    appointmentSelect.addEventListener("change", function () {
+      loadAppointment(this.value);
+    });
+  }
+
+  discountTypeSelect.addEventListener("change", function () {
+    toggleDiscountInputs();
+    calculate();
+  });
+
   document.getElementById("pos-form").addEventListener("input", calculate);
   document.getElementById("pos-form").addEventListener("change", calculate);
+
+  toggleDiscountInputs();
   calculate();
 });
 </script>
 {% endblock %}
+

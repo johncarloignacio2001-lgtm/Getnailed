@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Create Promo Voucher | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">DISCOUNT MANAGEMENT</div>
+    <h2>Create Promo Voucher</h2>
+    <p class="text-muted mb-0">Define promo discount codes with optional discount capping and minimum spend constraints.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'pos:voucher_list' %}">← Back to Vouchers</a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="content-card">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="{{ form.code.id_for_label }}">Voucher Code</label>
+          {{ form.code }}
+          {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors }}</div>{% endif %}
+          <div class="form-text">e.g., SUMMER15, GETNAILED100 (Case-insensitive)</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+          {{ form.description }}
+          {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold" for="{{ form.discount_type.id_for_label }}">Discount Type</label>
+            {{ form.discount_type }}
+            {% if form.discount_type.errors %}<div class="text-danger small mt-1">{{ form.discount_type.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold" for="{{ form.discount_value.id_for_label }}">Discount Value</label>
+            {{ form.discount_value }}
+            {% if form.discount_value.errors %}<div class="text-danger small mt-1">{{ form.discount_value.errors }}</div>{% endif %}
+            <div class="form-text">Percentage (e.g. 15 for 15%) or Fixed Amount (e.g. 100 for ₱100).</div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold" for="{{ form.max_discount_cap.id_for_label }}">Maximum Discount Cap (₱)</label>
+            {{ form.max_discount_cap }}
+            {% if form.max_discount_cap.errors %}<div class="text-danger small mt-1">{{ form.max_discount_cap.errors }}</div>{% endif %}
+            <div class="form-text">Upper ceiling limit on percentage discounts (optional).</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold" for="{{ form.min_spend.id_for_label }}">Minimum Spend (₱)</label>
+            {{ form.min_spend }}
+            {% if form.min_spend.errors %}<div class="text-danger small mt-1">{{ form.min_spend.errors }}</div>{% endif %}
+            <div class="form-text">Minimum subtotal required to apply voucher.</div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label" for="{{ form.usage_limit.id_for_label }}">Usage Limit (Count)</label>
+            {{ form.usage_limit }}
+            {% if form.usage_limit.errors %}<div class="text-danger small mt-1">{{ form.usage_limit.errors }}</div>{% endif %}
+            <div class="form-text">Leave blank for unlimited redemptions.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="{{ form.valid_until.id_for_label }}">Valid Until (Optional Expiration)</label>
+            {{ form.valid_until }}
+            {% if form.valid_until.errors %}<div class="text-danger small mt-1">{{ form.valid_until.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="form-check mb-4">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Voucher is active and redeemable</label>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-brand btn-lg flex-grow-1">Save Voucher</button>
+          <a href="{% url 'pos:voucher_list' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

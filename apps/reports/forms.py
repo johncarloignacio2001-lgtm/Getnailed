@@ -10,6 +10,19 @@ FORM_CONTROL = {"class": "form-control"}
 
 
 class ReportDateRangeForm(forms.Form):
+    PRESET_CHOICES = (
+        ("custom", "Custom Range"),
+        ("day", "Today (Day)"),
+        ("week", "This Week"),
+        ("month", "This Month"),
+        ("year", "This Year"),
+    )
+    preset = forms.ChoiceField(
+        choices=PRESET_CHOICES,
+        required=False,
+        initial="custom",
+        widget=forms.Select(attrs={**FORM_CONTROL, "id": "preset-select"}),
+    )
     start_date = forms.DateField(
         widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"})
     )
@@ -27,15 +40,36 @@ class ReportDateRangeForm(forms.Form):
             "service-sales": (today.replace(day=1), today),
             "appointment-status": (today.replace(day=1), today),
             "staff-workload": (today.replace(day=1), today),
+            "top-services": (today.replace(day=1), today),
+            "top-staff": (today.replace(day=1), today),
         }
         kwargs.setdefault(
             "initial",
-            {"start_date": defaults[report_type][0], "end_date": defaults[report_type][1]},
+            {
+                "preset": "custom",
+                "start_date": defaults.get(report_type, (today.replace(day=1), today))[0],
+                "end_date": defaults.get(report_type, (today.replace(day=1), today))[1],
+            },
         )
         super().__init__(*args, **kwargs)
 
     def clean(self):
         cleaned_data = super().clean()
+        preset = cleaned_data.get("preset")
+        today = timezone.localdate()
+        if preset == "day":
+            cleaned_data["start_date"] = today
+            cleaned_data["end_date"] = today
+        elif preset == "week":
+            cleaned_data["start_date"] = today - timedelta(days=6)
+            cleaned_data["end_date"] = today
+        elif preset == "month":
+            cleaned_data["start_date"] = today.replace(day=1)
+            cleaned_data["end_date"] = today
+        elif preset == "year":
+            cleaned_data["start_date"] = today.replace(month=1, day=1)
+            cleaned_data["end_date"] = today
+
         start = cleaned_data.get("start_date")
         end = cleaned_data.get("end_date")
         if start and end and end < start:

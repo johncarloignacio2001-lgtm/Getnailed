@@ -3,12 +3,127 @@
     <div class="content-card mx-auto" style="max-width: 760px;">
       <div class="eyebrow">PUBLIC BOOKING{% if step %} · STEP {{ step }} OF 4{% endif %}</div>
       <h1 class="h2">{{ step_title|default:"Book an appointment" }}</h1>
-      <form method="post" novalidate>
+      {% if step == 3 and total_duration %}
+        <div class="alert alert-light border d-flex align-items-center justify-content-between mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.05); border-color: var(--border)!important;">
+          <div>
+            <div class="fw-bold small text-uppercase" style="color: var(--deep-rose);">
+              <i class="bi bi-clock-history me-1"></i> Required Block of Time: {{ total_duration }} mins
+            </div>
+            <div class="small text-secondary">
+              Salon services are scheduled based on technician time availability. No physical inventory is required.
+            </div>
+          </div>
+          <span class="badge rounded-pill px-3 py-2 text-white" style="background: var(--deep-rose); font-size: 0.85rem;">
+            {{ total_duration }} min block
+          </span>
+        </div>
+      {% endif %}
+      <form method="post" novalidate id="booking-form">
         {% csrf_token %}
-        {% for field in form %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            {% if field.name == 'start_time' and step == 3 %}
+              <div class="form-text">Choose from the available technician slots below or enter a time.</div>
+            {% endif %}
+          </div>
+          {% if field.name == 'start_time' and step == 3 %}
+            <div class="mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border);">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="fw-bold small text-uppercase" style="color: var(--deep-rose);"><i class="bi bi-calendar-check me-1"></i> Live Technician Availability ({{ total_duration|default:"30" }}-min block)</span>
+                <span id="slots-status" class="small text-muted"></span>
+              </div>
+              <div id="slots-container" class="d-flex flex-wrap gap-2 pt-1">
+                <span class="text-muted small">Pick a date above to calculate real-time available technician slots.</span>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
         <button class="btn btn-brand" type="submit">{{ button_label|default:"Submit booking request" }}</button>
       </form>
       <div class="d-flex flex-wrap gap-3 mt-4"><a href="{% url 'bookings:verify' %}">Verify a booking</a><a href="{% url 'bookings:status_lookup' %}">Check booking status</a></div>
     </div>
   </div>
 </section>
+
+{% if step == 3 %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const dateInput = document.getElementById("id_appointment_date");
+  const staffInput = document.getElementById("id_assigned_staff");
+  const timeInput = document.getElementById("id_start_time");
+  const slotsContainer = document.getElementById("slots-container");
+  const slotsStatus = document.getElementById("slots-status");
+
+  function formatTimeDisplay(timeStr) {
+    const parts = timeStr.split(":");
+    let h = parseInt(parts[0], 10);
+    const m = parts[1];
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + m + " " + ampm;
+  }
+
+  function fetchSlots() {
+    if (!dateInput || !dateInput.value) {
+      slotsContainer.innerHTML = '<span class="text-muted small">Pick a date above to calculate real-time available technician slots.</span>';
+      return;
+    }
+    slotsStatus.textContent = "Checking technician schedules...";
+    const dateVal = dateInput.value;
+    const staffVal = staffInput ? staffInput.value : "";
+    let url = "{% url 'bookings:api_available_slots' %}?date=" + encodeURIComponent(dateVal);
+    if (staffVal) {
+      url += "&staff=" + encodeURIComponent(staffVal);
+    }
+    const serviceIds = "{{ service_ids|join:',' }}";
+    if (serviceIds) {
+      url += "&service_ids=" + encodeURIComponent(serviceIds);
+    }
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        slotsContainer.innerHTML = "";
+        if (data.slots && data.slots.length > 0) {
+          slotsStatus.textContent = data.slots.length + " slot(s) available";
+          data.slots.forEach(slot => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn btn-sm " + (timeInput.value === slot ? "btn-brand" : "btn-outline-brand") + " slot-btn";
+            btn.textContent = formatTimeDisplay(slot);
+            btn.addEventListener("click", function () {
+              timeInput.value = slot;
+              document.querySelectorAll(".slot-btn").forEach(b => {
+                b.className = "btn btn-sm btn-outline-brand slot-btn";
+              });
+              btn.className = "btn btn-sm btn-brand slot-btn";
+            });
+            slotsContainer.appendChild(btn);
+          });
+        } else {
+          slotsStatus.textContent = "Fully booked";
+          slotsContainer.innerHTML = '<span class="text-danger small"><i class="bi bi-exclamation-circle me-1"></i> No technicians are available for this date/time. Please select a different date or staff member.</span>';
+        }
+      })
+      .catch(() => {
+        slotsStatus.textContent = "";
+        slotsContainer.innerHTML = '<span class="text-muted small">Could not load availability. You may enter your desired time directly.</span>';
+      });
+  }
+
+  if (dateInput) {
+    dateInput.addEventListener("change", fetchSlots);
+  }
+  if (staffInput) {
+    staffInput.addEventListener("change", fetchSlots);
+  }
+  if (dateInput && dateInput.value) {
+    fetchSlots();
+  }
+});
+</script>
+{% endif %}
+

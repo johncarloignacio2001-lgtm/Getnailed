@@ -11,7 +11,13 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.customers.models import Customer
 from apps.notifications.models import Notification
-from apps.services.models import Service, ServiceCategory, StaffProfile
+from apps.services.models import (
+    Service,
+    ServiceCategory,
+    StaffProfile,
+    StaffSchedule,
+    StaffTimeBlock,
+)
 
 from .models import Appointment, AppointmentService
 from .services import (
@@ -244,3 +250,87 @@ class AppointmentWorkflowTests(TestCase):
             ).status_code,
             404,
         )
+
+    def test_shift_working_hours_constraint_blocks_appointment(self):
+        target_date = timezone.localdate() + timedelta(days=2)
+        weekday = target_date.weekday()
+        StaffSchedule.objects.create(
+            staff=self.staff,
+            day_of_week=weekday,
+            start_time=time(11, 0),
+            end_time=time(18, 0),
+            is_working=True,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "working hours"):
+            self.create_appointment(
+                appointment_date=target_date,
+                start_time=time(10, 0),
+                assigned_staff=self.staff,
+            )
+
+        appt = self.create_appointment(
+            appointment_date=target_date,
+            start_time=time(11, 0),
+            assigned_staff=self.staff,
+        )
+        self.assertEqual(appt.start_time, time(11, 0))
+
+    def test_staff_time_block_blocks_appointment(self):
+        target_date = timezone.localdate() + timedelta(days=2)
+        StaffTimeBlock.objects.create(
+            staff=self.staff,
+            date=target_date,
+            start_time=time(12, 0),
+            end_time=time(13, 0),
+            reason="Lunch break",
+        )
+
+        with self.assertRaisesMessage(ValidationError, "scheduled leave or time block"):
+            self.create_appointment(
+                appointment_date=target_date,
+                start_time=time(12, 0),
+                assigned_staff=self.staff,
+            )
+
+    def test_unqualified_staff_skill_constraint_blocks_appointment(self):
+        target_date = timezone.localdate() + timedelta(days=2)
+        other_service = Service.objects.create(
+            category=self.category,
+            name="Eyelash Extension",
+            duration_minutes=60,
+            price="1200.00",
+        )
+        profile = self.staff.staff_profile
+        profile.skills.add(self.service)
+
+        with self.assertRaisesMessage(ValidationError, "not qualified"):
+            create_public_appointment(
+                self.appointment_data(start_time=time(10, 0)),
+                [other_service],
+                self.request,
+            )
+
+    def test_multi_service_duration_block_and_api_slots(self):
+        from .services import get_available_time_slots
+        pedicure = Service.objects.create(
+            category=self.category,
+            name="Deluxe Pedicure",
+            duration_minutes=60,
+            price="500.00",
+        )
+        appt = create_public_appointment(
+            self.appointment_data(start_time=time(10, 0)),
+            [self.service, pedicure],
+            self.request,
+        )
+        self.assertEqual(appt.total_duration_minutes, 105)
+        self.assertEqual(appt.end_time, time(11, 45))
+
+        target_date = timezone.localdate() + timedelta(days=2)
+        slots = get_available_time_slots(
+            target_date, [self.service.pk, pedicure.pk], staff_id=self.staff.pk
+        )
+        self.assertIsInstance(slots, list)
+        self.assertTrue(len(slots) > 0)
+

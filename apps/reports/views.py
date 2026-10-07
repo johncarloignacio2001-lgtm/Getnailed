@@ -8,7 +8,7 @@ from apps.pos.models import Payment, Sale
 
 from .exports import export_csv, export_pdf, export_xlsx
 from .forms import DailySummaryForm, ReportDateRangeForm
-from .services import build_report, completed_sales
+from .services import build_report, completed_sales, sort_report_rows
 
 
 REPORT_TYPES = {
@@ -19,6 +19,8 @@ REPORT_TYPES = {
     "service-sales": "Service Sales",
     "appointment-status": "Appointment Status",
     "staff-workload": "Staff Workload",
+    "top-services": "Top Services (Most Booked)",
+    "top-staff": "Top Performing Staff",
 }
 
 
@@ -37,15 +39,30 @@ def _report_and_form(request, report_type):
     else:
         start_date = form.initial["start_date"]
         end_date = form.initial["end_date"]
-    return build_report(report_type, start_date, end_date), form
+    report = build_report(report_type, start_date, end_date)
+    sort_column = request.GET.get("sort")
+    direction = request.GET.get("direction", "asc")
+    if sort_column and report:
+        report.rows = sort_report_rows(report.rows, sort_column, direction)
+    return report, form
 
 
 def _render_report(request, report_type):
     report, form = _report_and_form(request, report_type)
+    sort_column = request.GET.get("sort", "")
+    direction = request.GET.get("direction", "asc")
+    next_direction = "desc" if direction == "asc" else "asc"
     return render(
         request,
         "reports/report.html",
-        {"report": report, "form": form, "report_type": report_type},
+        {
+            "report": report,
+            "form": form,
+            "report_type": report_type,
+            "sort_column": sort_column,
+            "direction": direction,
+            "next_direction": next_direction,
+        },
     )
 
 
@@ -82,6 +99,16 @@ def appointment_status(request):
 @owner_required
 def staff_workload(request):
     return _render_report(request, "staff-workload")
+
+
+@owner_required
+def top_services(request):
+    return _render_report(request, "top-services")
+
+
+@owner_required
+def top_staff(request):
+    return _render_report(request, "top-staff")
 
 
 @owner_required

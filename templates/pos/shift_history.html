@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Shift & Till History | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">CASHIER MANAGEMENT</div>
+    <h2>Shift & Till History</h2>
+    <p class="text-muted mb-0">Historical log of cashier shifts, cash drawer floats, and till reconciliations.</p>
+  </div>
+  <a class="btn btn-brand" href="{% url 'pos:shift_dashboard' %}">Till Dashboard</a>
+</div>
+
+<div class="content-card mb-4">
+  <form class="row g-3 align-items-end" method="get">
+    <div class="col-md-4">
+      <label class="form-label" for="date-filter">Date Opened</label>
+      <input type="date" class="form-control" id="date-filter" name="date" value="{{ date_filter|default:'' }}">
+    </div>
+    {% if user.is_owner %}
+    <div class="col-md-4">
+      <label class="form-label" for="cashier-filter">Cashier</label>
+      <select class="form-select" id="cashier-filter" name="cashier">
+        <option value="">All Cashiers</option>
+        {% for c in cashiers %}
+          <option value="{{ c.pk }}" {% if request.GET.cashier == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="col-md-4 d-flex gap-2">
+      <button class="btn btn-brand" type="submit">Filter Shifts</button>
+      <a class="btn btn-outline-secondary" href="{% url 'pos:shift_history' %}">Reset</a>
+    </div>
+  </form>
+</div>
+
+<div class="content-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Shift #</th>
+          <th>Cashier</th>
+          <th>Opened</th>
+          <th>Closed</th>
+          <th>Starting Float</th>
+          <th>Cash Sales</th>
+          <th>Expected Cash</th>
+          <th>Counted Cash</th>
+          <th>Variance</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in page %}
+          <tr>
+            <td><strong>#{{ shift.pk }}</strong></td>
+            <td>{{ shift.cashier }}</td>
+            <td>{{ shift.opened_at|date:"M d, Y H:i" }}</td>
+            <td>{% if shift.closed_at %}{{ shift.closed_at|date:"M d, Y H:i" }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+            <td>₱{{ shift.opening_cash|floatformat:2 }}</td>
+            <td>₱{{ shift.cash_sales_total|floatformat:2 }}</td>
+            <td>₱{{ shift.expected_cash|floatformat:2 }}</td>
+            <td>{% if shift.closing_cash != None %}₱{{ shift.closing_cash|floatformat:2 }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+            <td>
+              {% if shift.cash_variance != None %}
+                {% if shift.cash_variance == 0 %}
+                  <span class="badge bg-success">₱0.00 Exact</span>
+                {% elif shift.cash_variance > 0 %}
+                  <span class="badge bg-info text-dark">+₱{{ shift.cash_variance|floatformat:2 }} Over</span>
+                {% else %}
+                  <span class="badge bg-danger">₱{{ shift.cash_variance|floatformat:2 }} Short</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if shift.status == "OPEN" %}
+                <span class="badge bg-success">OPEN</span>
+              {% else %}
+                <span class="badge bg-secondary">CLOSED</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if shift.status == "CLOSED" %}
+                <a class="btn btn-sm btn-outline-brand" href="{% url 'pos:shift_reconciliation' pk=shift.pk %}">View Report</a>
+              {% else %}
+                <a class="btn btn-sm btn-outline-warning text-dark" href="{% url 'pos:shift_close' %}">Close Till</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="11" class="text-center text-muted py-4">No shift logs found for this filter.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center">
+      {% if page.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if request.GET.cashier %}&cashier={{ request.GET.cashier }}{% endif %}">Previous</a></li>
+      {% endif %}
+      <li class="page-item disabled"><span class="page-link">Page {{ page.number }} of {{ page.paginator.num_pages }}</span></li>
+      {% if page.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if request.GET.cashier %}&cashier={{ request.GET.cashier }}{% endif %}">Next</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
+

@@ -127,12 +127,95 @@ class ReportsAndDashboardTests(TestCase):
         self.assertEqual(data["appointment_count"], 1)
         self.assertEqual(data["top_services"][0]["quantity"], 2)
         self.assertEqual(data["top_staff"][0].completed_services, 1)
-        self.assertEqual(len(data["sales_trend"]), 7)
+        self.assertEqual(data["today_avg_ticket"], Decimal("100.00"))
+        self.assertEqual(data["month_sales"]["net"], Decimal("200.00"))
+        self.assertEqual(data["month_avg_ticket"], Decimal("100.00"))
+        self.assertEqual(data["today_appointments_count"], 1)
+        self.assertEqual(data["pending_appointments_count"], 0)
+        self.assertEqual(data["active_staff_count"], 1)
+        self.assertEqual(data["staff_on_duty_today"], 1)
+        self.assertEqual(data["new_customers_this_month"], 1)
 
         self.client.force_login(self.owner)
         response = self.client.get(reverse("core:owner_dashboard"))
         self.assertContains(response, "₱200.00")
+        self.assertContains(response, "This month's sales")
+        self.assertContains(response, "Staff on duty")
         self.assertNotContains(response, "Connect this card")
+        self.assertNotContains(response, "Sales trend")
+        self.assertContains(response, "Sales by Category")
+        self.assertContains(response, "Payment Method Breakdown")
+        self.assertContains(response, "Peak Rush Hours")
+        self.assertContains(response, "kpi-charts-payload")
+
+    def test_owner_dashboard_kpi_period_filter_and_pending_alert(self):
+        Appointment.objects.create(
+            customer=self.customer,
+            customer_name_snapshot=self.customer.full_name,
+            customer_email_snapshot=self.customer.email,
+            appointment_date=timezone.localdate(),
+            start_time=time(14, 0),
+            end_time=time(14, 45),
+            status=Appointment.Status.PENDING,
+            expires_at=timezone.now() + timedelta(hours=2),
+            verified_at=timezone.now(),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("core:owner_dashboard"), {"period": "month"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Action Required")
+        self.assertContains(response, "pending appointment")
+        self.assertContains(response, "Filtered View")
+
+    def test_owner_dashboard_kpi_charts_breakdown_and_peak_hours(self):
+        cat2 = ServiceCategory.objects.create(name="Nails & Spa")
+        service2 = Service.objects.create(
+            category=cat2,
+            name="Spa Deluxe",
+            duration_minutes=60,
+            price=Decimal("350.00"),
+        )
+        create_sale(
+            cashier=self.cashier,
+            raw_items=[{"service": service2, "assigned_staff": self.staff, "quantity": 1}],
+            customer=self.customer,
+            payment_method=Payment.Method.GCASH,
+            amount_tendered=Decimal("350.00"),
+        )
+        create_sale(
+            cashier=self.cashier,
+            raw_items=[{"service": self.service, "assigned_staff": self.staff, "quantity": 2}],
+            customer=self.customer,
+            payment_method=Payment.Method.MAYA,
+            amount_tendered=Decimal("200.00"),
+        )
+
+        data = owner_dashboard_data("today")
+        self.assertEqual(data["payment_totals"]["cash"], Decimal("200.00"))
+        self.assertEqual(data["payment_totals"]["gcash"], Decimal("350.00"))
+        self.assertEqual(data["payment_totals"]["maya"], Decimal("200.00"))
+
+        payload = data["kpi_charts_payload"]
+        self.assertTrue(payload["category"]["has_data"])
+        self.assertTrue(payload["payment"]["has_data"])
+        self.assertTrue(payload["peak_hours"]["has_data"])
+
+        cat_names = [c["name"] for c in data["category_sales_list"]]
+        self.assertIn("Reports", cat_names)
+        self.assertIn("Nails & Spa", cat_names)
+
+        self.assertIn("Cash", payload["payment"]["labels"])
+        self.assertIn("GCash", payload["payment"]["labels"])
+        self.assertIn("Maya", payload["payment"]["labels"])
+
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("core:owner_dashboard"))
+        self.assertContains(response, "₱350.00")
+        self.assertContains(response, "GCash")
+        self.assertContains(response, "Maya")
+        self.assertContains(response, "Sales by Category")
+        self.assertContains(response, "Payment Method Breakdown")
+        self.assertContains(response, "Peak Rush Hours")
 
     def test_cashier_dashboard_is_scoped_to_that_cashier(self):
         data = cashier_dashboard_data(self.cashier)
@@ -220,6 +303,8 @@ class ReportsAndDashboardTests(TestCase):
             "reports:service_sales",
             "reports:appointment_status",
             "reports:staff_workload",
+            "reports:top_services",
+            "reports:top_staff",
         )
         for user in (self.cashier, self.staff, self.customer_user):
             self.client.force_login(user)
@@ -235,3 +320,48 @@ class ReportsAndDashboardTests(TestCase):
                 ).status_code,
                 403,
             )
+
+    def test_top_services_and_top_staff_reports(self):
+        today = timezone.localdate()
+        services_report = build_report("top-services", today, today)
+        self.assertEqual(services_report.key, "top-services")
+        self.assertIn("Total Bookings", services_report.columns)
+        self.assertGreaterEqual(len(services_report.rows), 1)
+        self.assertEqual(services_report.rows[0]["Service"], self.service.name)
+
+        staff_report = build_report("top-staff", today, today)
+        self.assertEqual(staff_report.key, "top-staff")
+        self.assertIn("Completion Rate", staff_report.columns)
+        self.assertGreaterEqual(len(staff_report.rows), 1)
+
+    def test_sort_report_rows_and_presets(self):
+        from .services import sort_report_rows
+        from .forms import ReportDateRangeForm
+        today = timezone.localdate()
+
+        rows = [
+            {"Name": "A", "Count": 10},
+            {"Name": "B", "Count": 25},
+            {"Name": "C", "Count": 5},
+        ]
+        sorted_desc = sort_report_rows(rows, "Count", "desc")
+        self.assertEqual(sorted_desc[0]["Name"], "B")
+        self.assertEqual(sorted_desc[2]["Name"], "C")
+
+        form = ReportDateRangeForm({"preset": "week", "start_date": today, "end_date": today}, report_type="daily")
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["start_date"], today - timedelta(days=6))
+        self.assertEqual(form.cleaned_data["end_date"], today)
+
+    def test_owner_can_view_top_reports_and_export(self):
+        self.client.force_login(self.owner)
+        for url_name in ("reports:top_services", "reports:top_staff"):
+            resp = self.client.get(reverse(url_name))
+            self.assertEqual(resp.status_code, 200)
+
+        export_resp = self.client.get(
+            reverse("reports:export", kwargs={"report_type": "top-services", "export_format": "csv"})
+        )
+        self.assertEqual(export_resp.status_code, 200)
+        self.assertTrue(export_resp["Content-Type"].startswith("text/csv"))
+

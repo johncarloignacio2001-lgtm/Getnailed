@@ -11,9 +11,23 @@
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-outline-dark" href="{% url 'services:category_list' %}">Categories</a>
       <a class="btn btn-outline-dark" href="{% url 'services:staff_list' %}">Staff Profiles</a>
+      <a class="btn btn-outline-dark" href="{% url 'services:schedule_list' %}">Schedules</a>
+      <a class="btn btn-outline-dark" href="{% url 'services:time_block_list' %}">Time Blocks</a>
       <a class="btn btn-brand" href="{% url 'services:service_create' %}">Add service</a>
     </div>
   {% endif %}
+</div>
+
+<div class="alert alert-light border d-flex align-items-center justify-content-between mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.04); border-color: var(--border)!important;">
+  <div class="d-flex align-items-start gap-2">
+    <i class="bi bi-info-circle-fill text-muted fs-5 mt-1"></i>
+    <div>
+      <strong style="color: var(--deep-rose);">Operational Principle:</strong>
+      <span class="text-secondary small d-block">
+        <strong>Services do not have physical stock quantities.</strong> The primary constraint for scheduling services is the <strong>block of time required</strong> (duration, technician shifts, breaks, and non-overlapping appointments).
+      </span>
+    </div>
+  </div>
 </div>
 
 <form class="content-card service-filter mb-4" method="get">
@@ -57,9 +71,10 @@
         </div>
         <p>{{ service.description|default:'A carefully delivered salon treatment.'|truncatechars:145 }}</p>
         <div class="service-meta">
-          <span>{{ service.duration_minutes }} minutes</span>
+          <span class="badge text-bg-light border"><i class="bi bi-clock-history me-1"></i> Block: {{ service.duration_minutes }} mins</span>
           <strong>PHP {{ service.price|floatformat:2 }}</strong>
         </div>
+        <div class="small text-muted mt-2"><i class="bi bi-calendar-check me-1"></i> Labor service · Intangible (no stock)</div>
         {% if owner_view %}
           <div class="d-flex gap-2 mt-3">
             <a class="btn btn-sm btn-outline-dark" href="{% url 'services:service_update' service.pk %}">Edit</a>

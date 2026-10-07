@@ -4,6 +4,203 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
+
+
+class PromoVoucher(models.Model):
+    class DiscountType(models.TextChoices):
+        PERCENT = "PERCENT", "Percentage"
+        FIXED = "FIXED", "Fixed amount"
+
+    code = models.CharField(max_length=50, unique=True)
+    description = models.CharField(max_length=255, blank=True)
+    discount_type = models.CharField(
+        max_length=10,
+        choices=DiscountType.choices,
+        default=DiscountType.PERCENT,
+    )
+    discount_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=(MinValueValidator(Decimal("0.01")),),
+    )
+    max_discount_cap = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Maximum discount amount in PHP (capping rule).",
+    )
+    min_spend = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=(MinValueValidator(Decimal("0.00")),),
+    )
+    valid_from = models.DateField(default=timezone.localdate)
+    valid_until = models.DateField(blank=True, null=True)
+    usage_limit = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        help_text="Maximum total times this voucher may be claimed.",
+    )
+    times_used = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def save(self, *args, **kwargs):
+        self.code = self.code.strip().upper()
+        super().save(*args, **kwargs)
+
+    def is_valid_for(self, subtotal, check_date=None):
+        if not self.is_active:
+            return False, "This voucher is inactive."
+        check_date = check_date or timezone.localdate()
+        if self.valid_from and check_date < self.valid_from:
+            return False, "This voucher is not yet active."
+        if self.valid_until and check_date > self.valid_until:
+            return False, "This voucher has expired."
+        if self.usage_limit is not None and self.times_used >= self.usage_limit:
+            return False, "This voucher has reached its redemption limit."
+        if subtotal < self.min_spend:
+            return False, f"Minimum spend of ₱{self.min_spend} required for this voucher."
+        return True, "Valid"
+
+    def calculate_discount(self, subtotal):
+        if self.discount_type == self.DiscountType.PERCENT:
+            raw = (subtotal * self.discount_value) / Decimal("100.00")
+        else:
+            raw = self.discount_value
+        if self.max_discount_cap is not None and self.max_discount_cap > Decimal("0.00"):
+            raw = min(raw, self.max_discount_cap)
+        return min(raw, subtotal)
+
+    def __str__(self):
+        return f"{self.code} ({self.get_discount_type_display()} {self.discount_value})"
+
+
+class CashierShift(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        CLOSED = "CLOSED", "Closed"
+
+    cashier = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="shifts",
+    )
+    opened_at = models.DateTimeField(default=timezone.now)
+    closed_at = models.DateTimeField(blank=True, null=True)
+    opening_cash = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=(MinValueValidator(Decimal("0.00")),),
+        help_text="Starting cash drawer amount / till float.",
+    )
+    closing_cash = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Actual physical cash counted at shift end.",
+    )
+    expected_cash = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Expected drawer total: opening_cash + cash_sales.",
+    )
+    cash_variance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Discrepancy (over/short): closing_cash - expected_cash.",
+    )
+    cash_sales = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    ewallet_sales = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    card_sales = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    bank_sales = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    total_sales = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    transaction_count = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+    notes = models.TextField(blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="closed_shifts",
+    )
+
+    class Meta:
+        ordering = ("-opened_at",)
+
+    def reconcile(self, actual_closing_cash, closed_by_user=None, notes="", closed_by=None):
+        from apps.pos.models import Payment, Sale
+        closed_by_user = closed_by_user or closed_by
+        shift_sales = self.sales.filter(status=Sale.Status.COMPLETED)
+        self.transaction_count = shift_sales.count()
+        self.total_sales = shift_sales.aggregate(s=models.Sum("total"))["s"] or Decimal("0.00")
+
+        payments = Payment.objects.filter(sale__in=shift_sales)
+        self.cash_sales = (
+            payments.filter(payment_method=Payment.Method.CASH).aggregate(
+                s=models.Sum("sale__total")
+            )["s"]
+            or Decimal("0.00")
+        )
+        self.ewallet_sales = (
+            payments.filter(payment_method__in=[Payment.Method.GCASH, Payment.Method.MAYA]).aggregate(
+                s=models.Sum("sale__total")
+            )["s"]
+            or Decimal("0.00")
+        )
+        self.card_sales = (
+            payments.filter(payment_method=Payment.Method.CARD).aggregate(
+                s=models.Sum("sale__total")
+            )["s"]
+            or Decimal("0.00")
+        )
+        self.bank_sales = (
+            payments.filter(payment_method=Payment.Method.BANK).aggregate(
+                s=models.Sum("sale__total")
+            )["s"]
+            or Decimal("0.00")
+        )
+
+        self.expected_cash = self.opening_cash + self.cash_sales
+        self.closing_cash = Decimal(actual_closing_cash)
+        self.cash_variance = self.closing_cash - self.expected_cash
+        self.closed_at = timezone.now()
+        self.status = self.Status.CLOSED
+        self.closed_by = closed_by_user
+        if notes:
+            self.notes = notes
+        self.save()
+
+    def __str__(self):
+        return f"Shift #{self.pk} - {self.cashier} ({self.get_status_display()})"
 
 
 class ReceiptSequence(models.Model):
@@ -34,12 +231,22 @@ class Sale(models.Model):
         NONE = "NONE", "No discount"
         FIXED = "FIXED", "Fixed amount"
         PERCENT = "PERCENT", "Percentage"
+        SENIOR_CITIZEN = "SENIOR_CITIZEN", "Senior Citizen (20%)"
+        PWD = "PWD", "PWD (20%)"
+        PROMO_VOUCHER = "PROMO_VOUCHER", "Promo voucher"
 
     class Status(models.TextChoices):
         COMPLETED = "COMPLETED", "Completed"
         VOIDED = "VOIDED", "Voided"
 
     receipt_number = models.CharField(max_length=32, unique=True, editable=False)
+    shift = models.ForeignKey(
+        CashierShift,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="sales",
+    )
     customer = models.ForeignKey(
         "customers.Customer",
         blank=True,
@@ -57,7 +264,7 @@ class Sale(models.Model):
     )
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     discount_type = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=DiscountType.choices,
         default=DiscountType.NONE,
     )
@@ -70,6 +277,23 @@ class Sale(models.Model):
         max_digits=12,
         decimal_places=2,
         default=Decimal("0.00"),
+    )
+    discount_id_number = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Senior Citizen or PWD identification card number.",
+    )
+    discount_id_name = models.CharField(
+        max_length=160,
+        blank=True,
+        help_text="Name printed on Senior Citizen or PWD ID.",
+    )
+    voucher = models.ForeignKey(
+        PromoVoucher,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="sales",
     )
     total = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(
@@ -128,7 +352,16 @@ class Sale(models.Model):
                 name="sale_total_matches_components",
             ),
             models.CheckConstraint(
-                condition=models.Q(discount_type__in=("NONE", "FIXED", "PERCENT")),
+                condition=models.Q(
+                    discount_type__in=(
+                        "NONE",
+                        "FIXED",
+                        "PERCENT",
+                        "SENIOR_CITIZEN",
+                        "PWD",
+                        "PROMO_VOUCHER",
+                    )
+                ),
                 name="sale_discount_type_valid",
             ),
             models.CheckConstraint(

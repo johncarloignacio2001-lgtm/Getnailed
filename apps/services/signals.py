@@ -43,3 +43,6 @@ def prevent_staff_role_change_with_profile(sender, instance, **kwargs):
         raise ValidationError(
             {"role": "Delete the linked staff profile before changing this account's role."}
         )
+
+
+

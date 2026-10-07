@@ -9,7 +9,7 @@ from apps.accounts.models import User
 from apps.bookings.models import Appointment, AppointmentStatusHistory
 from apps.services.models import Service
 
-from .models import Payment, ReceiptSequence, Sale, SaleItem
+from .models import CashierShift, Payment, PromoVoucher, ReceiptSequence, Sale, SaleItem
 
 
 CENT = Decimal("0.01")
@@ -27,11 +27,19 @@ def money(value):
     return Decimal(value).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
-def calculate_totals(items, discount_type, discount_value):
+def calculate_totals(
+    items,
+    discount_type,
+    discount_value,
+    voucher=None,
+    discount_id_number="",
+    max_cap=None,
+):
     subtotal = money(sum((item["line_total"] for item in items), ZERO))
     discount_value = money(discount_value or ZERO)
     if discount_value < ZERO:
         raise ValidationError("Discounts cannot be negative.")
+
     if discount_type == Sale.DiscountType.NONE:
         if discount_value != ZERO:
             raise ValidationError("Choose a discount type before entering a discount.")
@@ -42,8 +50,30 @@ def calculate_totals(items, discount_type, discount_value):
         if discount_value > Decimal("100.00"):
             raise ValidationError("Percentage discounts cannot exceed 100%.")
         discount_amount = money(subtotal * discount_value / Decimal("100.00"))
+    elif discount_type == Sale.DiscountType.SENIOR_CITIZEN:
+        if not str(discount_id_number).strip():
+            raise ValidationError("Senior Citizen ID number is required.")
+        # RA 9994 20% discount on services
+        discount_amount = money(subtotal * Decimal("20.00") / Decimal("100.00"))
+        if max_cap is not None and max_cap > ZERO:
+            discount_amount = min(discount_amount, max_cap)
+    elif discount_type == Sale.DiscountType.PWD:
+        if not str(discount_id_number).strip():
+            raise ValidationError("PWD ID number is required.")
+        # RA 10754 20% discount on services
+        discount_amount = money(subtotal * Decimal("20.00") / Decimal("100.00"))
+        if max_cap is not None and max_cap > ZERO:
+            discount_amount = min(discount_amount, max_cap)
+    elif discount_type == Sale.DiscountType.PROMO_VOUCHER:
+        if voucher is None:
+            raise ValidationError("A valid promo voucher is required.")
+        is_valid, reason = voucher.is_valid_for(subtotal)
+        if not is_valid:
+            raise ValidationError(reason)
+        discount_amount = money(voucher.calculate_discount(subtotal))
     else:
         raise ValidationError("Choose a valid discount type.")
+
     if discount_amount > subtotal:
         raise ValidationError("The discount cannot exceed the subtotal.")
     total = money(subtotal - discount_amount)
@@ -65,7 +95,12 @@ def _next_receipt_number():
 def _locked_items(raw_items):
     if not raw_items:
         raise ValidationError("Add at least one service to the sale.")
-    service_ids = [item["service"].pk for item in raw_items]
+
+    service_items = [item for item in raw_items if item.get("service")]
+    if not service_items:
+        raise ValidationError("Add at least one service to the sale.")
+
+    service_ids = [item["service"].pk for item in service_items]
     services = {
         service.pk: service
         for service in Service.objects.select_for_update().filter(
@@ -77,7 +112,7 @@ def _locked_items(raw_items):
 
     staff_ids = {
         item["assigned_staff"].pk
-        for item in raw_items
+        for item in service_items
         if item.get("assigned_staff") is not None
     }
     staff_members = {
@@ -94,9 +129,11 @@ def _locked_items(raw_items):
 
     items = []
     for position, raw_item in enumerate(raw_items):
-        quantity = int(raw_item.get("quantity", 1))
+        if not raw_item.get("service"):
+            continue
+        quantity = int(raw_item.get("quantity") or 1)
         if quantity < 1 or quantity > 100:
-            raise ValidationError("Service quantities must be between 1 and 100.")
+            raise ValidationError("Quantities must be between 1 and 100.")
         service = services[raw_item["service"].pk]
         staff = raw_item.get("assigned_staff")
         staff = staff_members[staff.pk] if staff else None
@@ -105,12 +142,16 @@ def _locked_items(raw_items):
             {
                 "service": service,
                 "staff": staff,
+                "name": service.name,
+                "category": service.category.name,
                 "quantity": quantity,
                 "unit_price": unit_price,
                 "line_total": money(unit_price * quantity),
                 "position": position,
             }
         )
+    if not items:
+        raise ValidationError("Add at least one service to the sale.")
     return items
 
 
@@ -138,14 +179,30 @@ def create_sale(
     appointment=None,
     discount_type=Sale.DiscountType.NONE,
     discount_value=ZERO,
+    discount_id_number="",
+    discount_id_name="",
+    voucher=None,
+    voucher_code=None,
+    max_cap=None,
+    shift=None,
     mark_appointment_completed=True,
 ):
     if not has_capability(cashier, CAPABILITY_USE_POS):
         raise PermissionDenied("You cannot process sales.")
     with transaction.atomic():
+        if voucher_code and not voucher:
+            from apps.pos.models import PromoVoucher
+            voucher = PromoVoucher.objects.filter(code__iexact=voucher_code.strip()).first()
+            if not voucher:
+                raise ValidationError("Invalid promo voucher code.")
         items = _locked_items(raw_items)
         subtotal, discount_amount, total = calculate_totals(
-            items, discount_type, discount_value
+            items,
+            discount_type,
+            discount_value,
+            voucher=voucher,
+            discount_id_number=discount_id_number,
+            max_cap=max_cap,
         )
         amount_tendered, change = _validate_payment(
             payment_method, amount_tendered, total
@@ -167,9 +224,15 @@ def create_sale(
                 raise ValidationError("The selected appointment already has a sale.")
             customer = locked_appointment.customer
 
+        if shift is None:
+            shift = CashierShift.objects.filter(
+                cashier=cashier, status=CashierShift.Status.OPEN
+            ).first()
+
         receipt_number = _next_receipt_number()
         sale = Sale.objects.create(
             receipt_number=receipt_number,
+            shift=shift,
             customer=customer,
             customer_name_snapshot=customer.full_name if customer else "Walk-in customer",
             appointment=locked_appointment,
@@ -177,18 +240,25 @@ def create_sale(
             discount_type=discount_type,
             discount_value=money(discount_value or ZERO),
             discount_amount=discount_amount,
+            discount_id_number=discount_id_number.strip(),
+            discount_id_name=discount_id_name.strip(),
+            voucher=voucher,
             total=total,
             cashier=cashier,
             cashier_name_snapshot=str(cashier),
         )
+        if voucher is not None:
+            voucher.times_used += 1
+            voucher.save(update_fields=("times_used", "updated_at"))
+
         SaleItem.objects.bulk_create(
             [
                 SaleItem(
                     sale=sale,
                     service=item["service"],
                     assigned_staff=item["staff"],
-                    service_name=item["service"].name,
-                    service_category=item["service"].category.name,
+                    service_name=item["name"],
+                    service_category=item["category"],
                     staff_name=str(item["staff"]) if item["staff"] else "",
                     unit_price=item["unit_price"],
                     quantity=item["quantity"],

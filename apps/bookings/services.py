@@ -13,7 +13,12 @@ from apps.accounts.emails import send_branded_email
 from apps.accounts.models import User
 from apps.customers.models import Customer
 from apps.notifications.models import Notification
-from apps.services.models import Service, StaffProfile
+from apps.services.models import (
+    Service,
+    StaffProfile,
+    StaffSchedule,
+    StaffTimeBlock,
+)
 
 from .models import Appointment, AppointmentService, AppointmentStatusHistory, Booking
 
@@ -115,13 +120,19 @@ def _appointment_end(appointment_date, start_time, duration_minutes):
     return end.time()
 
 
-def _lock_and_validate_staff(staff):
+def _lock_and_validate_staff(staff, lock=True):
     if staff is None:
         return None
-    staff = User.objects.select_for_update().filter(pk=staff.pk, role=User.Role.STAFF).first()
+    staff_qs = User.objects.filter(pk=staff.pk, role=User.Role.STAFF)
+    if lock:
+        staff_qs = staff_qs.select_for_update()
+    staff = staff_qs.first()
     if staff is None or not staff.is_active or not staff.is_active_staff_member:
         raise ValidationError("The selected staff member is not available.")
-    profile = StaffProfile.objects.select_for_update().filter(user=staff).first()
+    profile_qs = StaffProfile.objects.filter(user=staff)
+    if lock:
+        profile_qs = profile_qs.select_for_update()
+    profile = profile_qs.first()
     if (
         profile is None
         or not profile.is_active
@@ -129,6 +140,169 @@ def _lock_and_validate_staff(staff):
     ):
         raise ValidationError("The selected staff member is not accepting appointments.")
     return staff
+
+
+def _validate_staff_availability(
+    staff,
+    appointment_date,
+    start_time,
+    end_time,
+    services=None,
+    exclude_appointment_id=None,
+    lock=True,
+):
+    from datetime import time
+    staff = _lock_and_validate_staff(staff, lock=lock)
+    if staff is None:
+        return None
+
+    if services and hasattr(staff, "staff_profile"):
+        if not all(staff.staff_profile.can_perform(svc) for svc in services):
+            raise ValidationError(f"{staff} is not qualified for all selected services.")
+
+    weekday = appointment_date.weekday()
+    schedules = list(staff.schedules.filter(day_of_week=weekday))
+    if schedules:
+        sched = schedules[0]
+        if not sched.is_working:
+            raise ValidationError(f"{staff} is not scheduled to work on {appointment_date.strftime('%A')}s.")
+        if start_time < sched.start_time or end_time > sched.end_time:
+            raise ValidationError(
+                f"{staff}'s working hours on {appointment_date.strftime('%A')} are "
+                f"{sched.start_time.strftime('%I:%M %p')} to {sched.end_time.strftime('%I:%M %p')}."
+            )
+        if sched.lunch_start and sched.lunch_end:
+            if start_time < sched.lunch_end and end_time > sched.lunch_start:
+                raise ValidationError(
+                    f"{staff} is on lunch break from {sched.lunch_start.strftime('%I:%M %p')} to {sched.lunch_end.strftime('%I:%M %p')}."
+                )
+    else:
+        if start_time < time(9, 0) or end_time > time(21, 0):
+            raise ValidationError("Appointment must be within salon hours (09:00 AM - 09:00 PM).")
+
+    blocked = staff.time_blocks.filter(
+        date=appointment_date,
+        start_time__lt=end_time,
+        end_time__gt=start_time,
+    ).exists()
+    if blocked:
+        raise ValidationError(f"{staff} has a scheduled leave or time block during this time.")
+
+    _validate_no_overlap(staff, appointment_date, start_time, end_time, exclude=exclude_appointment_id)
+    return staff
+
+
+def _find_available_technician(
+    appointment_date,
+    start_time,
+    end_time,
+    services=None,
+    exclude_appointment_id=None,
+    lock=True,
+):
+    from datetime import time
+    weekday = appointment_date.weekday()
+    candidates_qs = (
+        User.objects.filter(
+            role=User.Role.STAFF,
+            is_active=True,
+            is_active_staff_member=True,
+            staff_profile__is_active=True,
+            staff_profile__availability_status=StaffProfile.Availability.AVAILABLE,
+        )
+        .select_related("staff_profile")
+        .prefetch_related("staff_profile__skills", "schedules", "time_blocks")
+    )
+    if lock:
+        candidates_qs = candidates_qs.select_for_update()
+    candidates = list(candidates_qs)
+    for staff in candidates:
+        if services and hasattr(staff, "staff_profile"):
+            if not all(staff.staff_profile.can_perform(svc) for svc in services):
+                continue
+        schedules = [s for s in staff.schedules.all() if s.day_of_week == weekday]
+        if schedules:
+            sched = schedules[0]
+            if not sched.is_working or start_time < sched.start_time or end_time > sched.end_time:
+                continue
+            if sched.lunch_start and sched.lunch_end:
+                if start_time < sched.lunch_end and end_time > sched.lunch_start:
+                    continue
+        else:
+            if start_time < time(9, 0) or end_time > time(21, 0):
+                continue
+        blocked = any(
+            b.date == appointment_date and b.start_time < end_time and b.end_time > start_time
+            for b in staff.time_blocks.all()
+        )
+        if blocked:
+            continue
+        overlapping = Appointment.objects.filter(
+            assigned_staff=staff,
+            appointment_date=appointment_date,
+            status__in=BLOCKING_STATUSES,
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        )
+        if exclude_appointment_id:
+            overlapping = overlapping.exclude(pk=exclude_appointment_id)
+        if overlapping.exists():
+            continue
+        return staff
+    return None
+
+
+def get_available_time_slots(appointment_date, service_ids, staff_id=None):
+    from datetime import datetime, time, timedelta
+    services = list(Service.objects.filter(pk__in=service_ids, is_active=True))
+    if not services:
+        return []
+    duration = sum(s.duration_minutes for s in services)
+    if duration <= 0:
+        return []
+
+    technician = None
+    if staff_id:
+        technician = User.objects.filter(pk=staff_id, role=User.Role.STAFF, is_active=True).first()
+
+    available_slots = []
+    cur_dt = datetime.combine(appointment_date, time(9, 0))
+    closing_dt = datetime.combine(appointment_date, time(21, 0))
+    now = timezone.localtime()
+
+    while cur_dt + timedelta(minutes=duration) <= closing_dt:
+        slot_start = cur_dt.time()
+        slot_end = (cur_dt + timedelta(minutes=duration)).time()
+        slot_aware = timezone.make_aware(cur_dt, timezone.get_current_timezone())
+
+        if slot_aware > now:
+            if technician:
+                try:
+                    _validate_staff_availability(
+                        technician,
+                        appointment_date,
+                        slot_start,
+                        slot_end,
+                        services,
+                        lock=False,
+                    )
+                    available_slots.append(slot_start.strftime("%H:%M"))
+                except ValidationError:
+                    pass
+            else:
+                found = _find_available_technician(
+                    appointment_date,
+                    slot_start,
+                    slot_end,
+                    services,
+                    lock=False,
+                )
+                if found:
+                    available_slots.append(slot_start.strftime("%H:%M"))
+
+        cur_dt += timedelta(minutes=30)
+
+    return available_slots
 
 
 def _validate_no_overlap(staff, appointment_date, start_time, end_time, exclude=None):
@@ -182,13 +356,26 @@ def create_public_appointment(cleaned_data, services, request):
         end_time = _appointment_end(
             cleaned_data["appointment_date"], cleaned_data["start_time"], duration
         )
-        staff = _lock_and_validate_staff(cleaned_data.get("assigned_staff"))
-        _validate_no_overlap(
-            staff,
-            cleaned_data["appointment_date"],
-            cleaned_data["start_time"],
-            end_time,
-        )
+
+        requested_staff = cleaned_data.get("assigned_staff")
+        if requested_staff is not None:
+            staff = _validate_staff_availability(
+                requested_staff,
+                cleaned_data["appointment_date"],
+                cleaned_data["start_time"],
+                end_time,
+                services,
+            )
+        else:
+            staff = _find_available_technician(
+                cleaned_data["appointment_date"],
+                cleaned_data["start_time"],
+                end_time,
+                services,
+            )
+            if staff is None:
+                raise ValidationError("No technician is available for this time slot. Please choose another time.")
+
         email = cleaned_data["email"].strip().lower()
         customer = None
         user = getattr(request, "user", None)
@@ -447,14 +634,18 @@ def reschedule_public_booking(reference, token, scheduled_for):
                 )
             ):
                 return None
-            staff = _lock_and_validate_staff(appointment.assigned_staff)
             appointment_date = timezone.localtime(scheduled_for).date()
             start_time = timezone.localtime(scheduled_for).time().replace(tzinfo=None)
             end_time = _appointment_end(
                 appointment_date, start_time, appointment.total_duration_minutes
             )
-            _validate_no_overlap(
-                staff, appointment_date, start_time, end_time, exclude=appointment.pk
+            staff = _validate_staff_availability(
+                appointment.assigned_staff,
+                appointment_date,
+                start_time,
+                end_time,
+                services=list(appointment.selected_services.all()),
+                exclude_appointment_id=appointment.pk,
             )
             previous = appointment.status
             appointment.appointment_date = appointment_date
@@ -552,12 +743,16 @@ def update_appointment_schedule(
         raise PermissionDenied("You cannot assign or reschedule appointments.")
     with transaction.atomic():
         appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
-        staff = _lock_and_validate_staff(assigned_staff)
         end_time = _appointment_end(
             appointment_date, start_time, appointment.total_duration_minutes
         )
-        _validate_no_overlap(
-            staff, appointment_date, start_time, end_time, exclude=appointment.pk
+        staff = _validate_staff_availability(
+            assigned_staff,
+            appointment_date,
+            start_time,
+            end_time,
+            services=list(appointment.selected_services.all()),
+            exclude_appointment_id=appointment.pk,
         )
         schedule_changed = (
             appointment.appointment_date != appointment_date

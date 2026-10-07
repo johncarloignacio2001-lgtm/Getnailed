@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Promo Vouchers | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">DISCOUNT MANAGEMENT</div>
+    <h2>Promo Vouchers & Discount Rules</h2>
+    <p class="text-muted mb-0">Manage promo voucher codes, maximum discount caps, minimum spend rules, and usage limits.</p>
+  </div>
+  <a class="btn btn-brand" href="{% url 'pos:voucher_create' %}">Create New Voucher</a>
+</div>
+
+<div class="content-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Code</th>
+          <th>Description</th>
+          <th>Discount Type</th>
+          <th>Value</th>
+          <th>Max Cap</th>
+          <th>Min Spend</th>
+          <th>Usage / Limit</th>
+          <th>Status</th>
+          <th>Valid Until</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for voucher in vouchers %}
+          <tr>
+            <td><strong class="font-monospace text-brand fs-6">{{ voucher.code }}</strong></td>
+            <td>{{ voucher.description|default:"-" }}</td>
+            <td>
+              {% if voucher.discount_type == "PERCENT" %}
+                <span class="badge bg-primary">Percentage</span>
+              {% else %}
+                <span class="badge bg-info text-dark">Fixed Amount</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if voucher.discount_type == "PERCENT" %}
+                {{ voucher.discount_value }}%
+              {% else %}
+                ₱{{ voucher.discount_value|floatformat:2 }}
+              {% endif %}
+            </td>
+            <td>
+              {% if voucher.max_discount_cap %}
+                ₱{{ voucher.max_discount_cap|floatformat:2 }}
+              {% else %}
+                <span class="text-muted">No Cap</span>
+              {% endif %}
+            </td>
+            <td>₱{{ voucher.min_spend|floatformat:2 }}</td>
+            <td>
+              {{ voucher.times_used }} / {% if voucher.usage_limit %}{{ voucher.usage_limit }}{% else %}∞{% endif %}
+            </td>
+            <td>
+              {% if voucher.is_active %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if voucher.valid_until %}
+                {{ voucher.valid_until|date:"M d, Y" }}
+              {% else %}
+                <span class="text-muted">No Expiry</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">No promo vouchers configured yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

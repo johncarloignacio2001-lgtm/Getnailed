@@ -51,6 +51,22 @@ ACTIVATION_SESSION_KEY = "pending_account_activation"
 class BrandedLoginView(AllauthLoginView):
     template_name = "accounts/login.html"
 
+    def form_valid(self, form):
+        user = getattr(form, "user", None)
+        if user and getattr(user, "role", None) == User.Role.CUSTOMER:
+            from apps.customers.otp import initiate_customer_otp
+            remember = form.cleaned_data.get("remember", False)
+            next_url = self.request.POST.get("next") or self.request.GET.get("next") or ""
+            sent = initiate_customer_otp(self.request, user, next_url=next_url, remember=remember)
+            if not sent:
+                form.add_error(
+                    None,
+                    "Unable to send verification code to your Gmail. Please try again in a moment.",
+                )
+                return self.form_invalid(form)
+            return redirect("customers:customer_login_verify_otp")
+        return super().form_valid(form)
+
 
 class BrandedSignupView(SignupView):
     template_name = "accounts/signup.html"
@@ -78,12 +94,6 @@ class BrandedSignupView(SignupView):
 class BrandedLogoutView(LogoutView):
     next_page = reverse_lazy("core:home")
 
-    def dispatch(self, request, *args, **kwargs):
-        is_customer = getattr(request.user, "is_customer", False) if request.user.is_authenticated else False
-        response = super().dispatch(request, *args, **kwargs)
-        if is_customer:
-            return redirect("customers:customer_login")
-        return response
 
 
 class SecurePasswordChangeView(PasswordChangeView):
@@ -117,6 +127,12 @@ class SecurePasswordChangeView(PasswordChangeView):
 
 class SecureActivateTOTPView(ActivateTOTPView):
     def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and getattr(request.user, "role", None) == User.Role.CUSTOMER:
+            messages.info(
+                request,
+                "Customer accounts use Gmail verification codes (2FA) and do not need an authenticator app.",
+            )
+            return redirect("mfa_index")
         if request.user.is_authenticated and request.user.email_verified_at is None:
             messages.error(request, "Verify your email address before enabling MFA.")
             return redirect("mfa_index")
@@ -454,6 +470,6 @@ def logout_all_devices(request):
         logout(request)
         messages.success(request, "You have been signed out on every device.")
         if is_customer:
-            return redirect("customers:customer_login")
+            return redirect("core:home")
         return redirect("accounts:login")
     return render(request, "accounts/logout_all_devices.html")

@@ -11,6 +11,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from django.contrib.auth import login
+from django.views import View
+
 from apps.accounts.authorization import CAPABILITY_MANAGE_CUSTOMERS
 from apps.accounts.decorators import capability_required
 from apps.accounts.models import User
@@ -21,6 +24,13 @@ from apps.accounts.decorators import owner_required
 
 from .forms import CustomerAccountForm, CustomerForm, CustomerRegistrationForm
 from .models import Customer
+from .otp import (
+    get_pending_customer_user,
+    initiate_customer_otp,
+    mask_email,
+    resend_customer_otp,
+    verify_customer_otp,
+)
 from apps.bookings.models import Appointment
 
 
@@ -42,7 +52,123 @@ class CustomerLoginView(BrandedLoginView):
         if user is None or user.role != User.Role.CUSTOMER:
             form.add_error(None, "This login is for customer accounts only.")
             return self.form_invalid(form)
-        return super().form_valid(form)
+
+        remember = form.cleaned_data.get("remember", False)
+        next_url = self.request.POST.get("next") or self.request.GET.get("next") or ""
+        sent = initiate_customer_otp(self.request, user, next_url=next_url, remember=remember)
+        if not sent:
+            form.add_error(
+                None,
+                "Unable to send verification code to your Gmail. Please try again in a moment.",
+            )
+            return self.form_invalid(form)
+
+        return redirect("customers:customer_login_verify_otp")
+
+
+class CustomerVerifyOTPView(View):
+    template_name = "customers/login_verify_otp.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("core:customer_dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        user = get_pending_customer_user(request)
+        if not user:
+            messages.warning(request, "Login session expired. Please sign in again.")
+            return redirect("customers:customer_login")
+        return render(
+            request,
+            self.template_name,
+            {
+                "masked_email": mask_email(user.email),
+            },
+        )
+
+    def post(self, request):
+        user = get_pending_customer_user(request)
+        if not user:
+            messages.warning(request, "Login session expired. Please sign in again.")
+            return redirect("customers:customer_login")
+
+        code = request.POST.get("code", "").strip()
+        if not code:
+            return render(
+                request,
+                self.template_name,
+                {
+                    "masked_email": mask_email(user.email),
+                    "error": "Please enter the 6-digit verification code.",
+                },
+            )
+
+        success, verified_user, data_or_error = verify_customer_otp(request, code)
+        if not success:
+            return render(
+                request,
+                self.template_name,
+                {
+                    "masked_email": mask_email(user.email),
+                    "error": data_or_error,
+                },
+            )
+
+        # Successful OTP verification
+        verified_user.backend = "apps.accounts.backends.EligibleUserBackend"
+        login(request, verified_user)
+        try:
+            from allauth.account.internal.flows.reauthentication import record_authentication
+            record_authentication(request, verified_user, method="password")
+        except Exception:
+            pass
+
+        # Reset axes failure attempts
+        try:
+            from axes.utils import reset as reset_axes_attempts
+            reset_axes_attempts(request)
+        except Exception:
+            pass
+
+        # Handle remember me
+        if isinstance(data_or_error, dict) and data_or_error.get("remember"):
+            request.session.set_expiry(60 * 60 * 24 * 30)
+
+        # Record security audit event
+        try:
+            from apps.audittrail.events import record_security_event
+            from apps.audittrail.models import SecurityEvent
+            record_security_event(
+                SecurityEvent.Action.LOGIN_SUCCESSFUL,
+                request=request,
+                user=verified_user,
+                target=verified_user,
+            )
+        except Exception:
+            pass
+
+        messages.success(request, f"Welcome back, {verified_user.first_name or verified_user.email}!")
+        next_url = (
+            data_or_error.get("next_url")
+            if isinstance(data_or_error, dict)
+            else ""
+        )
+        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+            return redirect(next_url)
+        return redirect("core:customer_dashboard")
+
+
+@require_http_methods(["POST"])
+def customer_login_resend_otp(request):
+    if request.user.is_authenticated:
+        return redirect("core:customer_dashboard")
+    success, message = resend_customer_otp(request)
+    if success:
+        messages.success(request, message)
+    else:
+        messages.warning(request, message)
+    return redirect("customers:customer_login_verify_otp")
 
 
 @require_http_methods(["GET", "POST"])

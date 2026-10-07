@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('new/services/', views.select_services, name='select_services'),
     path('new/schedule/', views.select_schedule, name='select_schedule'),
+    path('api/available-slots/', views.api_available_slots, name='api_available_slots'),
     path('new/review/', views.review, name='review'),
     path('verify/', views.verify, name='verify'),
     path('resend/', views.resend, name='resend'),

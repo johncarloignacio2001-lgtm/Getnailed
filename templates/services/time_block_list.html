@@ -1,0 +1,786 @@
+{% extends 'base.html' %}
+{% block title %}Time Blocking Schedule | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading flex-wrap gap-3">
+  <div>
+    <p class="eyebrow">CALENDAR CONSTRAINTS · WEEKLY TIME BLOCKING</p>
+    <h2 class="mb-1">Time Blocking Schedule</h2>
+    <p class="text-secondary mb-0">Visual weekly planner for staff breaks, work blocks, and leave. Blocks prevent customer bookings during scheduled times.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-dark btn-sm" href="{% url 'services:schedule_list' %}">Staff Schedules</a>
+    <a class="btn btn-outline-dark btn-sm" href="{% url 'services:staff_list' %}">Staff Profiles</a>
+    <form method="post" action="{% url 'services:schedule_list' %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="sync_time_blocks">
+      <button type="submit" class="btn btn-outline-primary btn-sm" title="Sync shift lunch breaks (12-1pm) and leaves to visual planner">
+        <i class="bi bi-arrow-repeat me-1"></i> Sync Shifts to Calendar
+      </button>
+    </form>
+    <button type="button" class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#addTimeBlockModal">
+      <i class="bi bi-plus-circle me-1"></i> Add Time Block
+    </button>
+  </div>
+</div>
+
+<!-- Main Time Blocking Card -->
+<div class="time-blocking-card">
+  <!-- Toolbar: Staff selector, Week navigation, View toggles -->
+  <div class="tb-toolbar">
+    <div class="d-flex align-items-center flex-wrap gap-3">
+      <!-- Staff Filter -->
+      <div class="d-flex align-items-center gap-2">
+        <label for="tbStaffSelect" class="small fw-bold text-secondary mb-0">Technician:</label>
+        <select class="form-select form-select-sm" id="tbStaffSelect" style="min-width: 190px;" onchange="onStaffFilterChange(this.value)">
+          <option value="" {% if not selected_staff %}selected{% endif %}>All Technicians</option>
+          {% for st in staff_list %}
+            <option value="{{ st.pk }}" {% if selected_staff.pk == st.pk %}selected{% endif %}>
+              {{ st.get_full_name|default:st.email }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Week Navigation -->
+      <div class="d-flex align-items-center gap-1">
+        <a class="btn btn-outline-secondary btn-sm" href="?date={{ prev_week_date }}{% if staff_id %}&staff={{ staff_id }}{% endif %}{% if view_mode != 'grid' %}&view={{ view_mode }}{% endif %}" title="Previous week">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+        <a class="btn btn-outline-secondary btn-sm px-2 fw-semibold" href="?date={{ current_week_date }}{% if staff_id %}&staff={{ staff_id }}{% endif %}{% if view_mode != 'grid' %}&view={{ view_mode }}{% endif %}">
+          Today
+        </a>
+        <a class="btn btn-outline-secondary btn-sm" href="?date={{ next_week_date }}{% if staff_id %}&staff={{ staff_id }}{% endif %}{% if view_mode != 'grid' %}&view={{ view_mode }}{% endif %}" title="Next week">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+        <span class="small fw-bold text-dark px-2">
+          {{ week_start|date:"M d" }} – {{ week_end|date:"M d, Y" }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Right Controls: Date Picker & View Toggle -->
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <input type="date" class="form-control form-control-sm" style="width: 140px;" value="{{ week_start|date:'Y-m-d' }}" onchange="onDateJump(this.value)" title="Jump to week">
+      <div class="btn-group btn-group-sm" role="group" aria-label="View Mode">
+        <button type="button" class="btn {% if view_mode != 'table' %}btn-brand{% else %}btn-outline-secondary{% endif %}" id="btnViewGrid" onclick="toggleView('grid')">
+          <i class="bi bi-calendar3-week me-1"></i> Visual Grid
+        </button>
+        <button type="button" class="btn {% if view_mode == 'table' %}btn-brand{% else %}btn-outline-secondary{% endif %}" id="btnViewTable" onclick="toggleView('table')">
+          <i class="bi bi-list-ul me-1"></i> List Table
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color Legend Matching Categories -->
+  <div class="tb-legend" id="tbLegendSection" {% if view_mode == 'table' %}style="display:none;"{% endif %}>
+    <span class="small fw-bold text-muted me-1">Categories:</span>
+    <div class="tb-legend-item">
+      <span class="tb-legend-dot" style="background: #c5e038;"></span>
+      <span>Lunch</span>
+    </div>
+    <div class="tb-legend-item">
+      <span class="tb-legend-dot" style="background: #398bc9;"></span>
+      <span>Work Time</span>
+    </div>
+    <div class="tb-legend-item">
+      <span class="tb-legend-dot" style="background: #d9536e;"></span>
+      <span>Leave</span>
+    </div>
+    <span class="ms-auto small text-muted"><i class="bi bi-info-circle me-1"></i>Click any hour slot to add &bull; Click a block to edit</span>
+  </div>
+
+  <!-- Visual Grid View (Matches User Image) -->
+  <div class="tb-scroll-container" id="tbGridContainer" {% if view_mode == 'table' %}style="display:none;"{% endif %}>
+    <!-- Day Column Headers -->
+    <div class="tb-header-row">
+      <div class="tb-time-col-header"></div>
+      {% for col in day_columns %}
+        <div class="tb-day-header {% if col.is_today %}tb-day-today{% endif %}">
+          <div class="d-flex justify-content-between align-items-center w-100">
+            <div>
+              <span class="tb-day-name">{{ col.day_name }}</span>
+              <span class="tb-day-date">{{ col.date|date:"M d" }}{% if col.is_today %} (Today){% endif %}</span>
+            </div>
+            <button type="button" class="btn btn-outline-brand btn-xs tb-day-add-btn" 
+                    onclick="openAddModalForDate('{{ col.date_iso }}')" 
+                    title="Add block for {{ col.day_name }}">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Main Grid Canvas -->
+    <div class="tb-grid-body" style="height: {{ total_grid_height }}px;">
+      <!-- Time Gutter -->
+      <div class="tb-time-col">
+        {% for h in hours_display %}
+          <div class="tb-time-slot">
+            <span class="tb-time-hour">{{ h.label }}</span>
+            <span class="tb-time-half">:30</span>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- 7 Day Columns -->
+      {% for col in day_columns %}
+        <div class="tb-day-column {% if col.is_today %}tb-col-today{% endif %}" data-date="{{ col.date_iso }}">
+          <!-- Background hour slots with 15-minute slices (bawat oras at bawat minuto) -->
+          {% for h in hours_display %}
+            <div class="tb-hour-slot" data-hour="{{ h.hour }}" data-date="{{ col.date_iso }}">
+              <div class="tb-minute-slice" 
+                   data-date="{{ col.date_iso }}" 
+                   data-hour="{{ h.hour }}" 
+                   data-minute="00" 
+                   onclick="openAddModalForSlot(this, '00')" 
+                   title="Add block for {{ col.day_name }} at {{ h.label }}:00">
+                <span class="tb-min-hint">:00</span>
+              </div>
+              <div class="tb-minute-slice" 
+                   data-date="{{ col.date_iso }}" 
+                   data-hour="{{ h.hour }}" 
+                   data-minute="15" 
+                   onclick="openAddModalForSlot(this, '15')" 
+                   title="Add block for {{ col.day_name }} at {{ h.hour }}:15">
+                <span class="tb-min-hint">:15</span>
+              </div>
+              <div class="tb-minute-slice tb-slice-half" 
+                   data-date="{{ col.date_iso }}" 
+                   data-hour="{{ h.hour }}" 
+                   data-minute="30" 
+                   onclick="openAddModalForSlot(this, '30')" 
+                   title="Add block for {{ col.day_name }} at {{ h.hour }}:30">
+                <span class="tb-min-hint">:30</span>
+              </div>
+              <div class="tb-minute-slice" 
+                   data-date="{{ col.date_iso }}" 
+                   data-hour="{{ h.hour }}" 
+                   data-minute="45" 
+                   onclick="openAddModalForSlot(this, '45')" 
+                   title="Add block for {{ col.day_name }} at {{ h.hour }}:45">
+                <span class="tb-min-hint">:45</span>
+              </div>
+            </div>
+          {% endfor %}
+
+          <!-- Rendered Time Block Pills (Side-by-side positioning for concurrent blocks) -->
+          {% for block in col.blocks %}
+            <div class="time-block-pill {{ block.color_class }} {% if block.height_px < 38 %}tb-pill-compact{% endif %}"
+                 style="top: {{ block.top_px }}px; height: {{ block.height_px }}px; left: calc({{ block.left_pct }}% + 2px); width: calc({{ block.width_pct }}% - 4px); right: auto;"
+                 data-block-id="{{ block.id }}"
+                 data-staff-id="{{ block.staff_id }}"
+                 data-staff-name="{{ block.staff_name }}"
+                 data-date="{{ block.date_iso }}"
+                 data-start="{{ block.start_time_iso }}"
+                 data-end="{{ block.end_time_iso }}"
+                 data-reason="{{ block.reason }}"
+                 onclick="openEditModalFromBlock(this)"
+                 title="{{ block.reason|title }} ({{ block.start_time_display }} - {{ block.end_time_display }}) - {{ block.staff_name }}">
+              {% if block.height_px < 38 %}
+                <span class="tb-pill-compact-text text-truncate">
+                  <strong>{{ block.start_time_display }}</strong> {{ block.reason }}
+                </span>
+              {% else %}
+                <span class="tb-pill-title text-truncate">{{ block.reason }}</span>
+                {% if block.height_px >= 46 %}
+                  <span class="tb-pill-time">{{ block.start_time_display }} - {{ block.end_time_display }}</span>
+                {% endif %}
+                {% if not selected_staff and block.height_px >= 64 %}
+                  <span class="tb-pill-staff text-truncate">{{ block.staff_name }}</span>
+                {% endif %}
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Fallback Table View -->
+  <div class="p-3" id="tbTableContainer" {% if view_mode != 'table' %}style="display:none;"{% endif %}>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Technician / Staff</th>
+            <th scope="col">Date</th>
+            <th scope="col">Blocked Window</th>
+            <th scope="col">Reason / Notes</th>
+            <th scope="col" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for block in page_obj %}
+            <tr>
+              <td>
+                <strong>{{ block.staff.get_full_name|default:block.staff.email }}</strong>
+                <br><small class="text-secondary">{{ block.staff.email }}</small>
+              </td>
+              <td><strong>{{ block.date|date:"M d, Y (l)" }}</strong></td>
+              <td>
+                <span class="badge text-bg-warning border">
+                  <i class="bi bi-slash-circle me-1"></i> {{ block.start_time|time:"g:i A" }} - {{ block.end_time|time:"g:i A" }}
+                </span>
+              </td>
+              <td>{{ block.reason|default:"Unavailable / Time Block" }}</td>
+              <td class="text-end text-nowrap">
+                <a class="btn btn-sm btn-outline-dark" href="{% url 'services:time_block_update' block.pk %}">Edit</a>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'services:time_block_delete' block.pk %}">Delete</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-secondary py-4">
+                No staff time blocks recorded. Click <strong>Add Time Block</strong> or switch to Visual Grid to add blocks.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+      <div class="mt-3">
+        {% include 'services/pagination.html' with page_obj=page_obj staff=staff_id %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL: Add Time Block (with Presets and Multi-Day Repeat)
+     ========================================================================= -->
+<div class="modal fade" id="addTimeBlockModal" tabindex="-1" aria-labelledby="addTimeBlockModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-bottom pb-3">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="addTimeBlockModalLabel">
+            <i class="bi bi-clock-history text-brand me-1"></i> Add Time Blocks (Multiple Add · Oras at Minuto)
+          </h5>
+          <small class="text-secondary">Schedule single or multiple time blocks across hours and minutes</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'services:time_block_create' %}" id="addTimeBlockForm">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <!-- Staff and Date Row -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-7">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-bold mb-0">Technician / Staff <span class="text-danger">*</span></label>
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" name="all_staff" value="true" id="addAllStaffCheck" onchange="toggleAllStaff(this.checked)">
+                  <label class="form-check-label small fw-bold text-brand" for="addAllStaffCheck">All Active Staff</label>
+                </div>
+              </div>
+              <select name="staff" id="addStaffField" class="form-select" required onchange="updateSummaryCount()">
+                {% for st in staff_list %}
+                  <option value="{{ st.pk }}" {% if selected_staff.pk == st.pk %}selected{% endif %}>
+                    {{ st.get_full_name|default:st.email }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div id="allStaffNotice" class="form-text text-success small" style="display: none;">
+                <i class="bi bi-people-fill me-1"></i> Blocks will be applied to all active staff at once.
+              </div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small fw-bold mb-1">Primary Date <span class="text-danger">*</span></label>
+              <input type="date" name="date" id="addDateField" class="form-control" value="{{ today|date:'Y-m-d' }}" required onchange="updateSummaryCount()">
+            </div>
+          </div>
+
+          <!-- Quick Presets Toolbar -->
+          <div class="mb-3 p-2 bg-light rounded-3 border">
+            <div class="small fw-bold text-muted text-uppercase mb-1"><i class="bi bi-lightning-charge me-1"></i> Quick Presets:</div>
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+              <button type="button" class="btn btn-xs btn-outline-secondary" onclick="applyAddPreset('Work Time', '09:00', '12:00')">Work (9-12)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" onclick="applyAddPreset('Lunch', '12:00', '13:00')">Lunch (12-1)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" onclick="applyAddPreset('Work Time', '13:00', '17:00')">Work (1-5)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" onclick="applyAddPreset('Work Time', '17:00', '21:00')">Work (5-9)</button>
+              <button type="button" class="btn btn-xs btn-outline-danger" onclick="applyAddPreset('Leave', '09:00', '21:00')">Leave (Full Day)</button>
+              <button type="button" class="btn btn-xs btn-brand ms-auto" onclick="applyStandardShiftPreset()">
+                <i class="bi bi-layers-fill me-1"></i> Fill Full Day Shift (3 slots)
+              </button>
+            </div>
+          </div>
+
+          <!-- Multi-Slot Container (Bawat Oras at Minuto) -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label small fw-bold text-dark text-uppercase mb-0">
+                <i class="bi bi-clock me-1 text-brand"></i> Time Slots (Oras at Minuto)
+              </label>
+              <button type="button" class="btn btn-outline-brand btn-sm" onclick="addSlotRow()">
+                <i class="bi bi-plus-circle me-1"></i> + Add Another Slot
+              </button>
+            </div>
+            
+            <div id="tbSlotsContainer" class="d-flex flex-column gap-2">
+              <!-- Dynamically rendered slot cards -->
+            </div>
+          </div>
+
+          <datalist id="tbCategoryList">
+            <option value="Work Time">
+            <option value="Lunch">
+            <option value="Break">
+            <option value="Leave">
+            <option value="Meeting">
+            <option value="Training">
+          </datalist>
+
+          <!-- Multi-day repeating options for this week -->
+          <div class="p-3 bg-light rounded-3 border">
+            <label class="form-label small fw-bold mb-1">Also apply to other days this week:</label>
+            <div class="d-flex flex-wrap gap-2 mt-1">
+              {% for col in day_columns %}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input repeat-date-chk" type="checkbox" name="repeat_dates" value="{{ col.date_iso }}" id="rep_{{ forloop.counter }}" onchange="updateSummaryCount()">
+                  <label class="form-check-label small" for="rep_{{ forloop.counter }}">{{ col.day_short }} ({{ col.date|date:"m/d" }})</label>
+                </div>
+              {% endfor %}
+            </div>
+            <small class="text-muted d-block mt-1">Select days to create identical blocks across the entire week with 1 click.</small>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge text-bg-light border text-dark fw-semibold" id="tbSummaryBadge">1 slot</span>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-brand" id="tbSubmitBtn">
+              <i class="bi bi-check2-circle me-1"></i> Create Time Block
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL: Edit Time Block
+     ========================================================================= -->
+<div class="modal fade" id="editTimeBlockModal" tabindex="-1" aria-labelledby="editTimeBlockModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-bottom pb-3">
+        <h5 class="modal-title fw-bold" id="editTimeBlockModalLabel">
+          <i class="bi bi-pencil-square text-brand me-1"></i> Edit Time Block
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editBlockForm" action="">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <!-- Preset Chips to quick-edit -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-1">Quick Change Category:</label>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="tb-preset-chip tb-preset-lime" onclick="applyEditPreset('Lunch')">Lunch</span>
+              <span class="tb-preset-chip tb-preset-blue" onclick="applyEditPreset('Work Time')">Work Time</span>
+              <span class="tb-preset-chip tb-preset-lime" onclick="applyEditPreset('Break')">Break</span>
+              <span class="tb-preset-chip tb-preset-rose" onclick="applyEditPreset('Leave')">Leave</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Technician / Staff <span class="text-danger">*</span></label>
+            <select name="staff" id="editStaffField" class="form-select" required>
+              {% for st in staff_list %}
+                <option value="{{ st.pk }}">{{ st.get_full_name|default:st.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-12">
+              <label class="form-label small fw-bold">Date <span class="text-danger">*</span></label>
+              <input type="date" name="date" id="editDateField" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">Start Time <span class="text-danger">*</span></label>
+              <input type="time" name="start_time" id="editStartTimeField" step="60" class="form-control" required>
+              <div class="d-flex gap-1 mt-1">
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setEditMinute('start', '00')">:00</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setEditMinute('start', '15')">:15</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setEditMinute('start', '30')">:30</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setEditMinute('start', '45')">:45</button>
+              </div>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">End Time <span class="text-danger">*</span></label>
+              <input type="time" name="end_time" id="editEndTimeField" step="60" class="form-control" required>
+              <div class="d-flex gap-1 mt-1 flex-wrap">
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addEditDuration(15)">+15m</button>
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addEditDuration(30)">+30m</button>
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addEditDuration(45)">+45m</button>
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addEditDuration(60)">+1h</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Block Name / Reason <span class="text-danger">*</span></label>
+            <input type="text" name="reason" id="editReasonField" class="form-control" list="tbCategoryList" placeholder="e.g. Lunch, Work Time, Leave" required>
+          </div>
+        </div>
+        <div class="modal-footer border-top px-4 py-3 d-flex justify-content-between">
+          <a href="#" id="editDeleteBtn" class="btn btn-outline-danger">
+            <i class="bi bi-trash me-1"></i> Delete
+          </a>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-brand">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  let slotCounter = 0;
+
+  function toggleView(mode) {
+    const grid = document.getElementById('tbGridContainer');
+    const table = document.getElementById('tbTableContainer');
+    const legend = document.getElementById('tbLegendSection');
+    const btnGrid = document.getElementById('btnViewGrid');
+    const btnTable = document.getElementById('btnViewTable');
+
+    if (mode === 'grid') {
+      grid.style.display = 'block';
+      legend.style.display = 'flex';
+      table.style.display = 'none';
+      btnGrid.className = 'btn btn-brand';
+      btnTable.className = 'btn btn-outline-secondary';
+    } else {
+      grid.style.display = 'none';
+      legend.style.display = 'none';
+      table.style.display = 'block';
+      btnGrid.className = 'btn btn-outline-secondary';
+      btnTable.className = 'btn btn-brand';
+    }
+  }
+
+  function onStaffFilterChange(staffId) {
+    const url = new URL(window.location.href);
+    if (staffId) {
+      url.searchParams.set('staff', staffId);
+    } else {
+      url.searchParams.delete('staff');
+    }
+    window.location.href = url.toString();
+  }
+
+  function onDateJump(dateVal) {
+    if (!dateVal) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('date', dateVal);
+    window.location.href = url.toString();
+  }
+
+  function toggleAllStaff(checked) {
+    const staffSelect = document.getElementById('addStaffField');
+    const notice = document.getElementById('allStaffNotice');
+    if (checked) {
+      staffSelect.disabled = true;
+      staffSelect.removeAttribute('required');
+      notice.style.display = 'block';
+    } else {
+      staffSelect.disabled = false;
+      staffSelect.setAttribute('required', 'required');
+      notice.style.display = 'none';
+    }
+    updateSummaryCount();
+  }
+
+  function addSlotRow(startTime = '09:00', endTime = '10:00', reason = 'Work Time') {
+    const container = document.getElementById('tbSlotsContainer');
+    slotCounter++;
+    const rowId = 'slotRow_' + slotCounter;
+
+    // If there's an existing row, default the new start time to the last row's end time
+    const existingRows = container.querySelectorAll('.tb-slot-card');
+    if (existingRows.length > 0 && (!startTime || startTime === '09:00')) {
+      const lastRow = existingRows[existingRows.length - 1];
+      const lastEndInput = lastRow.querySelector('.slot-end-time');
+      if (lastEndInput && lastEndInput.value) {
+        startTime = lastEndInput.value;
+        const [h, m] = startTime.split(':').map(Number);
+        const endH = Math.min(23, h + 1);
+        endTime = String(endH).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
+    }
+
+    const card = document.createElement('div');
+    card.className = 'tb-slot-card p-3 rounded-3 border bg-light position-relative';
+    card.id = rowId;
+    card.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="badge text-bg-secondary slot-badge">Slot #1</span>
+        <button type="button" class="btn btn-link text-danger btn-sm p-0 slot-remove-btn" onclick="removeSlotRow(this)" title="Remove this slot">
+          <i class="bi bi-trash me-1"></i> Remove
+        </button>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label small fw-bold mb-1">Start Time (Oras : Minuto)</label>
+          <input type="time" name="start_time" step="60" class="form-control form-control-sm slot-start-time" value="${startTime}" required onchange="onSlotStartTimeChange(this)">
+          <div class="d-flex gap-1 mt-1">
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setSlotMinute(this, 'start', '00')">:00</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setSlotMinute(this, 'start', '15')">:15</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setSlotMinute(this, 'start', '30')">:30</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="setSlotMinute(this, 'start', '45')">:45</button>
+          </div>
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-bold mb-1">End Time (Oras : Minuto)</label>
+          <input type="time" name="end_time" step="60" class="form-control form-control-sm slot-end-time" value="${endTime}" required onchange="updateSummaryCount()">
+          <div class="d-flex gap-1 mt-1 flex-wrap">
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addSlotDuration(this, 15)">+15m</button>
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addSlotDuration(this, 30)">+30m</button>
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addSlotDuration(this, 45)">+45m</button>
+            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1" onclick="addSlotDuration(this, 60)">+1h</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="form-label small fw-bold mb-1">Category / Reason</label>
+        <input type="text" name="reason" class="form-control form-control-sm slot-reason" list="tbCategoryList" value="${reason}" placeholder="e.g. Work Time, Lunch, Break, Leave" required>
+        <div class="d-flex flex-wrap gap-1 mt-1">
+          <span class="tb-preset-chip-sm tb-preset-blue" onclick="setSlotReason(this, 'Work Time')">Work Time</span>
+          <span class="tb-preset-chip-sm tb-preset-lime" onclick="setSlotReason(this, 'Lunch')">Lunch</span>
+          <span class="tb-preset-chip-sm tb-preset-lime" onclick="setSlotReason(this, 'Break')">Break</span>
+          <span class="tb-preset-chip-sm tb-preset-rose" onclick="setSlotReason(this, 'Leave')">Leave</span>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(card);
+    refreshSlotIndices();
+    updateSummaryCount();
+    return card;
+  }
+
+  function removeSlotRow(btn) {
+    const card = btn.closest('.tb-slot-card');
+    if (card) {
+      card.remove();
+      refreshSlotIndices();
+      updateSummaryCount();
+    }
+  }
+
+  function refreshSlotIndices() {
+    const container = document.getElementById('tbSlotsContainer');
+    const cards = container.querySelectorAll('.tb-slot-card');
+    cards.forEach((c, idx) => {
+      const badge = c.querySelector('.slot-badge');
+      if (badge) badge.textContent = 'Slot #' + (idx + 1);
+      const removeBtn = c.querySelector('.slot-remove-btn');
+      if (removeBtn) {
+        // Show remove button on all except when only 1 slot exists
+        removeBtn.style.display = (cards.length > 1) ? 'inline-block' : 'none';
+      }
+    });
+  }
+
+  function setSlotMinute(btn, type, minStr) {
+    const card = btn.closest('.tb-slot-card');
+    const input = type === 'start' ? card.querySelector('.slot-start-time') : card.querySelector('.slot-end-time');
+    if (!input) return;
+    const currentVal = input.value || '09:00';
+    const parts = currentVal.split(':');
+    const hour = parts[0] || '09';
+    input.value = hour + ':' + minStr;
+    if (type === 'start') {
+      onSlotStartTimeChange(input);
+    }
+    updateSummaryCount();
+  }
+
+  function addSlotDuration(btn, minutesToAdd) {
+    const card = btn.closest('.tb-slot-card');
+    const startInput = card.querySelector('.slot-start-time');
+    const endInput = card.querySelector('.slot-end-time');
+    if (!startInput || !endInput) return;
+
+    const startVal = startInput.value || '09:00';
+    const [h, m] = startVal.split(':').map(Number);
+    const totalMins = h * 60 + m + minutesToAdd;
+    const newH = Math.min(23, Math.floor(totalMins / 60));
+    const newM = totalMins % 60;
+    endInput.value = String(newH).padStart(2, '0') + ':' + String(newM).padStart(2, '0');
+    updateSummaryCount();
+  }
+
+  function onSlotStartTimeChange(input) {
+    const card = input.closest('.tb-slot-card');
+    const endInput = card.querySelector('.slot-end-time');
+    if (!endInput) return;
+    const [sH, sM] = (input.value || '09:00').split(':').map(Number);
+    const [eH, eM] = (endInput.value || '10:00').split(':').map(Number);
+    if ((eH * 60 + eM) <= (sH * 60 + sM)) {
+      // Auto-adjust end time to +1 hour if end time is <= start time
+      const newEH = Math.min(23, sH + 1);
+      endInput.value = String(newEH).padStart(2, '0') + ':' + String(sM).padStart(2, '0');
+    }
+    updateSummaryCount();
+  }
+
+  function setSlotReason(btn, reasonText) {
+    const card = btn.closest('.tb-slot-card');
+    const reasonInput = card.querySelector('.slot-reason');
+    if (reasonInput) reasonInput.value = reasonText;
+  }
+
+  function applyAddPreset(reason, start, end) {
+    const container = document.getElementById('tbSlotsContainer');
+    const cards = container.querySelectorAll('.tb-slot-card');
+    if (cards.length === 0) {
+      addSlotRow(start, end, reason);
+    } else {
+      const firstCard = cards[0];
+      const startInput = firstCard.querySelector('.slot-start-time');
+      const endInput = firstCard.querySelector('.slot-end-time');
+      const reasonInput = firstCard.querySelector('.slot-reason');
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
+      if (reasonInput) reasonInput.value = reason;
+      updateSummaryCount();
+    }
+  }
+
+  function applyStandardShiftPreset() {
+    const container = document.getElementById('tbSlotsContainer');
+    container.innerHTML = '';
+    addSlotRow('09:00', '12:00', 'Work Time');
+    addSlotRow('12:00', '13:00', 'Lunch');
+    addSlotRow('13:00', '18:00', 'Work Time');
+  }
+
+  function updateSummaryCount() {
+    const container = document.getElementById('tbSlotsContainer');
+    const slotCount = container ? container.querySelectorAll('.tb-slot-card').length : 1;
+    const repeatChecks = document.querySelectorAll('.repeat-date-chk:checked');
+    const daysCount = 1 + repeatChecks.length;
+    const isAllStaff = document.getElementById('addAllStaffCheck')?.checked;
+    const staffText = isAllStaff ? 'All Staff' : '1 Staff';
+    
+    const totalBlocks = slotCount * daysCount;
+    const badge = document.getElementById('tbSummaryBadge');
+    const submitBtn = document.getElementById('tbSubmitBtn');
+    
+    if (badge) {
+      badge.textContent = `${slotCount} slot${slotCount > 1 ? 's' : ''} × ${daysCount} day${daysCount > 1 ? 's' : ''} (${staffText}) = ${totalBlocks} block${totalBlocks > 1 ? 's' : ''}`;
+    }
+    if (submitBtn) {
+      submitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Create ${totalBlocks > 1 ? totalBlocks + ' Time Blocks' : 'Time Block'}`;
+    }
+  }
+
+  function openAddModalForDate(dateIso) {
+    const modalEl = document.getElementById('addTimeBlockModal');
+    const modal = new bootstrap.Modal(modalEl);
+
+    document.getElementById('addDateField').value = dateIso;
+    const container = document.getElementById('tbSlotsContainer');
+    container.innerHTML = '';
+    addSlotRow('09:00', '10:00', 'Work Time');
+
+    modal.show();
+  }
+
+  function openAddModalForSlot(dateOrEl, minute = '00') {
+    const modalEl = document.getElementById('addTimeBlockModal');
+    const modal = new bootstrap.Modal(modalEl);
+
+    let dateIso = dateOrEl;
+    let hourVal = 9;
+    if (dateOrEl instanceof HTMLElement || (dateOrEl && dateOrEl.dataset)) {
+      dateIso = dateOrEl.dataset.date;
+      hourVal = parseInt(dateOrEl.dataset.hour, 10);
+      if (dateOrEl.dataset.minute) {
+        minute = dateOrEl.dataset.minute;
+      }
+    }
+
+    document.getElementById('addDateField').value = dateIso;
+    const startStr = String(hourVal).padStart(2, '0') + ':' + minute;
+    const endH = Math.min(23, Number(hourVal) + 1);
+    const endStr = String(endH).padStart(2, '0') + ':' + minute;
+
+    const container = document.getElementById('tbSlotsContainer');
+    container.innerHTML = '';
+    addSlotRow(startStr, endStr, 'Work Time');
+
+    modal.show();
+  }
+
+  function openEditModalFromBlock(el) {
+    const blockId = el.getAttribute('data-block-id');
+    const staffId = el.getAttribute('data-staff-id');
+    const date = el.getAttribute('data-date');
+    const start = el.getAttribute('data-start');
+    const end = el.getAttribute('data-end');
+    const reason = el.getAttribute('data-reason');
+
+    document.getElementById('editBlockForm').action = '/services/time-blocks/' + blockId + '/edit/';
+    document.getElementById('editDeleteBtn').href = '/services/time-blocks/' + blockId + '/delete/';
+
+    if (staffId) {
+      document.getElementById('editStaffField').value = staffId;
+    }
+    document.getElementById('editDateField').value = date;
+    document.getElementById('editStartTimeField').value = start;
+    document.getElementById('editEndTimeField').value = end;
+    document.getElementById('editReasonField').value = reason;
+
+    const modalEl = document.getElementById('editTimeBlockModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+
+  function applyEditPreset(reason) {
+    document.getElementById('editReasonField').value = reason;
+  }
+
+  function setEditMinute(type, minStr) {
+    const input = type === 'start' ? document.getElementById('editStartTimeField') : document.getElementById('editEndTimeField');
+    if (!input) return;
+    const currentVal = input.value || '09:00';
+    const parts = currentVal.split(':');
+    const hour = parts[0] || '09';
+    input.value = hour + ':' + minStr;
+  }
+
+  function addEditDuration(minutesToAdd) {
+    const startInput = document.getElementById('editStartTimeField');
+    const endInput = document.getElementById('editEndTimeField');
+    if (!startInput || !endInput) return;
+
+    const [h, m] = (startInput.value || '09:00').split(':').map(Number);
+    const totalMins = h * 60 + m + minutesToAdd;
+    const newH = Math.min(23, Math.floor(totalMins / 60));
+    const newM = totalMins % 60;
+    endInput.value = String(newH).padStart(2, '0') + ':' + String(newM).padStart(2, '0');
+  }
+
+  // Initialize at least one slot card on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('tbSlotsContainer');
+    if (container && container.children.length === 0) {
+      addSlotRow('09:00', '10:00', 'Work Time');
+    }
+  });
+</script>
+{% endblock %}

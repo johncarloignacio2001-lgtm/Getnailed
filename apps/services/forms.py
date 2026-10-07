@@ -4,7 +4,13 @@ from django.db.models import Q
 from apps.accounts.authorization import is_owner
 from apps.accounts.models import User
 
-from .models import Service, ServiceCategory, StaffProfile
+from .models import (
+    Service,
+    ServiceCategory,
+    StaffProfile,
+    StaffSchedule,
+    StaffTimeBlock,
+)
 
 
 FORM_CONTROL = {"class": "form-control"}
@@ -68,12 +74,20 @@ class ServiceForm(OwnerManagedFormMixin, forms.ModelForm):
 
 
 class StaffProfileForm(OwnerManagedFormMixin, forms.ModelForm):
+    can_use_pos = forms.BooleanField(
+        required=False,
+        label="Point of Sale / Cashier Access",
+        help_text="Allow staff to open cashier shifts and process sales in POS.",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
     class Meta:
         model = StaffProfile
-        fields = ("user", "specialty", "availability_status", "is_active")
+        fields = ("user", "specialty", "skills", "availability_status", "is_active")
         widgets = {
             "user": forms.Select(attrs={"class": "form-select"}),
             "specialty": forms.TextInput(attrs=FORM_CONTROL),
+            "skills": forms.SelectMultiple(attrs={"class": "form-select", "size": 6}),
             "availability_status": forms.Select(attrs={"class": "form-select"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
@@ -84,9 +98,81 @@ class StaffProfileForm(OwnerManagedFormMixin, forms.ModelForm):
         self.fields["user"].queryset = User.objects.filter(role=User.Role.STAFF).filter(
             Q(staff_profile__isnull=True) | Q(pk=profile_user_id)
         ).order_by("first_name", "last_name", "email")
+        self.fields["skills"].queryset = Service.objects.filter(is_active=True).order_by("category__name", "name")
+        self.fields["skills"].required = False
+        if self.instance and self.instance.pk and self.instance.user_id:
+            self.fields["can_use_pos"].initial = self.instance.user.can_use_pos
 
     def clean_specialty(self):
         return " ".join(self.cleaned_data["specialty"].split())
+
+    def save(self, commit=True):
+        profile = super().save(commit=commit)
+        if "can_use_pos" in self.cleaned_data and profile.user_id:
+            user = profile.user
+            val = self.cleaned_data["can_use_pos"]
+            if user.can_use_pos != val:
+                user.can_use_pos = val
+                if val:
+                    user.can_manage_bookings = True
+                    user.can_manage_customers = True
+                    user.can_assign_services = True
+                user.save(update_fields=("can_use_pos", "can_manage_bookings", "can_manage_customers", "can_assign_services"))
+        return profile
+
+
+class StaffScheduleForm(OwnerManagedFormMixin, forms.ModelForm):
+    class Meta:
+        model = StaffSchedule
+        fields = ("staff", "day_of_week", "start_time", "end_time", "lunch_start", "lunch_end", "is_working")
+        widgets = {
+            "staff": forms.Select(attrs={"class": "form-select"}),
+            "day_of_week": forms.Select(attrs={"class": "form-select"}),
+            "start_time": forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+            "end_time": forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+            "lunch_start": forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+            "lunch_end": forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+            "is_working": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["staff"].queryset = User.objects.filter(role=User.Role.STAFF, is_active=True).select_related("staff_profile").order_by("first_name", "last_name")
+        self.fields["staff"].label_from_instance = (
+            lambda u: f"{u.get_full_name()} — {u.staff_profile.specialty}"
+            if getattr(u, "staff_profile", None) and u.staff_profile.specialty
+            else u.get_full_name() or u.email
+        )
+
+
+class StaffTimeBlockForm(OwnerManagedFormMixin, forms.ModelForm):
+    class Meta:
+        model = StaffTimeBlock
+        fields = ("staff", "date", "start_time", "end_time", "reason")
+        widgets = {
+            "staff": forms.Select(attrs={"class": "form-select"}),
+            "date": forms.DateInput(attrs={**FORM_CONTROL, "type": "date"}),
+            "start_time": forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+            "end_time": forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+            "reason": forms.TextInput(
+                attrs={
+                    **FORM_CONTROL,
+                    "placeholder": "e.g., Lunch, Work Time, Leave",
+                }
+            ),
+        }
+        help_texts = {
+            "reason": "Standard categories: Lunch, Work Time, Leave",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["staff"].queryset = User.objects.filter(role=User.Role.STAFF, is_active=True).select_related("staff_profile").order_by("first_name", "last_name")
+        self.fields["staff"].label_from_instance = (
+            lambda u: f"{u.get_full_name()} — {u.staff_profile.specialty}"
+            if getattr(u, "staff_profile", None) and u.staff_profile.specialty
+            else u.get_full_name() or u.email
+        )
 
 
 class ServiceFilterForm(forms.Form):
@@ -114,7 +200,21 @@ class ServiceFilterForm(forms.Form):
 
 
 class StaffProfileFilterForm(forms.Form):
+    SPECIALTY_CHOICES = (
+        ("", "All specialties"),
+        ("NAIL TECH", "Nail Tech"),
+        ("NAIL ART", "Nail Art"),
+        ("LASH", "Lash Tech / Lash Lift"),
+        ("WAX", "Wax / Threading"),
+        ("THERAPIST", "Therapist"),
+        ("FOOTSPA", "Foot Spa"),
+        ("CASHIER", "Cashier"),
+    )
     q = forms.CharField(max_length=100, required=False)
+    specialty = forms.ChoiceField(
+        required=False,
+        choices=SPECIALTY_CHOICES,
+    )
     availability = forms.ChoiceField(
         required=False,
         choices=(("", "All availability"), *StaffProfile.Availability.choices),

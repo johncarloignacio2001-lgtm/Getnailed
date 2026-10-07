@@ -13,7 +13,7 @@ from apps.bookings.models import Appointment, AppointmentService
 from apps.customers.models import Customer
 from apps.services.models import Service, ServiceCategory, StaffProfile
 
-from .models import Payment, ReceiptSequence, Sale, SaleItem
+from .models import CashierShift, Payment, PromoVoucher, ReceiptSequence, Sale, SaleItem
 from .services import create_sale, void_sale
 
 
@@ -272,3 +272,224 @@ class PosTransactionTests(TestCase):
             ).status_code,
             200,
         )
+
+    def test_senior_citizen_and_pwd_discount_rules(self):
+        with self.assertRaises(ValidationError):
+            self.create_cash_sale(
+                discount_type=Sale.DiscountType.SENIOR_CITIZEN,
+                discount_value=Decimal("0.00"),
+                amount_tendered=Decimal("3000.00"),
+            )
+
+        sale = self.create_cash_sale(
+            discount_type=Sale.DiscountType.SENIOR_CITIZEN,
+            discount_value=Decimal("0.00"),
+            discount_id_number="OSCA-12345",
+            discount_id_name="Juan Dela Cruz",
+            amount_tendered=Decimal("2000.00"),
+        )
+        self.assertEqual(sale.discount_type, Sale.DiscountType.SENIOR_CITIZEN)
+        self.assertEqual(sale.subtotal, Decimal("2500.00"))
+        self.assertEqual(sale.discount_amount, Decimal("500.00"))
+        self.assertEqual(sale.total, Decimal("2000.00"))
+        self.assertEqual(sale.discount_id_number, "OSCA-12345")
+
+        pwd_sale = self.create_cash_sale(
+            discount_type=Sale.DiscountType.PWD,
+            discount_value=Decimal("0.00"),
+            discount_id_number="PWD-67890",
+            discount_id_name="Maria Clara",
+            amount_tendered=Decimal("2000.00"),
+        )
+        self.assertEqual(pwd_sale.discount_type, Sale.DiscountType.PWD)
+        self.assertEqual(pwd_sale.discount_amount, Decimal("500.00"))
+        self.assertEqual(pwd_sale.total, Decimal("2000.00"))
+
+    def test_promo_voucher_with_cap_and_min_spend(self):
+        voucher = PromoVoucher.objects.create(
+            code="SAVEBIG",
+            discount_type=PromoVoucher.DiscountType.PERCENT,
+            discount_value=Decimal("20.00"),
+            max_discount_cap=Decimal("200.00"),
+            min_spend=Decimal("1000.00"),
+            usage_limit=10,
+        )
+
+        sale = self.create_cash_sale(
+            discount_type=Sale.DiscountType.PROMO_VOUCHER,
+            voucher_code="SAVEBIG",
+            amount_tendered=Decimal("2500.00"),
+        )
+        self.assertEqual(sale.discount_amount, Decimal("200.00"))
+        self.assertEqual(sale.total, Decimal("2300.00"))
+        voucher.refresh_from_db()
+        self.assertEqual(voucher.times_used, 1)
+
+    def test_cashier_shift_till_reconciliation(self):
+        shift = CashierShift.objects.create(
+            cashier=self.cashier,
+            opening_cash=Decimal("1500.00"),
+            status=CashierShift.Status.OPEN,
+        )
+
+        sale = self.create_cash_sale()
+        self.assertEqual(sale.shift, shift)
+
+        shift.reconcile(Decimal("4000.00"), closed_by=self.cashier)
+        self.assertEqual(shift.status, CashierShift.Status.CLOSED)
+        self.assertEqual(shift.expected_cash, Decimal("4000.00"))
+        self.assertEqual(shift.closing_cash, Decimal("4000.00"))
+        self.assertEqual(shift.cash_variance, Decimal("0.00"))
+
+        short_shift = CashierShift.objects.create(
+            cashier=self.cashier,
+            opening_cash=Decimal("1000.00"),
+            status=CashierShift.Status.OPEN,
+        )
+        self.create_cash_sale()
+        short_shift.reconcile(Decimal("3450.00"), closed_by=self.cashier)
+        self.assertEqual(short_shift.expected_cash, Decimal("3500.00"))
+        self.assertEqual(short_shift.closing_cash, Decimal("3450.00"))
+        self.assertEqual(short_shift.cash_variance, Decimal("-50.00"))
+
+    def test_api_appointment_details_and_service_time(self):
+        appointment = self.create_appointment()
+        self.client.force_login(self.cashier)
+        response = self.client.get(
+            reverse("pos:api_appointment_details", kwargs={"pk": appointment.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["appointment_id"], appointment.pk)
+        self.assertEqual(data["customer_id"], str(self.customer.pk))
+        self.assertEqual(data["start_time"], "10:00")
+        self.assertEqual(len(data["items"]), 1)
+        self.assertEqual(data["items"][0]["service_id"], str(self.manicure.pk))
+        self.assertEqual(data["items"][0]["service_time"], "10:00")
+
+    def test_checkout_with_service_time(self):
+        appointment = self.create_appointment()
+        self.client.force_login(self.cashier)
+        data = {
+            "customer": str(self.customer.pk),
+            "appointment": str(appointment.pk),
+            "discount_type": Sale.DiscountType.NONE,
+            "discount_value": "0.00",
+            "payment_method": Payment.Method.CASH,
+            "amount_tendered": "1000.00",
+            "payment_reference": "",
+            "mark_appointment_completed": "on",
+            "items-TOTAL_FORMS": "6",
+            "items-INITIAL_FORMS": "0",
+            "items-MIN_NUM_FORMS": "0",
+            "items-MAX_NUM_FORMS": "12",
+            "items-0-service": str(self.manicure.pk),
+            "items-0-assigned_staff": str(self.staff.pk),
+            "items-0-service_time": "10:00",
+            "items-0-quantity": "1",
+        }
+        for position in range(1, 6):
+            data[f"items-{position}-service"] = ""
+            data[f"items-{position}-assigned_staff"] = ""
+            data[f"items-{position}-service_time"] = ""
+            data[f"items-{position}-quantity"] = "1"
+        response = self.client.post(reverse("pos:index"), data)
+        self.assertEqual(response.status_code, 302)
+        sale = Sale.objects.get()
+        self.assertEqual(sale.appointment, appointment)
+        self.assertEqual(sale.items.count(), 1)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.status, Appointment.Status.COMPLETED)
+
+    def test_checkout_with_gcash_payment(self):
+        self.client.force_login(self.cashier)
+        data = {
+            "customer": str(self.customer.pk),
+            "appointment": "",
+            "discount_type": Sale.DiscountType.NONE,
+            "discount_value": "0.00",
+            "payment_method": Payment.Method.GCASH,
+            "amount_tendered": "",
+            "payment_reference": "GCASH-9876543210",
+            "mark_appointment_completed": "on",
+            "items-TOTAL_FORMS": "6",
+            "items-INITIAL_FORMS": "0",
+            "items-MIN_NUM_FORMS": "0",
+            "items-MAX_NUM_FORMS": "12",
+            "items-0-service": str(self.manicure.pk),
+            "items-0-assigned_staff": str(self.staff.pk),
+            "items-0-service_time": "10:00",
+            "items-0-quantity": "1",
+        }
+        for position in range(1, 6):
+            data[f"items-{position}-service"] = ""
+            data[f"items-{position}-assigned_staff"] = ""
+            data[f"items-{position}-service_time"] = ""
+            data[f"items-{position}-quantity"] = "1"
+        response = self.client.post(reverse("pos:index"), data)
+        self.assertEqual(response.status_code, 302)
+        sale = Sale.objects.latest("pk")
+        self.assertEqual(sale.payment.payment_method, Payment.Method.GCASH)
+        self.assertEqual(sale.payment.reference, "GCASH-9876543210")
+        self.assertEqual(sale.payment.amount_tendered, sale.total)
+        self.assertEqual(sale.payment.change, Decimal("0.00"))
+
+    def test_checkout_with_maya_payment(self):
+        self.client.force_login(self.cashier)
+        data = {
+            "customer": str(self.customer.pk),
+            "appointment": "",
+            "discount_type": Sale.DiscountType.NONE,
+            "discount_value": "0.00",
+            "payment_method": Payment.Method.MAYA,
+            "amount_tendered": "",
+            "payment_reference": "MAYA-1122334455",
+            "mark_appointment_completed": "on",
+            "items-TOTAL_FORMS": "6",
+            "items-INITIAL_FORMS": "0",
+            "items-MIN_NUM_FORMS": "0",
+            "items-MAX_NUM_FORMS": "12",
+            "items-0-service": str(self.manicure.pk),
+            "items-0-assigned_staff": str(self.staff.pk),
+            "items-0-service_time": "10:00",
+            "items-0-quantity": "1",
+        }
+        for position in range(1, 6):
+            data[f"items-{position}-service"] = ""
+            data[f"items-{position}-assigned_staff"] = ""
+            data[f"items-{position}-service_time"] = ""
+            data[f"items-{position}-quantity"] = "1"
+        response = self.client.post(reverse("pos:index"), data)
+        self.assertEqual(response.status_code, 302)
+        sale = Sale.objects.latest("pk")
+        self.assertEqual(sale.payment.payment_method, Payment.Method.MAYA)
+        self.assertEqual(sale.payment.reference, "MAYA-1122334455")
+        self.assertEqual(sale.payment.amount_tendered, sale.total)
+        self.assertEqual(sale.payment.change, Decimal("0.00"))
+
+    def test_checkout_rejects_removed_card_and_bank_methods(self):
+        self.client.force_login(self.cashier)
+        for invalid_method in ("CARD", "BANK"):
+            data = {
+                "customer": str(self.customer.pk),
+                "appointment": "",
+                "discount_type": Sale.DiscountType.NONE,
+                "discount_value": "0.00",
+                "payment_method": invalid_method,
+                "amount_tendered": "1000.00",
+                "items-TOTAL_FORMS": "6",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "12",
+                "items-0-service": str(self.manicure.pk),
+                "items-0-assigned_staff": str(self.staff.pk),
+                "items-0-quantity": "1",
+            }
+            for position in range(1, 6):
+                data[f"items-{position}-service"] = ""
+                data[f"items-{position}-assigned_staff"] = ""
+                data[f"items-{position}-quantity"] = "1"
+            response = self.client.post(reverse("pos:index"), data)
+            self.assertEqual(response.status_code, 200)
+            self.assertFormError(response.context["form"], "payment_method", f"Select a valid choice. {invalid_method} is not one of the available choices.")
+

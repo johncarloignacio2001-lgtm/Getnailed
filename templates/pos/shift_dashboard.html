@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}Till & Register Shifts | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading">
+  <div>
+    <div class="eyebrow">CASHIER MANAGEMENT</div>
+    <h2>Till & Register Shifts</h2>
+    <p class="text-muted mb-0">Manage cash drawer floats, shift reconciliations, and payment method breakdowns.</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if not active_shift %}
+      <a class="btn btn-brand" href="{% url 'pos:shift_open' %}">Open Register / Start Shift</a>
+    {% else %}
+      <a class="btn btn-warning text-dark" href="{% url 'pos:shift_close' %}">Close Shift & Reconcile Till</a>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'pos:shift_history' %}">Shift History</a>
+  </div>
+</div>
+
+{% if active_shift %}
+<div class="content-card mb-4 border border-success border-2">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <span class="badge bg-success me-2">ACTIVE REGISTER SHIFT #{{ active_shift.pk }}</span>
+      <span class="text-muted small">Opened at {{ active_shift.opened_at|date:"M d, Y h:i A" }} by <strong>{{ active_shift.cashier }}</strong></span>
+    </div>
+    <a class="btn btn-sm btn-danger" href="{% url 'pos:shift_close' %}">Close & Reconcile Register</a>
+  </div>
+
+  <div class="dashboard-kpis mb-4">
+    <div class="stat-card">
+      <span>Opening Cash Float</span>
+      <strong>₱{{ active_shift.opening_cash|floatformat:2 }}</strong>
+    </div>
+    <div class="stat-card">
+      <span>Total Shift Sales</span>
+      <strong>₱{{ current_stats.total_sales|floatformat:2 }}</strong>
+      <small class="text-muted">{{ current_stats.sales_count }} transaction{{ current_stats.sales_count|pluralize }}</small>
+    </div>
+    <div class="stat-card">
+      <span>Cash Sales</span>
+      <strong>₱{{ current_stats.cash_sales|floatformat:2 }}</strong>
+    </div>
+    <div class="stat-card border border-primary">
+      <span>Expected Cash in Drawer</span>
+      <strong class="text-primary">₱{{ current_stats.expected_cash|floatformat:2 }}</strong>
+      <small class="text-muted">Opening Float + Cash Sales</small>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="p-3 bg-light rounded">
+        <h6 class="text-uppercase small text-muted mb-2">E-Wallet Sales (GCash / Maya)</h6>
+        <h4 class="mb-0">₱{{ current_stats.ewallet_sales|floatformat:2 }}</h4>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 bg-light rounded">
+        <h6 class="text-uppercase small text-muted mb-2">Debit / Credit Card Sales</h6>
+        <h4 class="mb-0">₱{{ current_stats.card_sales|floatformat:2 }}</h4>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 bg-light rounded">
+        <h6 class="text-uppercase small text-muted mb-2">Bank Transfer Sales</h6>
+        <h4 class="mb-0">₱{{ current_stats.bank_sales|floatformat:2 }}</h4>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="content-card mb-4 text-center py-5">
+  <div class="mb-3">
+    <span class="badge bg-secondary p-2 px-3 fs-6">NO ACTIVE REGISTER SHIFT</span>
+  </div>
+  <h4 class="mb-2">Your Cash Drawer Is Closed</h4>
+  <p class="text-muted max-w-md mx-auto mb-4">
+    Open a cashier shift and declare your starting drawer float to link transactions and accurately reconcile your till at the end of the shift.
+  </p>
+  <a class="btn btn-brand btn-lg" href="{% url 'pos:shift_open' %}">Open Register & Enter Float</a>
+</div>
+{% endif %}
+
+<div class="content-card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Recent Shifts</h4>
+    <a href="{% url 'pos:shift_history' %}" class="small text-decoration-none">View full history →</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Shift #</th>
+          <th>Cashier</th>
+          <th>Opened</th>
+          <th>Closed</th>
+          <th>Float</th>
+          <th>Cash Sales</th>
+          <th>Counted Cash</th>
+          <th>Variance</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in recent_shifts %}
+          <tr>
+            <td><strong>#{{ shift.pk }}</strong></td>
+            <td>{{ shift.cashier }}</td>
+            <td>{{ shift.opened_at|date:"M d, H:i" }}</td>
+            <td>{% if shift.closed_at %}{{ shift.closed_at|date:"M d, H:i" }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+            <td>₱{{ shift.opening_cash|floatformat:2 }}</td>
+            <td>₱{{ shift.cash_sales_total|floatformat:2 }}</td>
+            <td>{% if shift.closing_cash != None %}₱{{ shift.closing_cash|floatformat:2 }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+            <td>
+              {% if shift.cash_variance != None %}
+                {% if shift.cash_variance == 0 %}
+                  <span class="badge bg-success">₱0.00 Exact</span>
+                {% elif shift.cash_variance > 0 %}
+                  <span class="badge bg-info text-dark">+₱{{ shift.cash_variance|floatformat:2 }} Over</span>
+                {% else %}
+                  <span class="badge bg-danger">₱{{ shift.cash_variance|floatformat:2 }} Short</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if shift.status == "OPEN" %}
+                <span class="badge bg-success">OPEN</span>
+              {% else %}
+                <span class="badge bg-secondary">CLOSED</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if shift.status == "CLOSED" %}
+                <a class="btn btn-sm btn-outline-brand" href="{% url 'pos:shift_reconciliation' pk=shift.pk %}">Reconciliation</a>
+              {% else %}
+                <a class="btn btn-sm btn-outline-warning text-dark" href="{% url 'pos:shift_close' %}">Close</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="10" class="text-center text-muted py-4">No shift logs found yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
