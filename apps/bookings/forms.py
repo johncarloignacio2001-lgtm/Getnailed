@@ -5,6 +5,7 @@ from django import forms
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.customers.models import Customer
 from apps.services.models import Service, StaffProfile
 
 from .models import Appointment, Booking
@@ -48,10 +49,17 @@ class PublicBookingForm(forms.ModelForm):
 
 
 class PublicContactForm(forms.Form):
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.none(),
+        required=False,
+        empty_label="-- New Customer / Walk-in --",
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
     first_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs=FORM_CONTROL))
     last_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs=FORM_CONTROL))
     email = forms.EmailField(
-        widget=forms.EmailInput(attrs={**FORM_CONTROL, "autocomplete": "email"})
+        required=True,
+        widget=forms.EmailInput(attrs={**FORM_CONTROL, "autocomplete": "email"}),
     )
     phone = forms.CharField(
         max_length=30,
@@ -64,8 +72,32 @@ class PublicContactForm(forms.Form):
         widget=forms.Textarea(attrs={**FORM_CONTROL, "rows": 3}),
     )
 
+    def __init__(self, *args, is_internal=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if is_internal:
+            self.fields["customer"].queryset = Customer.objects.all().order_by("first_name", "last_name")
+            self.fields["email"].required = False
+            self.fields["email"].help_text = "Optional for in-salon walk-ins."
+        else:
+            del self.fields["customer"]
+
     def clean_email(self):
-        return self.cleaned_data["email"].strip().lower()
+        email = self.cleaned_data.get("email", "")
+        return email.strip().lower() if email else ""
+
+    def clean(self):
+        cleaned_data = super().clean()
+        cust = cleaned_data.get("customer")
+        if cust:
+            if not cleaned_data.get("first_name"):
+                cleaned_data["first_name"] = cust.first_name
+            if not cleaned_data.get("last_name"):
+                cleaned_data["last_name"] = cust.last_name
+            if not cleaned_data.get("email"):
+                cleaned_data["email"] = cust.email or ""
+            if not cleaned_data.get("phone"):
+                cleaned_data["phone"] = cust.phone or ""
+        return cleaned_data
 
 
 class PublicServiceForm(forms.Form):
@@ -84,16 +116,19 @@ class PublicServiceForm(forms.Form):
 
 class PublicScheduleForm(forms.Form):
     appointment_date = forms.DateField(
-        widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"})
-    )
-    start_time = forms.TimeField(
-        widget=forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"})
+        label="Appointment Date",
+        widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"}),
     )
     assigned_staff = forms.ModelChoiceField(
+        label="Preferred Technician / Staff",
         queryset=User.objects.none(),
         required=False,
-        empty_label="No preference",
-        widget=forms.Select(attrs=FORM_CONTROL),
+        empty_label="No preference (Any available technician)",
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
+    start_time = forms.TimeField(
+        label="Start Time",
+        widget=forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
     )
 
     def __init__(self, *args, services=None, **kwargs):

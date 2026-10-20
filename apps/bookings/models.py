@@ -302,10 +302,27 @@ class Appointment(models.Model):
 
     def clean(self):
         super().clean()
+        if self.customer_id and not self.customer_name_snapshot:
+            self.customer_name_snapshot = self.customer.full_name
+        if self.customer_id and not self.customer_email_snapshot and getattr(self.customer, "email", ""):
+            self.customer_email_snapshot = self.customer.email
+        if self.customer_id and not self.customer_phone_snapshot and getattr(self.customer, "phone", ""):
+            self.customer_phone_snapshot = self.customer.phone
         if self.end_time and self.end_time <= self.start_time:
             raise ValidationError({"end_time": "End time must be later than start time."})
         if self.assigned_staff_id and not self.assigned_staff.is_service_staff:
             raise ValidationError({"assigned_staff": "Appointments can only be assigned to STAFF."})
+
+    def save(self, *args, **kwargs):
+        if self.customer_id and not self.customer_name_snapshot:
+            self.customer_name_snapshot = self.customer.full_name
+        if self.customer_id and not self.customer_email_snapshot and getattr(self.customer, "email", ""):
+            self.customer_email_snapshot = self.customer.email
+        if self.customer_id and not self.customer_phone_snapshot and getattr(self.customer, "phone", ""):
+            self.customer_phone_snapshot = self.customer.phone
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=365)
+        super().save(*args, **kwargs)
 
     @property
     def reference(self):
@@ -466,6 +483,34 @@ class AppointmentService(models.Model):
                 name="appointment_service_status_valid",
             ),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.service:
+            if not self.service_name:
+                self.service_name = self.service.name
+            if self.duration_minutes is None:
+                self.duration_minutes = self.service.duration_minutes
+            if self.price is None:
+                self.price = self.service.price
+        if not self.assigned_staff_id and self.appointment_id and getattr(self.appointment, "assigned_staff_id", None):
+            self.assigned_staff = self.appointment.assigned_staff
+
+    def save(self, *args, **kwargs):
+        if self.service:
+            if not self.service_name:
+                self.service_name = self.service.name
+            if self.duration_minutes is None:
+                self.duration_minutes = self.service.duration_minutes
+            if self.price is None:
+                self.price = self.service.price
+        if not self.assigned_staff_id and self.appointment_id and getattr(self.appointment, "assigned_staff_id", None):
+            self.assigned_staff = self.appointment.assigned_staff
+        if self.position == 0 and self.appointment_id:
+            max_pos = AppointmentService.objects.filter(appointment_id=self.appointment_id).exclude(pk=self.pk).aggregate(models.Max("position"))["position__max"]
+            if max_pos is not None:
+                self.position = max_pos + 1
+        super().save(*args, **kwargs)
 
     @property
     def expected_finish(self):

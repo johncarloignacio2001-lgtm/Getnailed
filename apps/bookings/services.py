@@ -446,6 +446,123 @@ def create_public_appointment(cleaned_data, services, request):
     return appointment
 
 
+def create_internal_appointment(
+    cleaned_data,
+    services,
+    actor,
+    request=None,
+    booking_source=Appointment.BookingSource.WALK_IN,
+    initial_status=Appointment.Status.APPROVED,
+):
+    now = timezone.now()
+    service_ids = list(dict.fromkeys(item.pk for item in services))
+    with transaction.atomic():
+        services = list(
+            Service.objects.select_for_update().filter(pk__in=service_ids, is_active=True)
+        )
+        if not services or len(services) != len(service_ids):
+            raise ValidationError("Choose only currently available services.")
+        duration = sum(item.duration_minutes for item in services)
+        end_time = _appointment_end(
+            cleaned_data["appointment_date"], cleaned_data["start_time"], duration
+        )
+
+        requested_staff = cleaned_data.get("assigned_staff")
+        if requested_staff is not None:
+            staff = _validate_staff_availability(
+                requested_staff,
+                cleaned_data["appointment_date"],
+                cleaned_data["start_time"],
+                end_time,
+                services,
+            )
+        else:
+            staff = _find_available_technician(
+                cleaned_data["appointment_date"],
+                cleaned_data["start_time"],
+                end_time,
+                services,
+            )
+            if staff is None:
+                raise ValidationError("No technician is available for this time slot. Please choose another time.")
+
+        email = cleaned_data.get("email", "").strip().lower()
+        customer = cleaned_data.get("customer")
+        if not customer:
+            if email:
+                customer, _ = Customer.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "first_name": cleaned_data.get("first_name", "Walk-in"),
+                        "last_name": cleaned_data.get("last_name", "Customer"),
+                        "phone": cleaned_data.get("phone", ""),
+                    },
+                )
+            else:
+                customer = Customer.objects.create(
+                    first_name=cleaned_data.get("first_name", "Walk-in"),
+                    last_name=cleaned_data.get("last_name", "Customer"),
+                    phone=cleaned_data.get("phone", ""),
+                )
+
+        appointment = Appointment.objects.create(
+            customer=customer,
+            customer_name_snapshot=customer.full_name,
+            customer_email_snapshot=customer.email or "",
+            customer_phone_snapshot=customer.phone or cleaned_data.get("phone", ""),
+            appointment_date=cleaned_data["appointment_date"],
+            start_time=cleaned_data["start_time"],
+            end_time=end_time,
+            assigned_staff=staff,
+            booking_source=booking_source,
+            status=initial_status,
+            notes=cleaned_data.get("notes", ""),
+            created_by=actor,
+            verified_at=now,
+            expires_at=now + timedelta(days=365),
+        )
+
+        AppointmentService.objects.bulk_create(
+            [
+                AppointmentService(
+                    appointment=appointment,
+                    service=service,
+                    service_name=service.name,
+                    duration_minutes=service.duration_minutes,
+                    price=service.price,
+                    assigned_staff=staff,
+                    status=(
+                        AppointmentService.Status.APPROVED
+                        if initial_status == Appointment.Status.APPROVED
+                        else AppointmentService.Status.PENDING
+                    ),
+                    position=position,
+                )
+                for position, service in enumerate(services)
+            ]
+        )
+
+        actor_name = actor.get_full_name() or getattr(actor, "email", "Admin")
+        staff_name = staff.get_full_name() if staff else "Unassigned"
+        AppointmentStatusHistory.objects.create(
+            appointment=appointment,
+            from_status="",
+            to_status=initial_status,
+            actor=actor,
+            note=f"Appointment booked by {actor_name} with assigned technician {staff_name}",
+        )
+
+        if staff:
+            _create_notifications(
+                appointment,
+                Notification.EventType.NEW,
+                "New appointment assigned",
+                f"You have been assigned to appointment #{appointment.booking_reference} on {appointment.appointment_date}.",
+            )
+
+    return appointment
+
+
 def create_public_booking(cleaned_data, request):
     """Compatibility path for previously shipped free-text booking clients."""
     now = timezone.now()

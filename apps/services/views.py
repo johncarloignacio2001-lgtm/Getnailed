@@ -249,7 +249,7 @@ def staff_list(request):
                 )
             elif specialty == "NAIL TECH":
                 profiles = profiles.filter(
-                    Q(specialty__icontains="Nail Tech")
+                    Q(specialty__icontains="Nail Tech") | Q(specialty__icontains="Nail Technician")
                 )
             else:
                 profiles = profiles.filter(specialty__icontains=specialty)

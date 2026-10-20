@@ -18,7 +18,7 @@ STAFF_ROSTER = [
         "last_name": "Pecaso",
         "email": "nory.pecaso@getnailed.com",
         "phone_number": "+63 917 101 0001",
-        "specialty": "Nail Technician",
+        "specialty": "Nail Tech",
         "is_cashier": False,
         "categories": [
             "Nail Care",
@@ -40,7 +40,7 @@ STAFF_ROSTER = [
         "last_name": "Inoferio",
         "email": "rita.inoferio@getnailed.com",
         "phone_number": "+63 917 101 0002",
-        "specialty": "Nail Technician / Nail Art",
+        "specialty": "Nail Tech / Nail Art",
         "is_cashier": False,
         "categories": [
             "Nail Care",
@@ -63,7 +63,7 @@ STAFF_ROSTER = [
         "last_name": "Datur",
         "email": "stef.datur@getnailed.com",
         "phone_number": "+63 917 101 0003",
-        "specialty": "Nail Technician / Nail Art",
+        "specialty": "Nail Tech / Nail Art",
         "is_cashier": False,
         "categories": [
             "Nail Care",
@@ -86,7 +86,7 @@ STAFF_ROSTER = [
         "last_name": "Dela Cruz",
         "email": "alona.delacruz@getnailed.com",
         "phone_number": "+63 917 101 0004",
-        "specialty": "Nail Technician / Nail Art",
+        "specialty": "Nail Tech / Nail Art",
         "is_cashier": False,
         "categories": [
             "Nail Care",
@@ -310,11 +310,19 @@ class Command(BaseCommand):
             action="store_true",
             help="Reset staff passwords to the value of GETNAILED_STAFF_PASSWORD.",
         )
+        parser.add_argument(
+            "--password",
+            type=str,
+            default="",
+            help="Password for staff accounts (defaults to GETNAILED_STAFF_PASSWORD or GetNailedStaff2026!).",
+        )
 
     def handle(self, *args, **options):
-        staff_password = os.environ.get("GETNAILED_STAFF_PASSWORD")
-        if not staff_password:
-            raise CommandError("Set GETNAILED_STAFF_PASSWORD before running this command.")
+        staff_password = (
+            options.get("password")
+            or os.environ.get("GETNAILED_STAFF_PASSWORD")
+            or "GetNailedStaff2026!"
+        )
 
         self.stdout.write(self.style.NOTICE("Setting up updated staff roster..."))
 

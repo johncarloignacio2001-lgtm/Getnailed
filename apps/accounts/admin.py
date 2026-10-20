@@ -1,10 +1,19 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User
+from apps.services.models import StaffProfile
+
+
+class StaffProfileInline(admin.StackedInline):
+    model = StaffProfile
+    can_delete = True
+    filter_horizontal = ("skills",)
+    extra = 0
 
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
+    inlines = (StaffProfileInline,)
     fieldsets = UserAdmin.fieldsets + (
         (
             'Get Nailed Access',
@@ -23,7 +32,11 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
-    list_display = ('email', 'first_name', 'last_name', 'role', 'is_active', 'is_locked')
+    list_display = ('email', 'first_name', 'last_name', 'role', 'specialty_display', 'can_use_pos', 'is_active', 'is_locked')
+
+    @admin.display(description="Specialty")
+    def specialty_display(self, obj):
+        return getattr(getattr(obj, "staff_profile", None), "specialty", "") or "-"
     list_filter = ('role', 'is_active', 'is_locked', 'is_staff')
     ordering = ('email',)
 

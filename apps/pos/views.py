@@ -1,4 +1,5 @@
-from datetime import timedelta
+import calendar
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from allauth.account.decorators import reauthentication_required
@@ -152,7 +153,13 @@ def index(request):
         except ValidationError as exc:
             form.add_error(None, "; ".join(exc.messages))
         else:
-            messages.success(request, f"Sale {sale.receipt_number} completed.")
+            confirmation = f"Sale {sale.receipt_number} completed."
+            if sale.payment_method == Payment.Method.CASH:
+                confirmation += (
+                    f" Cash received: ₱{sale.amount_tendered:.2f}; "
+                    f"Change due: ₱{sale.change:.2f}."
+                )
+            messages.success(request, confirmation)
             return redirect("pos:receipt", receipt_number=sale.receipt_number)
     return render(
         request,
@@ -179,18 +186,100 @@ def history(request):
     )
     filter_form = SaleHistoryFilterForm(request.GET or None)
     if filter_form.is_valid():
-        query = filter_form.cleaned_data["q"]
+        query = filter_form.cleaned_data.get("q")
         if query:
             sales = sales.filter(
                 Q(receipt_number__icontains=query)
                 | Q(customer_name_snapshot__icontains=query)
             )
-        if filter_form.cleaned_data["date"]:
-            sales = sales.filter(created_at__date=filter_form.cleaned_data["date"])
-        if filter_form.cleaned_data["status"]:
-            sales = sales.filter(status=filter_form.cleaned_data["status"])
+
+        status = filter_form.cleaned_data.get("status")
+        if status:
+            sales = sales.filter(status=status)
+
+        period = filter_form.cleaned_data.get("period")
+        start_date = filter_form.cleaned_data.get("start_date")
+        end_date = filter_form.cleaned_data.get("end_date")
+        single_date = filter_form.cleaned_data.get("date")
+        start_time = filter_form.cleaned_data.get("start_time")
+        end_time = filter_form.cleaned_data.get("end_time")
+
+        today = timezone.localdate()
+        if period == "today":
+            start_date = today
+            end_date = today
+        elif period == "yesterday":
+            start_date = today - timedelta(days=1)
+            end_date = start_date
+        elif period == "this_week":
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=6)
+        elif period == "this_month":
+            start_date = today.replace(day=1)
+            _, last_day = calendar.monthrange(today.year, today.month)
+            end_date = today.replace(day=last_day)
+        elif period == "last_month":
+            first_of_this_month = today.replace(day=1)
+            last_of_prev_month = first_of_this_month - timedelta(days=1)
+            start_date = last_of_prev_month.replace(day=1)
+            end_date = last_of_prev_month
+        elif single_date and not start_date and not end_date:
+            start_date = single_date
+            end_date = single_date
+
+        tz = timezone.get_current_timezone()
+
+        if start_date and end_date and start_date == end_date:
+            if start_time and end_time:
+                start_dt = timezone.make_aware(datetime.combine(start_date, start_time), tz)
+                end_dt = timezone.make_aware(datetime.combine(end_date, end_time), tz)
+                sales = sales.filter(created_at__gte=start_dt, created_at__lte=end_dt)
+            elif start_time:
+                start_dt = timezone.make_aware(datetime.combine(start_date, start_time), tz)
+                sales = sales.filter(created_at__gte=start_dt, created_at__date__lte=end_date)
+            elif end_time:
+                end_dt = timezone.make_aware(datetime.combine(end_date, end_time), tz)
+                sales = sales.filter(created_at__date__gte=start_date, created_at__lte=end_dt)
+            else:
+                sales = sales.filter(created_at__date=start_date)
+        else:
+            if start_date:
+                sales = sales.filter(created_at__date__gte=start_date)
+            if end_date:
+                sales = sales.filter(created_at__date__lte=end_date)
+            if start_time:
+                sales = sales.filter(created_at__time__gte=start_time)
+            if end_time:
+                sales = sales.filter(created_at__time__lte=end_time)
+
+    totals = sales.aggregate(
+        total_revenue=models.Sum("total", filter=Q(status=Sale.Status.COMPLETED)),
+        completed_count=models.Count("pk", filter=Q(status=Sale.Status.COMPLETED)),
+        voided_count=models.Count("pk", filter=Q(status=Sale.Status.VOIDED)),
+        all_count=models.Count("pk"),
+    )
+    period_summary = {
+        "total_revenue": totals["total_revenue"] or Decimal("0.00"),
+        "completed_count": totals["completed_count"] or 0,
+        "voided_count": totals["voided_count"] or 0,
+        "total_count": totals["all_count"] or 0,
+    }
+
+    params = request.GET.copy()
+    params.pop("page", None)
+    query_string = params.urlencode()
+
     page = Paginator(sales, 30).get_page(request.GET.get("page"))
-    return render(request, "pos/history.html", {"page": page, "filter_form": filter_form})
+    return render(
+        request,
+        "pos/history.html",
+        {
+            "page": page,
+            "filter_form": filter_form,
+            "period_summary": period_summary,
+            "query_string": query_string,
+        },
+    )
 
 
 @capability_required(CAPABILITY_USE_POS)
@@ -419,4 +508,3 @@ def voucher_create(request):
         messages.success(request, f"Promo voucher {voucher.code} created.")
         return redirect("pos:voucher_list")
     return render(request, "pos/voucher_form.html", {"form": form})
-

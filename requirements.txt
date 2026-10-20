@@ -6,6 +6,7 @@ cryptography>=45.0
 django-axes>=8.3,<9
 django-simple-captcha>=0.6.3,<0.7
 Pillow>=10.0
+qrcode>=8.0
 
 # Database and local environment tooling
 psycopg[binary]>=3.1

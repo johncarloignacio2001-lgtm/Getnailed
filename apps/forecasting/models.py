@@ -24,6 +24,8 @@ class ForecastRun(models.Model):
     distinct_days = models.PositiveIntegerField(default=0)
     mae = models.FloatField(blank=True, null=True)
     rmse = models.FloatField(blank=True, null=True)
+    service_mae = models.FloatField(blank=True, null=True)
+    service_rmse = models.FloatField(blank=True, null=True)
     r2 = models.FloatField(blank=True, null=True)
     mape = models.FloatField(blank=True, null=True)
     model_file_path = models.CharField(max_length=500, blank=True)
@@ -74,6 +76,15 @@ class ForecastResult(models.Model):
     predicted_sales = models.DecimalField(max_digits=12, decimal_places=2)
     lower_bound = models.DecimalField(max_digits=12, decimal_places=2)
     upper_bound = models.DecimalField(max_digits=12, decimal_places=2)
+    predicted_service_quantity = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0
+    )
+    service_quantity_lower_bound = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0
+    )
+    service_quantity_upper_bound = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0
+    )
     generated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -94,6 +105,22 @@ class ForecastResult(models.Model):
             models.CheckConstraint(
                 condition=models.Q(upper_bound__gte=models.F("lower_bound")),
                 name="forecast_bounds_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(predicted_service_quantity__gte=0),
+                name="forecast_service_quantity_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(service_quantity_lower_bound__gte=0),
+                name="forecast_service_quantity_lower_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    service_quantity_upper_bound__gte=models.F(
+                        "service_quantity_lower_bound"
+                    )
+                ),
+                name="forecast_service_quantity_bounds_valid",
             ),
         ]
 

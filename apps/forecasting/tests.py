@@ -163,6 +163,8 @@ class RandomForestForecastTests(TestCase):
             "total_service_sales_rolling_7",
             "transaction_count_lag_1",
             "transaction_count_rolling_7",
+            "service_quantity_lag_1",
+            "service_quantity_rolling_7",
             "total_service_sales_lag_7",
             "total_service_sales_rolling_30",
         ):
@@ -183,6 +185,8 @@ class RandomForestForecastTests(TestCase):
         self.assertTrue((Path(self.media_directory.name) / first.model_file_path).is_file())
         self.assertIsNotNone(first.mae)
         self.assertIsNotNone(first.rmse)
+        self.assertIsNotNone(first.service_mae)
+        self.assertIsNotNone(first.service_rmse)
 
     def test_forecast_generation_is_deterministic_nonnegative_and_replaces_horizon(self):
         run = self.train()
@@ -191,6 +195,16 @@ class RandomForestForecastTests(TestCase):
         self.assertEqual(len(first), 10)
         self.assertTrue(all(item.lower_bound <= item.predicted_sales <= item.upper_bound for item in first))
         self.assertTrue(all(item.predicted_sales >= 0 for item in first))
+        self.assertTrue(
+            all(
+                item.service_quantity_lower_bound
+                <= item.predicted_service_quantity
+                <= item.service_quantity_upper_bound
+                for item in first
+            )
+        )
+        self.assertTrue(all(item.predicted_service_quantity >= 0 for item in first))
+        self.assertTrue(any(item.predicted_service_quantity > 0 for item in first))
 
         second = generate_forecasts(run, horizon_days=5)
         self.assertEqual(values, [item.predicted_sales for item in second])
@@ -230,6 +244,10 @@ class RandomForestForecastTests(TestCase):
             {"horizon_days": 2},
         )
         self.assertEqual(response.status_code, 302)
+        detail = self.client.get(
+            reverse("forecasting:detail", kwargs={"public_id": run.public_id})
+        )
+        self.assertContains(detail, "Predicted services")
         compare = self.client.get(
             reverse("forecasting:compare"), {"runs": [run.pk, other.pk]}
         )
@@ -239,6 +257,7 @@ class RandomForestForecastTests(TestCase):
         )
         self.assertTrue(export["Content-Type"].startswith("text/csv"))
         self.assertIn(b"Forecast Date", export.content)
+        self.assertIn(b"Predicted Service Quantity", export.content)
         self.assertIn(b"Nails", export.content)
 
     def test_all_forecasting_routes_are_owner_only(self):

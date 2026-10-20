@@ -277,18 +277,56 @@ class PromoVoucherForm(forms.ModelForm):
 
 
 class SaleHistoryFilterForm(forms.Form):
+    PERIOD_CHOICES = (
+        ("", "All / Custom"),
+        ("today", "Today"),
+        ("yesterday", "Yesterday"),
+        ("this_week", "This Week"),
+        ("this_month", "This Month"),
+        ("last_month", "Last Month"),
+    )
+
     q = forms.CharField(
+        label="Search",
         required=False,
         widget=forms.TextInput(attrs={**FORM_CONTROL, "placeholder": "Receipt or customer"}),
     )
-    date = forms.DateField(
+    period = forms.ChoiceField(
+        label="Time Period",
+        required=False,
+        choices=PERIOD_CHOICES,
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
+    start_date = forms.DateField(
+        label="From Date",
         required=False,
         widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"}),
     )
+    end_date = forms.DateField(
+        label="To Date",
+        required=False,
+        widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"}),
+    )
+    date = forms.DateField(
+        label="Specific Date",
+        required=False,
+        widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"}),
+    )
+    start_time = forms.TimeField(
+        label="From Time",
+        required=False,
+        widget=forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+    )
+    end_time = forms.TimeField(
+        label="To Time",
+        required=False,
+        widget=forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
+    )
     status = forms.ChoiceField(
+        label="Status",
         required=False,
         choices=(("", "All statuses"), *Sale.Status.choices),
-        widget=forms.Select(attrs=FORM_CONTROL),
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
     )
 
 

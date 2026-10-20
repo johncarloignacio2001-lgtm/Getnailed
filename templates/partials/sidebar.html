@@ -37,6 +37,10 @@
         <i class="bi bi-calendar-event"></i>
         <span>Appointments</span>
       </a>
+      <a href="{% url 'bookings:index' %}">
+        <i class="bi bi-calendar-plus"></i>
+        <span>Book Appointment</span>
+      </a>
     {% elif user.is_service_staff %}
       <a href="{% url 'bookings:assigned' %}">
         <i class="bi bi-calendar-check"></i>
@@ -87,10 +91,6 @@
       <a href="{% url 'accounts:invite_internal' %}">
         <i class="bi bi-person-gear"></i>
         <span>Internal Accounts</span>
-      </a>
-      <a href="{% url 'accounts:mfa_configuration' %}">
-        <i class="bi bi-shield-check"></i>
-        <span>MFA Requirements</span>
       </a>
       <a href="{% url 'services:staff_list' %}">
         <i class="bi bi-person-badge"></i>

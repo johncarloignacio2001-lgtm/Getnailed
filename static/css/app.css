@@ -301,6 +301,7 @@ a.stat-card:hover, .stat-card-interactive:hover { text-decoration: none !importa
 .btn-link:hover { color: #76434e; text-decoration: underline; }
 .table tbody tr { transition: background-color .15s ease; }
 .table tbody tr:hover { background-color: rgba(139,79,92,.05) !important; }
+thead th { text-align: center; vertical-align: middle; }
 .sort-header { transition: all .15s ease; border-radius: 6px; }
 .sort-header:hover { color: var(--deep-rose) !important; text-decoration: underline !important; }
 .public-hero { background: radial-gradient(circle at top right, #fff 0, var(--blush) 48%, #eadcdd 100%); }
@@ -425,6 +426,43 @@ a.stat-card:hover, .stat-card-interactive:hover { text-decoration: none !importa
   .pos-layout { grid-template-columns: 1fr; }
   .pos-checkout { position: static; }
   .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 992px) {
+  .sidebar,
+  .app-main {
+    transition: width 0.25s ease, margin-left 0.25s ease;
+  }
+  body.sidebar-collapsed .sidebar {
+    width: 76px;
+    padding-inline: 10px;
+  }
+  body.sidebar-collapsed .app-main {
+    width: calc(100% - 76px);
+    margin-left: 76px;
+  }
+  body.sidebar-collapsed .sidebar-header {
+    justify-content: center !important;
+  }
+  body.sidebar-collapsed .brand {
+    justify-content: center;
+    gap: 0;
+  }
+  body.sidebar-collapsed .brand span,
+  body.sidebar-collapsed .role-chip,
+  body.sidebar-collapsed .sidebar-nav a span {
+    display: none;
+  }
+  body.sidebar-collapsed .sidebar-nav a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  body.sidebar-collapsed .sidebar-nav a i {
+    margin-right: 0;
+  }
+  body.sidebar-collapsed .sidebar-nav a:hover {
+    transform: none;
+  }
 }
 
 @media (max-width: 991px) {
@@ -588,6 +626,39 @@ a.stat-card:hover, .stat-card-interactive:hover { text-decoration: none !importa
 
 .landing-toggler .navbar-toggler-icon {
   filter: invert(1) grayscale(100%) brightness(200%) !important;
+}
+
+@media (max-width: 767.98px) {
+  .public-hero {
+    min-height: auto !important;
+    padding-block: 1.5rem !important;
+    text-align: center;
+  }
+  .public-hero > .container {
+    padding-block: 1.5rem !important;
+  }
+  .public-hero h1 {
+    font-size: clamp(2rem, 9vw, 3.25rem);
+  }
+  .public-hero .hero-logo {
+    width: 84px;
+    height: 84px;
+  }
+  .public-hero .gallery-grid {
+    max-width: 520px;
+    margin-inline: auto;
+    padding: 8px;
+    border-radius: 26px;
+  }
+  .public-hero .gallery-grid img {
+    border-radius: 18px;
+  }
+  .public-hero .d-flex.gap-3 {
+    justify-content: center;
+  }
+  .landing-services-section {
+    padding-block: 48px 56px;
+  }
 }
 
 @media (max-width: 991.98px) {
@@ -1435,7 +1506,5 @@ html {
   border-radius: 999px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
-
-
 
 

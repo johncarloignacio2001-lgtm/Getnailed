@@ -40,23 +40,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Mobile fixed sidebar drawer toggle
   const sidebarToggle = document.getElementById('sidebar-toggle');
+  const sidebarCollapseToggle = document.getElementById('sidebar-collapse-toggle');
   const sidebarClose = document.getElementById('sidebar-close');
   const adminSidebar = document.getElementById('admin-sidebar');
   const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
+  function setSidebarCollapsed(collapsed) {
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    if (sidebarCollapseToggle) {
+      sidebarCollapseToggle.setAttribute('aria-expanded', String(!collapsed));
+      sidebarCollapseToggle.setAttribute('aria-label', collapsed ? 'Expand side navigation' : 'Minimize side navigation');
+      sidebarCollapseToggle.title = collapsed ? 'Expand side navigation' : 'Minimize side navigation';
+    }
+    if (adminSidebar) {
+      adminSidebar.querySelectorAll('.sidebar-nav a').forEach((link) => {
+        const label = link.querySelector('span')?.textContent.trim();
+        if (!label) return;
+        if (collapsed) {
+          link.setAttribute('aria-label', label);
+          link.title = label;
+        } else {
+          link.removeAttribute('aria-label');
+          link.removeAttribute('title');
+        }
+      });
+    }
+  }
 
   function openSidebar() {
     if (adminSidebar) adminSidebar.classList.add('show');
     if (sidebarBackdrop) sidebarBackdrop.classList.add('show');
     document.body.classList.add('sidebar-open');
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'true');
   }
 
   function closeSidebar() {
     if (adminSidebar) adminSidebar.classList.remove('show');
     if (sidebarBackdrop) sidebarBackdrop.classList.remove('show');
     document.body.classList.remove('sidebar-open');
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
   }
 
   if (sidebarToggle) sidebarToggle.addEventListener('click', openSidebar);
+  if (sidebarCollapseToggle) {
+    sidebarCollapseToggle.addEventListener('click', () => {
+      setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+    });
+  }
   if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
   if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeSidebar);
 
@@ -66,4 +96,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-

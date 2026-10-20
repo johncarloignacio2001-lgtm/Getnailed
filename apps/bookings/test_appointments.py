@@ -334,3 +334,59 @@ class AppointmentWorkflowTests(TestCase):
         self.assertIsInstance(slots, list)
         self.assertTrue(len(slots) > 0)
 
+    def test_technician_assignment_in_admin_and_auto_computation(self):
+        from django.contrib.admin.sites import site
+        self.owner.is_staff = True
+        self.owner.save()
+        customer = Customer.objects.create(
+            first_name="Admin",
+            last_name="Booking",
+            email="adminbook@example.com",
+            phone="09181234567",
+        )
+        admin_obj = site._registry[Appointment]
+        rf = RequestFactory()
+        post_data = {
+            "customer": customer.pk,
+            "customer_name_snapshot": "",
+            "appointment_date": timezone.localdate().isoformat(),
+            "start_time": "14:00:00",
+            "status": Appointment.Status.APPROVED,
+            "booking_source": Appointment.BookingSource.WALK_IN,
+            "assigned_staff": str(self.staff.pk),
+            "appointment_services-TOTAL_FORMS": "1",
+            "appointment_services-INITIAL_FORMS": "0",
+            "appointment_services-MIN_NUM_FORMS": "0",
+            "appointment_services-MAX_NUM_FORMS": "1000",
+            "appointment_services-0-service": str(self.service.pk),
+            "appointment_services-0-status": "APPROVED",
+            "appointment_services-0-position": "0",
+        }
+        req = rf.post("/admin/bookings/appointment/add/", post_data)
+        req.user = self.owner
+
+        FormClass = admin_obj.get_form(req)
+        form = FormClass(req.POST)
+        self.assertTrue(form.is_valid(), form.errors)
+        obj = form.save(commit=False)
+        admin_obj.save_model(req, obj, form, change=False)
+
+        inline_instances = admin_obj.get_inline_instances(req, obj)
+        for inline in inline_instances:
+            if isinstance(inline, admin_obj.inlines[0]):
+                formset_cls = inline.get_formset(req, obj)
+                formset = formset_cls(req.POST, prefix="appointment_services", instance=obj)
+                self.assertTrue(formset.is_valid(), formset.errors)
+                admin_obj.save_formset(req, form, formset, change=False)
+
+        obj.refresh_from_db()
+        self.assertEqual(obj.assigned_staff, self.staff)
+        self.assertEqual(obj.customer_name_snapshot, customer.full_name)
+        self.assertEqual(obj.total_duration_minutes, 45)
+        self.assertEqual(obj.end_time, time(14, 45))
+        self.assertEqual(obj.appointment_services.count(), 1)
+        asvc = obj.appointment_services.first()
+        self.assertEqual(asvc.assigned_staff, self.staff)
+        self.assertEqual(asvc.service_name, self.service.name)
+        self.assertEqual(asvc.duration_minutes, 45)
+

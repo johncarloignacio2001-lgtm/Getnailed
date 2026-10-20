@@ -102,6 +102,9 @@ def _board_context(request):
         "columns": columns,
         "workloads": workloads,
         "queue_count": len(items),
+        "ongoing_count": sum(
+            item.status == AppointmentService.Status.ONGOING for item in items
+        ),
         "can_assign": has_capability(request.user, CAPABILITY_ASSIGN_SERVICES),
         "staff_choices": filter_form.fields["staff"].queryset,
         "poll_query": request.GET.urlencode(),

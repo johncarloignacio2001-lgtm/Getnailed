@@ -3,6 +3,9 @@
     <button class="btn btn-outline-dark btn-sm d-lg-none" type="button" id="sidebar-toggle" aria-label="Toggle navigation">
       <i class="bi bi-list fs-5"></i>
     </button>
+    <button class="btn btn-outline-dark btn-sm d-none d-lg-inline-flex" type="button" id="sidebar-collapse-toggle" aria-controls="admin-sidebar" aria-expanded="true" aria-label="Minimize side navigation" title="Minimize side navigation">
+      <i class="bi bi-list fs-5"></i>
+    </button>
     <div>
       <h1 class="h5 mb-0">Welcome, {{ user.first_name|default:user.email }}</h1>
       <small class="text-muted">{{ user.get_role_display }}</small>

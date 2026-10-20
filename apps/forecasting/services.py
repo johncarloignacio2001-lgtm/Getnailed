@@ -112,6 +112,10 @@ def create_features(series, distinct_days):
     frame["transaction_count_rolling_7"] = grouped["transaction_count"].transform(
         lambda values: values.shift(1).rolling(7, min_periods=3).mean()
     )
+    frame["service_quantity_lag_1"] = grouped["service_quantity"].shift(1)
+    frame["service_quantity_rolling_7"] = grouped["service_quantity"].transform(
+        lambda values: values.shift(1).rolling(7, min_periods=3).mean()
+    )
     numeric_features = [
         "date_ordinal",
         "day_of_week",
@@ -122,6 +126,8 @@ def create_features(series, distinct_days):
         "total_service_sales_rolling_7",
         "transaction_count_lag_1",
         "transaction_count_rolling_7",
+        "service_quantity_lag_1",
+        "service_quantity_rolling_7",
     ]
     if distinct_days >= 14:
         frame["total_service_sales_lag_7"] = grouped["total_service_sales"].shift(7)
@@ -243,7 +249,20 @@ def train_forecast_model(
     final_pipeline.fit(featured[feature_columns], featured[target])
 
     run.status = ForecastRun.Status.TRAINED
+    service_pipeline = _pipeline(feature_columns, parameters)
+    service_target = "service_quantity"
+    service_pipeline.fit(training[feature_columns], training[service_target])
+    service_predictions = np.maximum(
+        0, service_pipeline.predict(testing[feature_columns])
+    )
+    service_metrics = _metric_values(
+        testing[service_target].to_numpy(), service_predictions
+    )
+    final_service_pipeline = clone(service_pipeline)
+    final_service_pipeline.fit(featured[feature_columns], featured[service_target])
+
     run.feature_columns = feature_columns
+    run.model_type = "RandomForestRegressor (sales and service volume)"
     run.service_categories = sorted(series["service_category"].unique().tolist())
     run.sample_count = len(featured)
     run.training_count = len(training)
@@ -252,6 +271,8 @@ def train_forecast_model(
     run.rmse = metrics["rmse"]
     run.r2 = metrics["r2"]
     run.mape = metrics["mape"]
+    run.service_mae = service_metrics["mae"]
+    run.service_rmse = service_metrics["rmse"]
     run.message = (
         "Metrics use a chronological 80/20 holdout. The persisted model was then "
         "refitted on all usable rows for future prediction."
@@ -263,6 +284,7 @@ def train_forecast_model(
     target_path.parent.mkdir(parents=True, exist_ok=True)
     artifact = {
         "pipeline": final_pipeline,
+        "service_pipeline": final_service_pipeline,
         "feature_columns": feature_columns,
         "categories": run.service_categories,
         "training_end": end_date.isoformat(),
@@ -301,6 +323,7 @@ def _artifact_path(run):
 def _prediction_features(category_frame, forecast_date, feature_columns):
     sales = category_frame["total_service_sales"].astype(float).tolist()
     transactions = category_frame["transaction_count"].astype(float).tolist()
+    service_quantities = category_frame["service_quantity"].astype(float).tolist()
     timestamp = pd.Timestamp(forecast_date)
     row = {
         "service_category": category_frame["service_category"].iloc[0],
@@ -313,6 +336,8 @@ def _prediction_features(category_frame, forecast_date, feature_columns):
         "total_service_sales_rolling_7": float(np.mean(sales[-7:])),
         "transaction_count_lag_1": transactions[-1],
         "transaction_count_rolling_7": float(np.mean(transactions[-7:])),
+        "service_quantity_lag_1": service_quantities[-1],
+        "service_quantity_rolling_7": float(np.mean(service_quantities[-7:])),
     }
     if "total_service_sales_lag_7" in feature_columns:
         row["total_service_sales_lag_7"] = sales[-7]
@@ -329,6 +354,11 @@ def generate_forecasts(run, *, horizon_days):
         raise ValidationError("Forecast horizon must be between 1 and 365 days.")
     artifact = joblib.load(_artifact_path(run))
     pipeline = artifact["pipeline"]
+    service_pipeline = artifact.get("service_pipeline")
+    if service_pipeline is None:
+        raise ValidationError(
+            "This model only supports sales forecasts. Retrain it to generate service-volume forecasts."
+        )
     feature_columns = artifact["feature_columns"]
     history = pd.DataFrame.from_records(artifact["history"])
     history["date"] = pd.to_datetime(history["date"]).dt.date
@@ -349,16 +379,35 @@ def generate_forecasts(run, *, horizon_days):
             )
         features = pd.DataFrame(feature_rows)[feature_columns]
         predicted = np.maximum(0, pipeline.predict(features))
+        predicted_quantity = np.maximum(0, service_pipeline.predict(features))
         transformed = pipeline.named_steps["preprocessor"].transform(features)
         tree_predictions = np.array(
             [tree.predict(transformed) for tree in pipeline.named_steps["model"].estimators_]
         )
         lower = np.maximum(0, np.quantile(tree_predictions, 0.1, axis=0))
         upper = np.maximum(0, np.quantile(tree_predictions, 0.9, axis=0))
+        service_transformed = service_pipeline.named_steps["preprocessor"].transform(
+            features
+        )
+        service_tree_predictions = np.array(
+            [
+                tree.predict(service_transformed)
+                for tree in service_pipeline.named_steps["model"].estimators_
+            ]
+        )
+        service_lower = np.maximum(
+            0, np.quantile(service_tree_predictions, 0.1, axis=0)
+        )
+        service_upper = np.maximum(
+            0, np.quantile(service_tree_predictions, 0.9, axis=0)
+        )
         for index, category in enumerate(artifact["categories"]):
             point = float(predicted[index])
             low = min(point, float(lower[index]))
             high = max(point, float(upper[index]))
+            quantity = float(predicted_quantity[index])
+            quantity_low = min(quantity, float(service_lower[index]))
+            quantity_high = max(quantity, float(service_upper[index]))
             records.append(
                 ForecastResult(
                     run=run,
@@ -367,6 +416,15 @@ def generate_forecasts(run, *, horizon_days):
                     predicted_sales=Decimal(str(point)).quantize(CENT, ROUND_HALF_UP),
                     lower_bound=Decimal(str(low)).quantize(CENT, ROUND_HALF_UP),
                     upper_bound=Decimal(str(high)).quantize(CENT, ROUND_HALF_UP),
+                    predicted_service_quantity=Decimal(str(quantity)).quantize(
+                        CENT, ROUND_HALF_UP
+                    ),
+                    service_quantity_lower_bound=Decimal(
+                        str(quantity_low)
+                    ).quantize(CENT, ROUND_HALF_UP),
+                    service_quantity_upper_bound=Decimal(
+                        str(quantity_high)
+                    ).quantize(CENT, ROUND_HALF_UP),
                 )
             )
             category_frame = category_frames[category]
@@ -383,7 +441,7 @@ def generate_forecasts(run, *, horizon_days):
                                 "service_category": category,
                                 "total_service_sales": point,
                                 "transaction_count": estimated_transactions,
-                                "service_quantity": 0.0,
+                                "service_quantity": quantity,
                             }
                         ]
                     ),

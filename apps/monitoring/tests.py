@@ -224,6 +224,8 @@ class ServiceMonitoringTests(TestCase):
         self.assertContains(response, "Late")
         self.assertContains(response, self.first.service_name)
         self.assertNotContains(response, self.second.service_name)
+        self.assertContains(response, "Currently ongoing")
+        self.assertEqual(response.context["ongoing_count"], 1)
         workload = next(item for item in response.context["workloads"] if item.pk == self.staff.pk)
         self.assertEqual(workload.ongoing_count, 1)
 

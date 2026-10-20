@@ -135,6 +135,9 @@ def export_csv(request, public_id):
             "Predicted Sales",
             "Lower Bound",
             "Upper Bound",
+            "Predicted Service Quantity",
+            "Service Quantity Lower Bound",
+            "Service Quantity Upper Bound",
         )
     )
     for result in run.results.all():
@@ -146,6 +149,9 @@ def export_csv(request, public_id):
                 result.predicted_sales,
                 result.lower_bound,
                 result.upper_bound,
+                result.predicted_service_quantity,
+                result.service_quantity_lower_bound,
+                result.service_quantity_upper_bound,
             )
         )
     return response

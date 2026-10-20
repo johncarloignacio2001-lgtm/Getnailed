@@ -1,3 +1,228 @@
 {% extends 'base.html' %}
+{% load humanize %}
+
 {% block title %}Transaction History | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading"><div><div class="eyebrow">POINT OF SALE</div><h2>Transaction History</h2></div><a class="btn btn-brand" href="{% url 'pos:index' %}">New sale</a></div><div class="content-card mb-3"><form class="row g-3 align-items-end" method="get">{% for field in filter_form %}<div class="col-md-3"><label class="form-label">{{ field.label }}</label>{{ field }}</div>{% endfor %}<div class="col-md-3"><button class="btn btn-brand" type="submit">Filter</button></div></form></div><div class="content-card"><div class="table-responsive"><table class="table"><thead><tr><th>Receipt</th><th>Customer</th><th>Cashier</th><th>Payment</th><th>Total</th><th>Status</th><th>Created</th></tr></thead><tbody>{% for sale in page %}<tr><td><a href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">{{ sale.receipt_number }}</a></td><td>{{ sale.customer_name_snapshot }}</td><td>{{ sale.cashier_name_snapshot }}</td><td>{{ sale.payment.get_payment_method_display }}</td><td>₱{{ sale.total }}</td><td>{{ sale.get_status_display }}</td><td>{{ sale.created_at }}</td></tr>{% empty %}<tr><td colspan="7">No transactions found.</td></tr>{% endfor %}</tbody></table></div></div>{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <div class="eyebrow">POINT OF SALE</div>
+    <h2>Transaction History</h2>
+  </div>
+  <a class="btn btn-brand" href="{% url 'pos:index' %}">
+    <i class="bi bi-plus-lg me-1"></i> New sale
+  </a>
+</div>
+
+<!-- Period Summary KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="content-card p-3 text-center h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Total Period Sales</div>
+      <div class="h4 mb-0 fw-bold text-success">₱{{ period_summary.total_revenue|floatformat:2|intcomma }}</div>
+      <div class="text-muted small">Completed transactions</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="content-card p-3 text-center h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Total Transactions</div>
+      <div class="h4 mb-0 fw-bold">{{ period_summary.total_count }}</div>
+      <div class="text-muted small">In filtered period</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="content-card p-3 text-center h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Completed</div>
+      <div class="h4 mb-0 fw-bold text-primary">{{ period_summary.completed_count }}</div>
+      <div class="text-muted small">Paid sales</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="content-card p-3 text-center h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Voided</div>
+      <div class="h4 mb-0 fw-bold text-danger">{{ period_summary.voided_count }}</div>
+      <div class="text-muted small">Cancelled receipts</div>
+    </div>
+  </div>
+</div>
+
+<!-- Time Period Filter Form -->
+<div class="content-card mb-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="h5 mb-0"><i class="bi bi-funnel me-1"></i> Filter Sales by Time Period</h3>
+    {% if request.GET %}
+      <a href="{% url 'pos:history' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-x-circle me-1"></i> Reset Filters
+      </a>
+    {% endif %}
+  </div>
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label" for="{{ filter_form.period.id_for_label }}">{{ filter_form.period.label }}</label>
+      {{ filter_form.period }}
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label" for="{{ filter_form.start_date.id_for_label }}">{{ filter_form.start_date.label }}</label>
+      {{ filter_form.start_date }}
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label" for="{{ filter_form.end_date.id_for_label }}">{{ filter_form.end_date.label }}</label>
+      {{ filter_form.end_date }}
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label" for="{{ filter_form.status.id_for_label }}">{{ filter_form.status.label }}</label>
+      {{ filter_form.status }}
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label" for="{{ filter_form.start_time.id_for_label }}">{{ filter_form.start_time.label }}</label>
+      {{ filter_form.start_time }}
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label" for="{{ filter_form.end_time.id_for_label }}">{{ filter_form.end_time.label }}</label>
+      {{ filter_form.end_time }}
+    </div>
+    <div class="col-md-4 col-sm-8">
+      <label class="form-label" for="{{ filter_form.q.id_for_label }}">{{ filter_form.q.label }}</label>
+      {{ filter_form.q }}
+    </div>
+    <div class="col-md-2 col-sm-4">
+      <button class="btn btn-brand w-100" type="submit">
+        <i class="bi bi-filter me-1"></i> Apply Filter
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Transactions Table -->
+<div class="content-card">
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Receipt</th>
+          <th>Customer</th>
+          <th>Cashier</th>
+          <th>Payment</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Created Date & Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in page %}
+        <tr>
+          <td>
+            <a class="fw-bold text-decoration-none" href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">
+              {{ sale.receipt_number }}
+            </a>
+          </td>
+          <td>{{ sale.customer_name_snapshot }}</td>
+          <td>{{ sale.cashier_name_snapshot }}</td>
+          <td>
+            <span class="badge bg-light text-dark border">
+              {{ sale.payment.get_payment_method_display|default:"Cash" }}
+            </span>
+          </td>
+          <td class="fw-semibold">₱{{ sale.total|floatformat:2|intcomma }}</td>
+          <td>
+            {% if sale.status == 'COMPLETED' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Completed</span>
+            {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Voided</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="small fw-semibold">{{ sale.created_at|date:"M d, Y" }}</div>
+            <div class="small text-muted">{{ sale.created_at|date:"h:i A" }}</div>
+          </td>
+          <td>
+            <a class="btn btn-sm btn-outline-brand" href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">
+              <i class="bi bi-receipt me-1"></i> Receipt
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted">
+            <i class="bi bi-search display-6 d-block mb-2 text-secondary"></i>
+            No transactions found within the selected time period.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+    <nav class="d-flex justify-content-between align-items-center mt-3">
+      <span class="small text-muted">
+        Page {{ page.number }} of {{ page.paginator.num_pages }} ({{ page.paginator.count }} transactions)
+      </span>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Previous</a>
+          </li>
+        {% endif %}
+        {% if page.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Next</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const periodSelect = document.getElementById("{{ filter_form.period.id_for_label }}");
+  const startDateInput = document.getElementById("{{ filter_form.start_date.id_for_label }}");
+  const endDateInput = document.getElementById("{{ filter_form.end_date.id_for_label }}");
+
+  if (!periodSelect || !startDateInput || !endDateInput) return;
+
+  function toIso(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  periodSelect.addEventListener("change", function () {
+    const val = periodSelect.value;
+    const now = new Date();
+    if (val === "today") {
+      const todayStr = toIso(now);
+      startDateInput.value = todayStr;
+      endDateInput.value = todayStr;
+    } else if (val === "yesterday") {
+      const yest = new Date(now);
+      yest.setDate(now.getDate() - 1);
+      const yestStr = toIso(yest);
+      startDateInput.value = yestStr;
+      endDateInput.value = yestStr;
+    } else if (val === "this_week") {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+      const monday = new Date(now.setDate(diff));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      startDateInput.value = toIso(monday);
+      endDateInput.value = toIso(sunday);
+    } else if (val === "this_month") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      startDateInput.value = toIso(firstDay);
+      endDateInput.value = toIso(lastDay);
+    } else if (val === "last_month") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+      startDateInput.value = toIso(firstDay);
+      endDateInput.value = toIso(lastDay);
+    }
+  });
+});
+</script>
+{% endblock %}

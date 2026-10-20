@@ -63,7 +63,7 @@ MENU_DATA = [
     },
     {
         "category": "Russian / E-File Cleaning",
-        "description": "Advanced e-file cuticle care and structured gel enhancements.",
+        "description": "Advanced e-file cuticle care and structured gel enhancements. Sessions take approx 2-3 hours. A PHP 500 non-refundable security deposit is required to secure appointment (deductible from total bill). 20-minute grace period.",
         "services": [
             {
                 "name": "Russian Manicure",
@@ -117,7 +117,13 @@ MENU_DATA = [
                 "name": "Softgel / Builder Gel Removal",
                 "price": Decimal("300.00"),
                 "duration_minutes": 30,
-                "description": "Safe removal of softgel or builder gel enhancements. (* OUR WORK = FREE REMOVAL)",
+                "description": "Safe removal of softgel or builder gel enhancements. (* OUR WORK = FREE REMOVAL; Gel Polish Removal is also FREE for our work)",
+            },
+            {
+                "name": "Russian French Tip",
+                "price": Decimal("300.00"),
+                "duration_minutes": 30,
+                "description": "Crisp, elegant French tip finish applied over Russian manicure or pedicure.",
             },
         ],
     },
@@ -579,7 +585,7 @@ MENU_DATA = [
                 "name": "Lash Refill",
                 "price": Decimal("400.00"),
                 "duration_minutes": 45,
-                "description": "Retouch requires 60% retention; 1-2 refills only—otherwise, new set. 50% of lash rate.",
+                "description": "Retouch requires 60% retention; 1-2 refills only -- otherwise, new set. (50% of lash rate).",
             },
             {
                 "name": "Lash Removal",

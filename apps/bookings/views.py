@@ -37,6 +37,7 @@ from .forms import (
 from .models import Appointment, Booking
 from .services import (
     cancel_public_booking,
+    create_internal_appointment,
     create_public_appointment,
     create_public_booking,
     get_available_time_slots,
@@ -91,14 +92,41 @@ def index(request):
                 }
                 return redirect("bookings:select_schedule")
 
-    form = PublicContactForm(request.POST if request.method == "POST" else None, initial=initial)
+    is_internal = request.user.is_authenticated and (
+        getattr(request.user, "is_owner", False)
+        or getattr(request.user, "is_cashier", False)
+        or getattr(request.user, "can_manage_bookings", False)
+    )
+    form = PublicContactForm(
+        request.POST if request.method == "POST" else None,
+        initial=initial,
+        is_internal=is_internal,
+    )
     if request.method == "POST" and form.is_valid():
-        request.session[WIZARD_SESSION_KEY] = {"contact": form.cleaned_data}
+        contact_data = {
+            "first_name": form.cleaned_data.get("first_name", ""),
+            "last_name": form.cleaned_data.get("last_name", ""),
+            "email": form.cleaned_data.get("email", ""),
+            "phone": form.cleaned_data.get("phone", ""),
+            "notes": form.cleaned_data.get("notes", ""),
+            "customer_id": (
+                form.cleaned_data["customer"].pk
+                if form.cleaned_data.get("customer")
+                else None
+            ),
+        }
+        request.session[WIZARD_SESSION_KEY] = {"contact": contact_data}
         return redirect("bookings:select_services")
     return render(
         request,
         "bookings/public_booking.html",
-        {"form": form, "step": 1, "step_title": "Your details", "button_label": "Choose services"},
+        {
+            "form": form,
+            "step": 1,
+            "step_title": "Customer details" if is_internal else "Your details",
+            "button_label": "Choose services",
+            "is_internal": is_internal,
+        },
     )
 
 
@@ -202,29 +230,82 @@ def review(request):
             "appointment_date": data["schedule"]["appointment_date"],
             "start_time": data["schedule"]["start_time"],
             "assigned_staff": data["schedule"].get("assigned_staff_id") or "",
-        }
+        },
+        services=services,
     )
     if not services or not schedule_form.is_valid():
         request.session.pop(WIZARD_SESSION_KEY, None)
         messages.error(request, "Your selection is no longer available. Please start again.")
         return redirect("bookings:index")
     appointment_data = {**data["contact"], **schedule_form.cleaned_data}
+    if data["contact"].get("customer_id"):
+        from apps.customers.models import Customer
+        customer_obj = Customer.objects.filter(pk=data["contact"]["customer_id"]).first()
+        if customer_obj:
+            appointment_data["customer"] = customer_obj
+
+    assigned_staff_obj = schedule_form.cleaned_data.get("assigned_staff")
+    total_duration = sum(s.duration_minutes for s in services)
+    total_price = sum(s.price for s in services)
+
+    is_internal_admin = (
+        request.user.is_authenticated
+        and (
+            getattr(request.user, "is_owner", False)
+            or getattr(request.user, "is_cashier", False)
+            or getattr(request.user, "can_manage_bookings", False)
+        )
+    )
+
     if request.method == "POST":
         try:
-            appointment = create_public_appointment(appointment_data, services, request)
+            if is_internal_admin:
+                appointment = create_internal_appointment(
+                    appointment_data,
+                    services,
+                    actor=request.user,
+                    request=request,
+                    booking_source=Appointment.BookingSource.WALK_IN,
+                    initial_status=Appointment.Status.APPROVED,
+                )
+            else:
+                appointment = create_public_appointment(appointment_data, services, request)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
             request.session.pop(WIZARD_SESSION_KEY, None)
-            messages.success(
-                request,
-                "Check your email for a verification code. Your request is not visible to the salon until verified.",
-            )
-            return redirect(f"{reverse('bookings:verify')}?reference={appointment.reference}")
+            if is_internal_admin:
+                staff_name = (
+                    appointment.assigned_staff.get_full_name()
+                    if appointment.assigned_staff
+                    else "Technician"
+                )
+                messages.success(
+                    request,
+                    f"Appointment #{appointment.reference} confirmed and assigned to {staff_name} successfully!",
+                )
+                return redirect("bookings:detail", reference=appointment.reference)
+            else:
+                messages.success(
+                    request,
+                    "Check your email for a verification code. Your request is not visible to the salon until verified.",
+                )
+                return redirect(f"{reverse('bookings:verify')}?reference={appointment.reference}")
     return render(
         request,
         "bookings/review.html",
-        {"contact": data["contact"], "schedule": schedule_form.cleaned_data, "services": services},
+        {
+            "contact": data["contact"],
+            "schedule": schedule_form.cleaned_data,
+            "services": services,
+            "assigned_staff_obj": assigned_staff_obj,
+            "total_duration": total_duration,
+            "total_price": total_price,
+            "is_internal_admin": is_internal_admin,
+            "step": 4,
+            "step_title": "Review Appointment & Technician",
+            "button_label": "Confirm & Book Appointment" if is_internal_admin else "Submit booking request",
+        },
     )
 
 

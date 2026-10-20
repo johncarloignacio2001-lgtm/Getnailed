@@ -246,12 +246,11 @@ class PosTransactionTests(TestCase):
             reverse("pos:receipt", kwargs={"receipt_number": sale.receipt_number}),
             fetch_redirect_response=False,
         )
-        self.assertContains(
-            self.client.get(
-                reverse("pos:receipt", kwargs={"receipt_number": sale.receipt_number})
-            ),
-            "Get Nailed",
+        receipt = self.client.get(
+            reverse("pos:receipt", kwargs={"receipt_number": sale.receipt_number})
         )
+        self.assertContains(receipt, "Get Nailed")
+        self.assertContains(receipt, f"Change due: ₱{sale.change:.2f}")
         self.assertContains(self.client.get(reverse("pos:history")), sale.receipt_number)
         summary = self.client.get(reverse("reports:daily_summary"))
         self.assertContains(summary, sale.receipt_number)
@@ -493,3 +492,52 @@ class PosTransactionTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertFormError(response.context["form"], "payment_method", f"Select a valid choice. {invalid_method} is not one of the available choices.")
 
+    def test_pos_history_time_period_filter_and_admin(self):
+        self.owner.is_staff = True
+        self.owner.save()
+        self.client.force_login(self.owner)
+        now = timezone.now()
+        yesterday_dt = now - timedelta(days=1)
+
+        sale1 = Sale.objects.create(
+            receipt_number="TEST-001",
+            cashier=self.cashier,
+            cashier_name_snapshot="Cashier One",
+            customer=self.customer,
+            customer_name_snapshot="Test Customer",
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+            status=Sale.Status.COMPLETED,
+        )
+        Sale.objects.filter(pk=sale1.pk).update(created_at=now)
+
+        sale2 = Sale.objects.create(
+            receipt_number="TEST-002",
+            cashier=self.cashier,
+            cashier_name_snapshot="Cashier One",
+            customer=self.customer,
+            customer_name_snapshot="Test Customer",
+            subtotal=Decimal("500.00"),
+            total=Decimal("500.00"),
+            status=Sale.Status.COMPLETED,
+        )
+        Sale.objects.filter(pk=sale2.pk).update(created_at=yesterday_dt)
+
+        # Filter today
+        resp = self.client.get(reverse("pos:history"), {"period": "today"})
+        self.assertEqual(resp.status_code, 200)
+        page_sales = list(resp.context["page"])
+        self.assertIn(sale1, page_sales)
+        self.assertNotIn(sale2, page_sales)
+
+        # Filter yesterday
+        resp = self.client.get(reverse("pos:history"), {"period": "yesterday"})
+        self.assertEqual(resp.status_code, 200)
+        page_sales = list(resp.context["page"])
+        self.assertIn(sale2, page_sales)
+        self.assertNotIn(sale1, page_sales)
+
+        # Test admin sale list and time period filter
+        admin_resp = self.client.get(reverse("admin:pos_sale_changelist"), {"time_period": "today"})
+        self.assertEqual(admin_resp.status_code, 200)
+        self.assertContains(admin_resp, "TEST-001")
