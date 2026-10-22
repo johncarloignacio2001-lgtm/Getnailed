@@ -1,12 +1,12 @@
 {% load humanize %}
-<section class="public-hero min-vh-100 d-flex align-items-center py-5">
-  <div class="container">
+<section class="public-hero min-vh-100 d-flex align-items-center py-4 py-md-5">
+  <div class="container px-3 px-sm-4">
     <div class="content-card mx-auto shadow-sm" style="max-width: 820px;">
-      <div class="d-flex align-items-center justify-content-between mb-2">
-        <div class="eyebrow">{% if is_internal_admin %}ADMIN BOOKING{% else %}PUBLIC BOOKING{% endif %} · STEP 4 OF 4</div>
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <div class="eyebrow mb-0">{% if is_internal_admin %}ADMIN BOOKING{% else %}PUBLIC BOOKING{% endif %} · STEP 4 OF 4</div>
         <span class="badge bg-secondary-subtle text-secondary px-3 py-1 rounded-pill">Final Confirmation</span>
       </div>
-      <h1 class="h3 mb-3">{{ step_title|default:"Review Appointment & Technician" }}</h1>
+      <h1 class="h3 mb-3 fw-bold">{{ step_title|default:"Review Appointment & Technician" }}</h1>
 
       {% if is_internal_admin %}
         <div class="alert alert-info d-flex align-items-center mb-4 py-2 px-3 rounded-3" style="font-size: 0.9rem;">
@@ -18,11 +18,11 @@
       {% endif %}
 
       <!-- Technician Assignment Highlight Card -->
-      <div class="card mb-4 border-0 shadow-sm" style="background: rgba(139, 79, 92, 0.06); border-radius: 12px;">
-        <div class="card-body p-3">
+      <div class="card mb-4 border-0 shadow-sm" style="background: rgba(139, 79, 92, 0.06); border-radius: 14px;">
+        <div class="card-body p-3 p-md-3.5">
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div class="d-flex align-items-center gap-3">
-              <div class="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold" style="width: 48px; height: 48px; background: var(--deep-rose, #8b4f5c); font-size: 1.25rem;">
+              <div class="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm" style="width: 48px; height: 48px; background: var(--deep-rose, #8b4f5c); font-size: 1.25rem;">
                 <i class="bi bi-person-badge"></i>
               </div>
               <div>
@@ -69,15 +69,15 @@
               <dt class="col-4 text-muted">Phone:</dt>
               <dd class="col-8 mb-1">{{ contact.phone|default:"None" }}</dd>
               {% if contact.notes %}
-                <dt class="col-4 text-muted">Notes:</dt>
-                <dd class="col-8 mb-0">{{ contact.notes }}</dd>
+                <dt class="col-4 text-muted">Consult / Notes:</dt>
+                <dd class="col-8 mb-0" style="white-space: pre-line;">{{ contact.notes }}</dd>
               {% endif %}
             </dl>
           </div>
         </div>
         <div class="col-md-6">
           <div class="p-3 rounded-3 border h-100 bg-light-subtle">
-            <div class="fw-bold small text-uppercase text-muted mb-2"><i class="bi bi-calendar3 me-1"></i> Schedule & Timing</div>
+            <div class="fw-bold small text-uppercase text-muted mb-2"><i class="bi bi-calendar3 me-1"></i> Schedule &amp; Timing</div>
             <dl class="row mb-0 small">
               <dt class="col-4 text-muted">Date:</dt>
               <dd class="col-8 fw-semibold mb-1">{{ schedule.appointment_date }}</dd>
@@ -126,21 +126,27 @@
         </div>
       </div>
 
-      <!-- Action Form -->
+      <!-- Action Form with Mobile-Optimized Buttons -->
       <form method="post" novalidate id="confirm-booking-form">
         {% csrf_token %}
-        <div class="d-flex align-items-center justify-content-between pt-2">
-          <a href="{% url 'bookings:select_schedule' %}" class="btn btn-outline-secondary">
+        <div class="d-flex flex-column-reverse flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3 pt-2">
+          <a href="{% url 'bookings:select_schedule' %}" class="btn btn-outline-secondary py-2.5">
             <i class="bi bi-arrow-left me-1"></i> Back to Schedule
           </a>
-          <button class="btn btn-brand btn-lg px-4" type="submit">
-            <i class="bi bi-check2-circle me-1"></i> {{ button_label|default:"Confirm & Book Appointment" }}
+          <button class="btn btn-brand btn-lg px-4 py-2.5 fw-bold" type="submit">
+            <i class="bi bi-check2-circle me-1"></i> {{ button_label|default:"Submit booking request" }}
           </button>
         </div>
       </form>
 
-      <div class="d-flex flex-wrap gap-3 mt-4 pt-3 border-top small">
+      <!-- Security Trust Badge -->
+      <div class="text-center mt-3 pt-2 text-muted small border-top">
+        <i class="bi bi-shield-lock-fill text-success me-1"></i> Protected by Anti-Spam Security &amp; Token-Verified System
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-center gap-3 mt-3 pt-2 border-top small">
         <a href="{% url 'bookings:verify' %}" class="text-muted"><i class="bi bi-shield-check me-1"></i> Verify existing code</a>
+        <span class="text-muted">&bull;</span>
         <a href="{% url 'bookings:status_lookup' %}" class="text-muted"><i class="bi bi-search me-1"></i> Check booking status</a>
       </div>
     </div>

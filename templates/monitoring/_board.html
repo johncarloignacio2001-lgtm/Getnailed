@@ -1,9 +1,85 @@
 <section id="service-board" hx-get="{% url 'monitoring:board' %}{% if poll_query %}?{{ poll_query }}{% endif %}" hx-trigger="every 10s" hx-target="this" hx-swap="outerHTML">
   <div class="content-card mb-3 d-flex align-items-center justify-content-between" role="status" aria-live="polite">
-    <span>Currently ongoing services for {{ selected_date }}</span>
-    <strong class="fs-4">{{ ongoing_count }}</strong>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-success-subtle text-success border border-success-subtle p-2">
+        <i class="bi bi-broadcast me-1"></i> Live Auto-Sync (10s)
+      </span>
+      <span class="small text-secondary">Service Monitoring &bull; Operations for {{ selected_date }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span>Currently ongoing services for {{ selected_date }}: <strong class="fs-5 text-success">{{ ongoing_count }}</strong></span>
+      <span class="small text-muted">Total Queue: <strong class="fs-5 text-dark">{{ queue_count }}</strong></span>
+    </div>
   </div>
   {% include 'partials/messages.html' %}
+
+  <!-- Current Services in Progress Spotlight (Service Monitor -> Current Service -> Ongoing -> Confirmed) -->
+  <div class="content-card mb-4 border-2 border-primary-subtle" style="background: linear-gradient(to right, rgba(139,79,92,0.03), rgba(255,255,255,0.95));">
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success text-white py-2 px-3 fs-6 d-inline-flex align-items-center">
+          <span class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true" style="animation-duration: 1.5s;"></span>
+          CURRENT SERVICES (ONGOING)
+        </span>
+        <span class="text-secondary small fw-medium">Real-time Service Progress & Transition</span>
+      </div>
+      <div class="small fw-bold">
+        <span class="text-muted">Active Work: </span>
+        <span class="badge bg-primary fs-6">{{ ongoing_count }} in progress</span>
+      </div>
+    </div>
+
+    {% if current_ongoing_services %}
+      <div class="row g-3">
+        {% for item in current_ongoing_services %}
+          <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm border" style="border-top: 4px solid var(--deep-rose)!important;">
+              <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="badge bg-light text-dark border small">Ref #{{ item.appointment.reference }}</span>
+                    <h4 class="h6 mb-0 mt-1 fw-bold text-dark">{{ item.service_name }}</h4>
+                  </div>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                    <i class="bi bi-clock-history me-1"></i>Ongoing
+                  </span>
+                </div>
+                <div class="small text-muted mb-2">
+                  <i class="bi bi-person me-1"></i>Client: <strong>{{ item.appointment.customer_name }}</strong><br>
+                  <i class="bi bi-person-badge me-1"></i>Technician: <strong>{{ item.assigned_staff|default:"Unassigned" }}</strong>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-2">
+                  <div class="d-flex justify-content-between small text-muted mb-1">
+                    <span>Elapsed: <strong>{{ item.elapsed_minutes }}m</strong> / {{ item.duration_minutes }}m</span>
+                    <span>Remaining: <strong>{{ item.remaining_minutes }}m</strong></span>
+                  </div>
+                  <div class="progress" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: {{ item.progress_percent }}%;" aria-valuenow="{{ item.progress_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                </div>
+
+                <!-- One-Click Action: Confirm Completed -->
+                <form method="post" action="{% url 'monitoring:update_status' pk=item.pk status='COMPLETED' %}" hx-post="{% url 'monitoring:update_status' pk=item.pk status='COMPLETED' %}" hx-target="#service-board" hx-swap="outerHTML" class="mt-3">
+                  {% csrf_token %}
+                  <input type="hidden" name="note" value="Confirmed completed from Live Service Monitor">
+                  <button class="btn btn-sm btn-brand w-100 d-flex align-items-center justify-content-center gap-1" type="submit">
+                    <i class="bi bi-check-circle-fill"></i> Confirm Service Completed
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="p-3 text-center rounded border bg-light">
+        <p class="text-muted mb-0 small"><i class="bi bi-info-circle me-1"></i> Walang kasalukuyang serbisyo na Ongoing. Piliin ang <strong>Start Service (Ongoing)</strong> sa Confirmed/Approved column sa ibaba upang simulan ang serbisyo.</p>
+      </div>
+    {% endif %}
+  </div>
+
   <div class="monitoring-summary mb-4"><div class="content-card queue-total"><span>Queue for {{ selected_date }}</span><strong>{{ queue_count }}</strong></div>{% for staff in workloads %}<div class="workload-chip"><strong>{{ staff }}</strong><span>{{ staff.pending_count }} pending · {{ staff.approved_count }} ready · {{ staff.ongoing_count }} active</span></div>{% empty %}<div class="workload-chip"><span>No active staff profiles.</span></div>{% endfor %}</div>
-  <div class="monitoring-board">{% for column in columns %}<section class="monitoring-column monitoring-{{ column.status|lower }}"><header><span>{{ column.label }}</span><strong>{{ column.items|length }}</strong></header><div class="monitoring-stack">{% for item in column.items %}<article class="service-work-card{% if item.is_late %} service-work-late{% endif %}"><div class="d-flex justify-content-between gap-2"><div class="eyebrow">{{ item.appointment.reference }}</div>{% if item.is_late %}<span class="late-chip">Late</span>{% endif %}</div><h3>{{ item.service_name }}</h3><p class="customer-line">{{ item.appointment.customer_name }}</p><dl><dt>Scheduled</dt><dd>{{ item.appointment.start_time }}</dd><dt>Expected finish</dt><dd>{{ item.expected_finish|time:"g:i A" }}</dd><dt>Staff</dt><dd>{{ item.assigned_staff|default:"Unassigned" }}</dd></dl>{% if can_assign %}<form method="post" action="{% url 'monitoring:assign' pk=item.pk %}" hx-post="{% url 'monitoring:assign' pk=item.pk %}" hx-target="#service-board" hx-swap="outerHTML" class="assignment-inline">{% csrf_token %}<select class="form-select" name="assigned_staff"><option value="">Unassigned</option>{% for staff in staff_choices %}<option value="{{ staff.pk }}"{% if item.assigned_staff_id == staff.pk %} selected{% endif %}>{{ staff }}</option>{% endfor %}</select><button class="btn btn-sm btn-outline-brand" type="submit">Assign</button></form>{% endif %}{% if item.next_statuses %}<form method="post" class="status-actions">{% csrf_token %}<input class="form-control form-control-sm" type="text" name="note" maxlength="500" placeholder="Optional transition note">{% for value, label in item.next_statuses %}<button class="btn btn-sm btn-brand" type="submit" formaction="{% url 'monitoring:update_status' pk=item.pk status=value %}" hx-post="{% url 'monitoring:update_status' pk=item.pk status=value %}" hx-target="#service-board" hx-swap="outerHTML">Mark {{ label }}</button>{% endfor %}</form>{% endif %}</article>{% empty %}<div class="monitoring-empty">No {{ column.label|lower }} services.</div>{% endfor %}</div></section>{% endfor %}</div>
+  <div class="monitoring-board">{% for column in columns %}<section class="monitoring-column monitoring-{{ column.status|lower }}"><header><span>{{ column.label }}</span><strong>{{ column.items|length }}</strong></header><div class="monitoring-stack">{% for item in column.items %}<article class="service-work-card{% if item.is_late %} service-work-late{% endif %}"><div class="d-flex justify-content-between gap-2"><div class="eyebrow">{{ item.appointment.reference }}</div>{% if item.is_late %}<span class="late-chip">Late</span>{% endif %}</div><h3>{{ item.service_name }}</h3><p class="customer-line">{{ item.appointment.customer_name }}</p><dl><dt>Scheduled</dt><dd>{{ item.appointment.start_time }}</dd><dt>Expected finish</dt><dd>{{ item.expected_finish|time:"g:i A" }}</dd><dt>Staff</dt><dd>{{ item.assigned_staff|default:"Unassigned" }}</dd></dl>{% if can_assign %}<form method="post" action="{% url 'monitoring:assign' pk=item.pk %}" hx-post="{% url 'monitoring:assign' pk=item.pk %}" hx-target="#service-board" hx-swap="outerHTML" class="assignment-inline">{% csrf_token %}<select class="form-select" name="assigned_staff"><option value="">Unassigned</option>{% for staff in staff_choices %}<option value="{{ staff.pk }}"{% if item.assigned_staff_id == staff.pk %} selected{% endif %}>{{ staff }}</option>{% endfor %}</select><button class="btn btn-sm btn-outline-brand" type="submit">Assign</button></form>{% endif %}{% if item.next_statuses %}<form method="post" class="status-actions">{% csrf_token %}<input class="form-control form-control-sm" type="text" name="note" maxlength="500" placeholder="Optional transition note">{% for value, label in item.next_statuses %}<button class="btn btn-sm btn-brand" type="submit" formaction="{% url 'monitoring:update_status' pk=item.pk status=value %}" hx-post="{% url 'monitoring:update_status' pk=item.pk status=value %}" hx-target="#service-board" hx-swap="outerHTML">{{ label }}</button>{% endfor %}</form>{% endif %}</article>{% empty %}<div class="monitoring-empty">No {{ column.label|lower }} services.</div>{% endfor %}</div></section>{% endfor %}</div>
 </section>

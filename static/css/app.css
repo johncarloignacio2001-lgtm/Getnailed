@@ -875,7 +875,7 @@ html {
 @media print {
   .receipt-page { background: white; padding: 0; }
   .receipt { box-shadow: none; width: 80mm; padding: 6mm; }
-  .receipt-actions { display: none; }
+  .receipt-actions, .receipt-notifications { display: none !important; }
 }
 
 /* Customer Registration & Password Requirements */
@@ -1307,6 +1307,19 @@ html {
   box-shadow: 0 8px 22px rgba(217, 83, 110, 0.6);
 }
 
+/* Deep Plum / Violet: Customer Appointments (Time Block -> Technician -> Appointment) */
+.block-color-appointment {
+  background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+  color: #ffffff;
+  border-left: 3.5px solid #ffd54f;
+  box-shadow: 0 4px 14px rgba(106, 27, 154, 0.45);
+  cursor: pointer;
+}
+.block-color-appointment:hover {
+  background: linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%);
+  box-shadow: 0 8px 22px rgba(106, 27, 154, 0.65);
+}
+
 .tb-pill-title {
   font-size: 0.92rem;
   font-weight: 700;
@@ -1505,6 +1518,99 @@ html {
   background: rgba(255, 255, 255, 0.88);
   border-radius: 999px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* ==========================================================================
+   Mobile Responsive UI Enhancements (Customer & Salon Booking)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Prevent horizontal scrolling on mobile */
+  body, html {
+    overflow-x: hidden !important;
+  }
+
+  /* Compact content cards on mobile */
+  .content-card {
+    padding: 18px 14px !important;
+    border-radius: 16px !important;
+  }
+
+  .stat-card {
+    padding: 16px 14px !important;
+    min-height: auto !important;
+    border-radius: 16px !important;
+  }
+
+  .public-hero {
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+    min-height: auto !important;
+  }
+
+  /* Form inputs mobile thumb-friendly with 16px font to stop iOS zoom */
+  .form-control, .form-select {
+    font-size: 16px !important;
+    min-height: 46px !important;
+    padding: 10px 14px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Buttons on mobile touch target >= 44px */
+  .btn-brand, .btn-outline-brand, .btn-secondary, .btn-outline-secondary {
+    min-height: 44px !important;
+    font-size: 0.95rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Stepper Header mobile */
+  .wizard-stepper-header .eyebrow {
+    font-size: 0.72rem !important;
+  }
+
+  /* Live Technician Slots Grid on mobile */
+  #slots-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .slot-btn {
+    width: 100% !important;
+    min-height: 42px !important;
+    font-size: 0.85rem !important;
+    padding: 6px 4px !important;
+  }
+
+  /* Page headings mobile wrap */
+  .page-heading {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .page-heading > div:last-child {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+  }
+
+  .page-heading > div:last-child .btn {
+    flex: 1 1 auto !important;
+  }
+
+  /* Tables horizontal scroll container */
+  .table-responsive {
+    border-radius: 10px !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin-bottom: 0 !important;
+  }
+
+  .table-responsive table th,
+  .table-responsive table td {
+    white-space: nowrap !important;
+  }
 }
 
 

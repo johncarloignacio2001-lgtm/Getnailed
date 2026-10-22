@@ -17,7 +17,10 @@
       {% endif %}
     </div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-brand" href="{% url 'services:walk_in_technicians' %}" target="_blank">
+      <i class="bi bi-people-fill me-1"></i> Available Technicians (Walk-In)
+    </a>
     <a class="btn btn-outline-brand" href="{% url 'pos:shift_dashboard' %}"><i class="bi bi-safe me-1"></i> Till & Shifts</a>
     <a class="btn btn-outline-brand" href="{% url 'pos:history' %}"><i class="bi bi-receipt me-1"></i> Transaction history</a>
   </div>
@@ -63,16 +66,40 @@
 
     <aside class="content-card pos-checkout">
       <div>
-        <div class="eyebrow">CUSTOMER</div>
-        {% for field in form %}
-          {% if field.name == 'customer' or field.name == 'appointment' or field.name == 'mark_appointment_completed' %}
-            <div class="mb-3">
-              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {{ field.errors }}
-            </div>
-          {% endif %}
-        {% endfor %}
+        <div class="eyebrow">CUSTOMER & APPOINTMENT</div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.customer.id_for_label }}">{{ form.customer.label }}</label>
+          {{ form.customer }}
+          {{ form.customer.errors }}
+        </div>
+
+        <!-- Point of Sale Appointment Time Filter -->
+        <div class="mb-3 p-2 rounded-2" style="background: rgba(139,79,92,0.04); border: 1px solid var(--border);">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <label class="form-label mb-0 small fw-bold" for="{{ form.appointment.id_for_label }}">
+              <i class="bi bi-clock me-1 text-primary"></i>{{ form.appointment.label }}
+            </label>
+            <span class="badge bg-light text-dark border small" id="pos-appt-count"></span>
+          </div>
+
+          <!-- Time slot filter buttons for appointments -->
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <button type="button" class="btn btn-xs btn-outline-brand appt-time-btn active" data-slot="all">All Times</button>
+            <button type="button" class="btn btn-xs btn-outline-brand appt-time-btn" data-slot="morning">Morning (9am-1pm)</button>
+            <button type="button" class="btn btn-xs btn-outline-brand appt-time-btn" data-slot="afternoon">Afternoon (1pm-5pm)</button>
+            <button type="button" class="btn btn-xs btn-outline-brand appt-time-btn" data-slot="evening">Evening (5pm-9pm)</button>
+          </div>
+          <input type="text" id="pos-appt-search" class="form-control form-control-sm mb-2" placeholder="🔍 Filter by time (e.g. 10:00, 2:00 PM) or name...">
+
+          {{ form.appointment }}
+          {{ form.appointment.errors }}
+        </div>
+
+        <div class="mb-3 form-check">
+          {{ form.mark_appointment_completed }}
+          <label class="form-check-label small" for="{{ form.mark_appointment_completed.id_for_label }}">{{ form.mark_appointment_completed.label }}</label>
+          {{ form.mark_appointment_completed.errors }}
+        </div>
       </div>
 
       <div class="border-top pt-3">
@@ -119,7 +146,7 @@
 
       <div class="border-top pt-3">
         <div class="eyebrow">PAYMENT METHOD</div>
-        
+
         <!-- Segmented Payment Method Switcher -->
         <div class="btn-group w-100 mb-3" role="group" id="payment-method-selector">
           <button type="button" class="btn payment-method-tab active" data-method="CASH" style="background-color: #8b4f5c; border-color: #8b4f5c; color: #ffffff;">
@@ -144,23 +171,42 @@
         <!-- Cash Payment Panel -->
         <div id="payment-panel-cash" class="payment-method-panel">
           <div class="mb-3">
-            <label class="form-label" for="{{ form.amount_tendered.id_for_label }}">Cash Tendered (₱)</label>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="form-label fw-bold mb-0" for="{{ form.amount_tendered.id_for_label }}">
+                <i class="bi bi-cash-stack me-1 text-success"></i>Cash Tendered (₱)
+              </label>
+              <span class="badge bg-success-subtle text-success border border-success-subtle" id="cash-tender-badge">Ready</span>
+            </div>
             {{ form.amount_tendered }}
             {% for error in form.amount_tendered.errors %}
               <div class="text-danger small">{{ error }}</div>
             {% endfor %}
+
+            <!-- Cash Quick Denominations -->
             <div class="d-flex flex-wrap gap-1 mt-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-type="exact">Exact</button>
+              <button type="button" class="btn btn-sm btn-outline-brand py-0 px-2 quick-cash-btn fw-bold" data-type="exact">Exact Amount</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-set="1000">₱1,000 Bill</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-set="500">₱500 Bill</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-set="200">₱200 Bill</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-set="100">₱100 Bill</button>
               <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="50">+₱50</button>
               <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="100">+₱100</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="500">+₱500</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 quick-cash-btn" data-add="1000">+₱1,000</button>
             </div>
-            <div class="d-flex justify-content-between align-items-center p-2 px-3 rounded-2 mt-2" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border);">
-              <span class="small text-muted">Change (Sukli):</span>
-              <strong id="pos-change" class="text-success fs-5">₱0.00</strong>
+
+            <!-- Prominent Change Calculation Box -->
+            <div class="d-flex justify-content-between align-items-center p-3 rounded-2 mt-3" style="background: rgba(139,79,92,0.06); border: 1.5px solid var(--border);">
+              <div>
+                <span class="small text-muted d-block text-uppercase fw-semibold">Sukli / Change Due</span>
+                <span class="small text-muted" id="pos-change-subtext">Base sa natanggap na bayad</span>
+              </div>
+              <strong id="pos-change" class="text-success fs-3">₱0.00</strong>
             </div>
-            <div id="pos-tender-status" class="small mt-2" role="status" aria-live="polite">Ilagay ang perang ibinayad para makalkula ang sukli.</div>
+
+            <!-- Dynamic Cash Tender Notification Banner -->
+            <div id="pos-tender-alert" class="alert alert-secondary py-2 px-3 mt-2 d-flex align-items-center gap-2 mb-0" role="status" aria-live="polite">
+              <i class="bi bi-info-circle fs-5" id="pos-tender-alert-icon"></i>
+              <div id="pos-tender-status" class="small">Ilagay ang perang ibinayad (Cash Tendered) para makalkula ang sukli.</div>
+            </div>
           </div>
         </div>
 
@@ -306,18 +352,63 @@ document.addEventListener("DOMContentLoaded", function () {
     const change = Math.max(0, tendered - total);
     const changeEl = document.getElementById("pos-change");
     if (changeEl) changeEl.textContent = "₱" + change.toFixed(2);
+
+    const tenderAlert = document.getElementById("pos-tender-alert");
     const tenderStatus = document.getElementById("pos-tender-status");
-    if (tenderStatus) {
+    const tenderIcon = document.getElementById("pos-tender-alert-icon");
+    const tenderBadge = document.getElementById("cash-tender-badge");
+    const changeSubtext = document.getElementById("pos-change-subtext");
+
+    if (tenderAlert && tenderStatus) {
       if (subtotal <= 0) {
-        tenderStatus.textContent = "Pumili muna ng serbisyo para makalkula ang babayaran.";
-        tenderStatus.className = "small mt-2 text-muted";
+        tenderAlert.className = "alert alert-secondary py-2 px-3 mt-2 d-flex align-items-center gap-2 mb-0";
+        if (tenderIcon) tenderIcon.className = "bi bi-info-circle text-muted fs-5";
+        tenderStatus.innerHTML = "Pumili muna ng serbisyo para makalkula ang babayaran.";
+        if (tenderBadge) { tenderBadge.textContent = "Waiting"; tenderBadge.className = "badge bg-secondary-subtle text-secondary border"; }
+        if (changeSubtext) changeSubtext.textContent = "Wala pang serbisyo";
+      } else if (tendered === 0) {
+        tenderAlert.className = "alert alert-secondary py-2 px-3 mt-2 d-flex align-items-center gap-2 mb-0";
+        if (tenderIcon) tenderIcon.className = "bi bi-info-circle text-muted fs-5";
+        tenderStatus.innerHTML = `Ilagay ang perang ibinayad (₱${total.toFixed(2)} ang kabuuang halaga).`;
+        if (tenderBadge) { tenderBadge.textContent = "Tender Pending"; tenderBadge.className = "badge bg-warning-subtle text-warning border border-warning-subtle"; }
+        if (changeSubtext) changeSubtext.textContent = "Naghihintay ng bayad";
       } else if (tendered < total) {
-        tenderStatus.textContent = "Kulang ang bayad ng ₱" + (total - tendered).toFixed(2) + ".";
-        tenderStatus.className = "small mt-2 text-danger";
+        const short = (total - tendered).toFixed(2);
+        tenderAlert.className = "alert alert-warning py-2 px-3 mt-2 d-flex align-items-center gap-2 mb-0 border-warning";
+        if (tenderIcon) tenderIcon.className = "bi bi-exclamation-triangle-fill text-warning fs-5";
+        tenderStatus.innerHTML = `<strong>⚠️ Kulang ang bayad:</strong> Kulang pa ng <strong>₱${short}</strong> para mabayaran ang <strong>₱${total.toFixed(2)}</strong>.`;
+        if (tenderBadge) { tenderBadge.textContent = `Kulang ₱${short}`; tenderBadge.className = "badge bg-danger-subtle text-danger border border-danger-subtle"; }
+        if (changeSubtext) changeSubtext.textContent = "Hindi pa sapat ang bayad";
       } else {
-        tenderStatus.textContent = "Sukli: ₱" + change.toFixed(2) + ".";
-        tenderStatus.className = "small mt-2 text-success";
+        tenderAlert.className = "alert alert-success py-2 px-3 mt-2 d-flex align-items-center gap-2 mb-0 border-success shadow-sm";
+        if (tenderIcon) tenderIcon.className = "bi bi-check-circle-fill text-success fs-5";
+        tenderStatus.innerHTML = `<strong>✅ Sapat ang Bayad (Tendered Confirmed)!</strong> Sukli: <span class="fs-6 fw-bold text-success">₱${change.toFixed(2)}</span>.`;
+        if (tenderBadge) { tenderBadge.textContent = "✅ Paid & Ready"; tenderBadge.className = "badge bg-success text-white"; }
+        if (changeSubtext) changeSubtext.textContent = "Sapat ang bayad · Sukli handa";
       }
+    }
+  }
+
+  // Audio Chime synthesizer via Web Audio API for Cash Tender notification
+  function playCashChime() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 major triad
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        const startTime = audioCtx.currentTime + idx * 0.08;
+        gain.gain.setValueAtTime(0.15, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.36);
+      });
+    } catch (e) {
+      // AudioContext not allowed or not supported; silent fallback
     }
   }
 
@@ -417,6 +508,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!amountInput) return;
       if (this.dataset.type === "exact") {
         amountInput.value = currentTotal.toFixed(2);
+      } else if (this.dataset.set) {
+        amountInput.value = Number(this.dataset.set).toFixed(2);
       } else if (this.dataset.add) {
         const current = Number(amountInput.value || 0);
         amountInput.value = (current + Number(this.dataset.add)).toFixed(2);
@@ -428,6 +521,109 @@ document.addEventListener("DOMContentLoaded", function () {
   const amountTenderedInput = document.getElementById("id_amount_tendered");
   if (amountTenderedInput) {
     amountTenderedInput.addEventListener("input", calculate);
+  }
+
+  // --- Point of Sale Appointment Time Filter ---
+  const apptSelect = document.getElementById("id_appointment");
+  const apptSearch = document.getElementById("pos-appt-search");
+  const apptTimeBtns = document.querySelectorAll(".appt-time-btn");
+  const apptCountBadge = document.getElementById("pos-appt-count");
+
+  let allApptOptions = [];
+  if (apptSelect) {
+    Array.from(apptSelect.options).forEach(opt => {
+      allApptOptions.push({
+        value: opt.value,
+        text: opt.text,
+        selected: opt.selected
+      });
+    });
+
+    function filterAppointments() {
+      const activeBtn = document.querySelector(".appt-time-btn.active");
+      const slot = activeBtn ? activeBtn.dataset.slot : "all";
+      const q = (apptSearch ? apptSearch.value : "").trim().toLowerCase();
+
+      const currentSelectedVal = apptSelect.value;
+      apptSelect.innerHTML = "";
+
+      let visibleCount = 0;
+      allApptOptions.forEach(item => {
+        if (!item.value) {
+          // Empty default label "No linked appointment"
+          const opt = document.createElement("option");
+          opt.value = item.value;
+          opt.textContent = item.text;
+          apptSelect.appendChild(opt);
+          return;
+        }
+
+        const textLower = item.text.toLowerCase();
+        let matchesSlot = true;
+        if (slot !== "all") {
+          // Match time in label like "[09:30 AM]" or "[02:00 PM]"
+          const timeMatch = item.text.match(/\[(\d{1,2}):(\d{2})\s*(AM|PM)\]/i);
+          if (timeMatch) {
+            let hour = parseInt(timeMatch[1], 10);
+            const isPM = timeMatch[3].toUpperCase() === "PM";
+            if (isPM && hour !== 12) hour += 12;
+            if (!isPM && hour === 12) hour = 0;
+
+            if (slot === "morning" && (hour < 9 || hour >= 13)) matchesSlot = false;
+            if (slot === "afternoon" && (hour < 13 || hour >= 17)) matchesSlot = false;
+            if (slot === "evening" && (hour < 17 || hour >= 22)) matchesSlot = false;
+          }
+        }
+
+        const matchesQuery = !q || textLower.includes(q);
+
+        if (matchesSlot && matchesQuery) {
+          const opt = document.createElement("option");
+          opt.value = item.value;
+          opt.textContent = item.text;
+          if (item.value === currentSelectedVal) opt.selected = true;
+          apptSelect.appendChild(opt);
+          visibleCount++;
+        }
+      });
+
+      if (apptCountBadge) {
+        apptCountBadge.textContent = `${visibleCount} available`;
+      }
+    }
+
+    apptTimeBtns.forEach(btn => {
+      btn.addEventListener("click", function () {
+        apptTimeBtns.forEach(b => b.classList.remove("active", "btn-brand"));
+        this.classList.add("active", "btn-brand");
+        filterAppointments();
+      });
+    });
+
+    if (apptSearch) {
+      apptSearch.addEventListener("input", filterAppointments);
+    }
+
+    filterAppointments();
+  }
+
+  // Handle Form Submission and Cash Tender Notification
+  const posForm = document.getElementById("pos-form");
+  if (posForm) {
+    posForm.addEventListener("submit", function (e) {
+      const selectedMethod = paymentMethodSelect ? paymentMethodSelect.value : "CASH";
+      if (selectedMethod === "CASH") {
+        const tenderedVal = Number(document.getElementById("id_amount_tendered")?.value || 0);
+        if (tenderedVal < currentTotal && currentTotal > 0) {
+          e.preventDefault();
+          const short = (currentTotal - tenderedVal).toFixed(2);
+          alert(`⚠️ Kulang ang perang ibinayad (Cash Tendered)!\nKulang pa ng ₱${short} para sa kabuuang halaga na ₱${currentTotal.toFixed(2)}.`);
+          document.getElementById("id_amount_tendered")?.focus();
+          return false;
+        }
+        playCashChime();
+      }
+    });
   }
 
   const initialMethod = paymentMethodSelect ? paymentMethodSelect.value || "CASH" : "CASH";

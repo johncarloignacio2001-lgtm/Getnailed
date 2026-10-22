@@ -67,12 +67,57 @@ def train(request):
 
 @owner_required
 def detail(request, public_id):
+    from decimal import Decimal
     run = _run(public_id)
-    results = run.results.all()
+    results = list(run.results.all())
+
+    # Aggregate stats for Sales & Service Volume
+    total_sales = sum((r.predicted_sales for r in results), Decimal("0.00"))
+    total_services = sum((r.predicted_service_quantity for r in results), Decimal("0.00"))
+
+    cat_sales = {}
+    cat_services = {}
+    dates_set = set()
+    for r in results:
+        cat_sales[r.service_category] = cat_sales.get(r.service_category, Decimal("0.00")) + r.predicted_sales
+        cat_services[r.service_category] = cat_services.get(r.service_category, Decimal("0.00")) + r.predicted_service_quantity
+        dates_set.add(r.forecast_date.isoformat())
+
+    sorted_dates = sorted(dates_set)
+    sorted_categories = sorted(cat_sales.keys())
+
+    top_cat_sales = max(cat_sales.items(), key=lambda x: x[1])[0] if cat_sales else "None"
+    top_cat_services = max(cat_services.items(), key=lambda x: x[1])[0] if cat_services else "None"
+
+    # Daily aggregates for chart visualization
+    daily_sales = {}
+    daily_services = {}
+    for r in results:
+        d = r.forecast_date.isoformat()
+        daily_sales[d] = daily_sales.get(d, 0.0) + float(r.predicted_sales)
+        daily_services[d] = daily_services.get(d, 0.0) + float(r.predicted_service_quantity)
+
+    chart_payload = {
+        "dates": sorted_dates,
+        "daily_sales": [round(daily_sales.get(d, 0.0), 2) for d in sorted_dates],
+        "daily_services": [round(daily_services.get(d, 0.0), 1) for d in sorted_dates],
+        "categories": sorted_categories,
+        "cat_sales": [round(float(cat_sales.get(c, 0.0)), 2) for c in sorted_categories],
+        "cat_services": [round(float(cat_services.get(c, 0.0)), 1) for c in sorted_categories],
+    }
+
     return render(
         request,
         "forecasting/detail.html",
-        {"run": run, "results": results},
+        {
+            "run": run,
+            "results": results,
+            "total_sales": total_sales,
+            "total_services": total_services,
+            "top_cat_sales": top_cat_sales,
+            "top_cat_services": top_cat_services,
+            "chart_payload": chart_payload,
+        },
     )
 
 

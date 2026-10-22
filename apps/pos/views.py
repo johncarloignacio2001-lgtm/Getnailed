@@ -110,6 +110,8 @@ def index(request):
         initial, initial_items = _appointment_initial(form, request.GET.get("appointment"))
         if initial:
             form = CheckoutForm(initial=initial)
+        elif request.GET.get("assigned_staff"):
+            initial_items = [{"assigned_staff": request.GET.get("assigned_staff")}]
     item_formset = CheckoutItemFormSet(
         request.POST if request.method == "POST" else None,
         prefix="items",
@@ -155,10 +157,28 @@ def index(request):
         else:
             confirmation = f"Sale {sale.receipt_number} completed."
             if sale.payment_method == Payment.Method.CASH:
-                confirmation += (
-                    f" Cash received: ₱{sale.amount_tendered:.2f}; "
-                    f"Change due: ₱{sale.change:.2f}."
+                confirmation = (
+                    f"✅ Cash Tendered: ₱{sale.amount_tendered:.2f} received. "
+                    f"Total: ₱{sale.total:.2f}. Change due: ₱{sale.change:.2f}."
                 )
+                if sale.appointment:
+                    try:
+                        from apps.notifications.models import Notification
+                        for staff_user in User.objects.filter(
+                            role__in=(User.Role.OWNER, User.Role.CASHIER), is_active=True
+                        ):
+                            Notification.objects.create(
+                                recipient=staff_user,
+                                appointment=sale.appointment,
+                                event_type=Notification.EventType.APPROVED,
+                                title=f"Payment Received: {sale.receipt_number}",
+                                message=(
+                                    f"Cash Tendered: ₱{sale.amount_tendered:.2f} | "
+                                    f"Change Due: ₱{sale.change:.2f} for Appointment #{sale.appointment.booking_reference}."
+                                ),
+                            )
+                    except Exception:
+                        pass
             messages.success(request, confirmation)
             return redirect("pos:receipt", receipt_number=sale.receipt_number)
     return render(
@@ -228,29 +248,26 @@ def history(request):
             end_date = single_date
 
         tz = timezone.get_current_timezone()
+        from datetime import time as dt_time
 
-        if start_date and end_date and start_date == end_date:
-            if start_time and end_time:
-                start_dt = timezone.make_aware(datetime.combine(start_date, start_time), tz)
-                end_dt = timezone.make_aware(datetime.combine(end_date, end_time), tz)
-                sales = sales.filter(created_at__gte=start_dt, created_at__lte=end_dt)
-            elif start_time:
-                start_dt = timezone.make_aware(datetime.combine(start_date, start_time), tz)
-                sales = sales.filter(created_at__gte=start_dt, created_at__date__lte=end_date)
-            elif end_time:
-                end_dt = timezone.make_aware(datetime.combine(end_date, end_time), tz)
-                sales = sales.filter(created_at__date__gte=start_date, created_at__lte=end_dt)
-            else:
-                sales = sales.filter(created_at__date=start_date)
-        else:
-            if start_date:
-                sales = sales.filter(created_at__date__gte=start_date)
-            if end_date:
-                sales = sales.filter(created_at__date__lte=end_date)
-            if start_time:
-                sales = sales.filter(created_at__time__gte=start_time)
-            if end_time:
-                sales = sales.filter(created_at__time__lte=end_time)
+        if (start_time or end_time) and not start_date and not end_date:
+            start_date = today
+            end_date = today
+
+        if start_date and end_date:
+            s_time = start_time or dt_time(0, 0, 0)
+            e_time = end_time or dt_time(23, 59, 59, 999999)
+            start_dt = timezone.make_aware(datetime.combine(start_date, s_time), tz)
+            end_dt = timezone.make_aware(datetime.combine(end_date, e_time), tz)
+            sales = sales.filter(created_at__gte=start_dt, created_at__lte=end_dt)
+        elif start_date:
+            s_time = start_time or dt_time(0, 0, 0)
+            start_dt = timezone.make_aware(datetime.combine(start_date, s_time), tz)
+            sales = sales.filter(created_at__gte=start_dt)
+        elif end_date:
+            e_time = end_time or dt_time(23, 59, 59, 999999)
+            end_dt = timezone.make_aware(datetime.combine(end_date, e_time), tz)
+            sales = sales.filter(created_at__lte=end_dt)
 
     totals = sales.aggregate(
         total_revenue=models.Sum("total", filter=Q(status=Sale.Status.COMPLETED)),

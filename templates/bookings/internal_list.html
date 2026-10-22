@@ -1,3 +1,180 @@
 {% extends 'base.html' %}
 {% block title %}{{ heading }} | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading"><div><div class="eyebrow">AUTHORIZED APPOINTMENT ACCESS</div><h2>{{ heading }}</h2></div><div class="d-flex align-items-center gap-2">{% if user.is_owner or user.is_cashier or user.can_manage_bookings %}<a class="btn btn-brand" href="{% url 'bookings:index' %}"><i class="bi bi-calendar-plus me-1"></i> Book Appointment</a>{% endif %}{% if user.is_owner or user.is_cashier %}<a class="btn btn-outline-brand" href="{% url 'bookings:calendar' %}"><i class="bi bi-calendar3 me-1"></i> Calendar</a>{% endif %}</div></div>{% if filter_form %}<div class="content-card mb-3"><form class="row g-3 align-items-end" method="get">{% for field in filter_form %}<div class="col-md-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}<div class="col-md-3"><button class="btn btn-brand" type="submit">Filter</button></div></form></div>{% endif %}<div class="content-card">{% if bookings %}<div class="table-responsive"><table class="table"><thead><tr><th>Reference</th><th>Customer</th><th>Service</th><th>Schedule</th><th>Staff</th><th>Status</th><th>Actions</th></tr></thead><tbody>{% for booking in bookings %}<tr><td>{% if booking.is_legacy_booking %}{{ booking.reference }}{% else %}<a href="{% url 'bookings:detail' reference=booking.reference %}">{{ booking.reference }}</a>{% endif %}</td><td>{{ booking.customer_name }}</td><td>{{ booking.service_name }}</td><td>{{ booking.scheduled_for }}</td><td>{{ booking.assigned_staff|default:"Unassigned" }}</td><td>{{ booking.get_status_display }}</td><td><div class="d-flex gap-1">{% if not booking.is_legacy_booking %}<a class="btn btn-sm btn-outline-brand" href="{% url 'bookings:detail' reference=booking.reference %}">View</a>{% if user.is_owner or user.is_cashier or user.can_use_pos %}<a class="btn btn-sm btn-brand" href="{% url 'pos:index' %}?appointment={{ booking.pk }}">POS</a>{% endif %}{% endif %}</div></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="mb-0">No authorized appointments are available.</p>{% endif %}</div>{% endblock %}
+
+{% block content %}
+<div class="page-heading flex-wrap gap-2">
+  <div>
+    <div class="eyebrow">APPOINTMENTS &amp; WALK-IN MANAGEMENT</div>
+    <h2 class="mb-0">{{ heading }}</h2>
+  </div>
+  <div class="d-flex align-items-center flex-wrap gap-2">
+    <a class="btn btn-outline-brand" href="{% url 'services:walk_in_technicians' %}">
+      <i class="bi bi-people-fill me-1"></i> Available Technicians (Walk-in)
+    </a>
+    {% if user.is_owner or user.is_cashier or user.can_manage_bookings %}
+      <a class="btn btn-brand" href="{% url 'bookings:index' %}">
+        <i class="bi bi-calendar-plus me-1"></i> Book Appointment
+      </a>
+    {% endif %}
+    {% if user.is_owner or user.is_cashier %}
+      <a class="btn btn-outline-brand" href="{% url 'bookings:calendar' %}">
+        <i class="bi bi-calendar3 me-1"></i> Calendar
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if filter_form %}
+<div class="content-card mb-4 shadow-sm">
+  <form class="row g-3 align-items-end" method="get">
+    <div class="col-lg-3 col-md-6">
+      <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.search.id_for_label }}">
+        <i class="bi bi-search me-1"></i> Search
+      </label>
+      {{ filter_form.search }}
+    </div>
+    <div class="col-lg-2 col-md-6">
+      <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.date.id_for_label }}">
+        <i class="bi bi-calendar-event me-1"></i> Date
+      </label>
+      {{ filter_form.date }}
+    </div>
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.status.id_for_label }}">
+        Status
+      </label>
+      {{ filter_form.status }}
+    </div>
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.staff.id_for_label }}">
+        Technician
+      </label>
+      {{ filter_form.staff }}
+    </div>
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.sort.id_for_label }}">
+        <i class="bi bi-arrow-down-up me-1"></i> Sort By
+      </label>
+      {{ filter_form.sort }}
+    </div>
+    <div class="col-lg-1 col-md-12 d-flex gap-2">
+      <button class="btn btn-brand w-100" type="submit" title="Apply filter & sort">
+        <i class="bi bi-funnel-fill"></i>
+      </button>
+      <a class="btn btn-outline-secondary" href="{% url 'bookings:manage' %}" title="Clear all filters">
+        <i class="bi bi-x-circle"></i>
+      </a>
+    </div>
+  </form>
+
+  <!-- Export & Filter Summary row -->
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-3 border-top">
+    <div class="small text-muted">
+      Showing <strong>{{ bookings|length }}</strong> appointment record{{ bookings|length|pluralize }}
+      {% if request.GET.search %}for search "<em>{{ request.GET.search }}</em>"{% endif %}
+    </div>
+    <div>
+      <a class="btn btn-sm btn-outline-success fw-semibold" href="?{{ request.GET.urlencode }}&export=csv">
+        <i class="bi bi-file-earmark-excel me-1"></i> Export to CSV
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="content-card shadow-sm">
+  {% if bookings %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Customer</th>
+            <th>Service(s)</th>
+            <th>Schedule</th>
+            <th>Assigned Staff</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for booking in bookings %}
+            <tr>
+              <td>
+                {% if booking.is_legacy_booking %}
+                  <span class="font-monospace fw-bold">{{ booking.reference }}</span>
+                {% else %}
+                  <a class="font-monospace fw-bold text-decoration-none" href="{% url 'bookings:detail' reference=booking.reference %}">
+                    {{ booking.reference }}
+                  </a>
+                  {% if "[NAIL CONSULTATION" in booking.notes %}
+                    <span class="badge bg-info-subtle text-info border border-info-subtle ms-1" title="Nail Consultation Included" style="font-size: 0.7rem;">
+                      <i class="bi bi-chat-heart"></i> Consult
+                    </span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td>
+                <div class="fw-semibold">{{ booking.customer_name }}</div>
+                {% if booking.customer_phone_snapshot or booking.phone_number %}
+                  <small class="text-muted d-block">{{ booking.customer_phone_snapshot|default:booking.phone_number }}</small>
+                {% endif %}
+              </td>
+              <td>
+                <div class="text-truncate" style="max-width: 200px;">
+                  {{ booking.service_name }}
+                </div>
+              </td>
+              <td>
+                <div>{{ booking.scheduled_for|date:"M d, Y" }}</div>
+                <small class="text-muted">{{ booking.scheduled_for|time:"h:i A" }}</small>
+              </td>
+              <td>
+                {% if booking.assigned_staff %}
+                  <span class="badge bg-light text-dark border">
+                    <i class="bi bi-person me-1"></i>{{ booking.assigned_staff.get_full_name }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small fst-italic">Unassigned</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge rounded-pill px-2.5 py-1
+                  {% if booking.status == 'APPROVED' %}bg-success-subtle text-success border border-success-subtle
+                  {% elif booking.status == 'ONGOING' %}bg-primary-subtle text-primary border border-primary-subtle
+                  {% elif booking.status == 'COMPLETED' %}bg-dark-subtle text-dark border
+                  {% elif booking.status == 'PENDING' %}bg-warning-subtle text-warning border border-warning-subtle
+                  {% elif booking.status == 'CANCELLED' or booking.status == 'REJECTED' %}bg-danger-subtle text-danger border border-danger-subtle
+                  {% else %}bg-secondary-subtle text-secondary{% endif %}">
+                  {{ booking.get_status_display }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="d-inline-flex gap-1">
+                  {% if not booking.is_legacy_booking %}
+                    <a class="btn btn-sm btn-outline-brand" href="{% url 'bookings:detail' reference=booking.reference %}">
+                      View
+                    </a>
+                    {% if user.is_owner or user.is_cashier or user.can_use_pos %}
+                      <a class="btn btn-sm btn-brand" href="{% url 'pos:index' %}?appointment={{ booking.pk }}">
+                        POS
+                      </a>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-search text-muted fs-1 mb-2 d-block"></i>
+      <h5>No matching appointments found</h5>
+      <p class="text-muted small mb-3">Try adjusting your filters, searching for a different name, or clear the search filters.</p>
+      <a class="btn btn-outline-brand btn-sm" href="{% url 'bookings:manage' %}">Clear All Filters</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

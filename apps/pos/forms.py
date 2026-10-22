@@ -119,7 +119,7 @@ class CheckoutForm(forms.Form):
             .order_by("appointment_date", "start_time")
         )
         self.fields["appointment"].label_from_instance = lambda obj: (
-            f"Ref #{obj.booking_reference} - {obj.customer_name_snapshot} ({obj.appointment_date} {obj.start_time.strftime('%I:%M %p')})"
+            f"[{obj.start_time.strftime('%I:%M %p')}] Ref #{obj.booking_reference} - {obj.customer_name_snapshot} ({obj.appointment_date})"
         )
 
     def clean(self):

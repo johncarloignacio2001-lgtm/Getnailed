@@ -48,15 +48,36 @@
 
 <!-- Time Period Filter Form -->
 <div class="content-card mb-4">
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h3 class="h5 mb-0"><i class="bi bi-funnel me-1"></i> Filter Sales by Time Period</h3>
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h3 class="h5 mb-1"><i class="bi bi-clock-history me-1"></i> Point of Sale Time Filter</h3>
+      <span class="small text-muted">Filter transactions by specific business hours, morning/afternoon shifts, or custom time ranges.</span>
+    </div>
     {% if request.GET %}
       <a href="{% url 'pos:history' %}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-x-circle me-1"></i> Reset Filters
       </a>
     {% endif %}
   </div>
-  <form method="get" class="row g-3 align-items-end">
+
+  <!-- Quick Time Filter Presets -->
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded-2" style="background: rgba(139,79,92,0.05); border: 1px dashed var(--border);">
+    <span class="small fw-semibold text-secondary me-1"><i class="bi bi-lightning-charge me-1"></i>Quick Time Slots:</span>
+    <button type="button" class="btn btn-xs btn-outline-brand time-preset-btn" data-start="09:00" data-end="13:00">
+      <i class="bi bi-sun me-1"></i>Morning Shift (09:00 AM – 01:00 PM)
+    </button>
+    <button type="button" class="btn btn-xs btn-outline-brand time-preset-btn" data-start="13:00" data-end="17:00">
+      <i class="bi bi-brightness-high me-1"></i>Afternoon Shift (01:00 PM – 05:00 PM)
+    </button>
+    <button type="button" class="btn btn-xs btn-outline-brand time-preset-btn" data-start="17:00" data-end="21:00">
+      <i class="bi bi-moon-stars me-1"></i>Evening Rush (05:00 PM – 09:00 PM)
+    </button>
+    <button type="button" class="btn btn-xs btn-outline-secondary time-preset-clear">
+      <i class="bi bi-x me-1"></i>Clear Time
+    </button>
+  </div>
+
+  <form method="get" class="row g-3 align-items-end" id="pos-history-filter-form">
     <div class="col-md-3 col-sm-6">
       <label class="form-label" for="{{ filter_form.period.id_for_label }}">{{ filter_form.period.label }}</label>
       {{ filter_form.period }}
@@ -74,11 +95,15 @@
       {{ filter_form.status }}
     </div>
     <div class="col-md-3 col-sm-6">
-      <label class="form-label" for="{{ filter_form.start_time.id_for_label }}">{{ filter_form.start_time.label }}</label>
+      <label class="form-label fw-bold" for="{{ filter_form.start_time.id_for_label }}">
+        <i class="bi bi-clock me-1 text-primary"></i>{{ filter_form.start_time.label }}
+      </label>
       {{ filter_form.start_time }}
     </div>
     <div class="col-md-3 col-sm-6">
-      <label class="form-label" for="{{ filter_form.end_time.id_for_label }}">{{ filter_form.end_time.label }}</label>
+      <label class="form-label fw-bold" for="{{ filter_form.end_time.id_for_label }}">
+        <i class="bi bi-clock me-1 text-primary"></i>{{ filter_form.end_time.label }}
+      </label>
       {{ filter_form.end_time }}
     </div>
     <div class="col-md-4 col-sm-8">
@@ -92,6 +117,35 @@
     </div>
   </form>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.getElementById("pos-history-filter-form");
+  const startTimeInput = document.getElementById("{{ filter_form.start_time.id_for_label }}");
+  const endTimeInput = document.getElementById("{{ filter_form.end_time.id_for_label }}");
+  const periodSelect = document.getElementById("{{ filter_form.period.id_for_label }}");
+
+  document.querySelectorAll(".time-preset-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (startTimeInput) startTimeInput.value = this.dataset.start;
+      if (endTimeInput) endTimeInput.value = this.dataset.end;
+      if (periodSelect && !periodSelect.value) {
+        periodSelect.value = "today";
+      }
+      form.submit();
+    });
+  });
+
+  const clearBtn = document.querySelector(".time-preset-clear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function () {
+      if (startTimeInput) startTimeInput.value = "";
+      if (endTimeInput) endTimeInput.value = "";
+      form.submit();
+    });
+  }
+});
+</script>
 
 <!-- Transactions Table -->
 <div class="content-card">

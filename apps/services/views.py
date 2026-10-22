@@ -10,7 +10,11 @@ from django.views.decorators.http import require_http_methods
 from allauth.account.decorators import reauthentication_required
 
 from apps.accounts.authorization import is_owner
-from apps.accounts.decorators import cashier_or_owner_required, owner_required
+from apps.accounts.decorators import (
+    authenticated_internal_user_required,
+    cashier_or_owner_required,
+    owner_required,
+)
 from apps.accounts.models import User
 
 from .forms import (
@@ -468,7 +472,7 @@ def _get_block_color_class(reason):
         return "block-color-blue"
 
 
-def _layout_day_blocks(day_raw_blocks, grid_start_min, grid_end_min):
+def _layout_day_blocks(day_raw_blocks, grid_start_min, grid_end_min, day_raw_appts=None):
     prepared = []
     for b in day_raw_blocks:
         s_min = b.start_time.hour * 60 + b.start_time.minute
@@ -481,6 +485,7 @@ def _layout_day_blocks(day_raw_blocks, grid_start_min, grid_end_min):
         height_px = max(24, ((eff_e - eff_s) / 60) * ROW_HEIGHT)
         color_class = _get_block_color_class(b.reason)
         prepared.append({
+            "is_appointment": False,
             "obj": b,
             "id": b.pk,
             "staff_id": b.staff_id,
@@ -494,6 +499,47 @@ def _layout_day_blocks(day_raw_blocks, grid_start_min, grid_end_min):
             "top_px": int(top_px),
             "height_px": int(height_px),
             "color_class": color_class,
+            "eff_s": eff_s,
+            "eff_e": eff_e,
+        })
+
+    from django.urls import reverse
+    for appt in (day_raw_appts or []):
+        s_min = appt.start_time.hour * 60 + appt.start_time.minute
+        e_time = appt.end_time or appt.start_time
+        e_min = e_time.hour * 60 + e_time.minute
+        if e_min <= s_min:
+            e_min = s_min + 60
+        eff_s = max(grid_start_min, s_min)
+        eff_e = min(grid_end_min, e_min)
+        if eff_e <= eff_s:
+            continue
+        top_px = ((eff_s - grid_start_min) / 60) * ROW_HEIGHT
+        height_px = max(28, ((eff_e - eff_s) / 60) * ROW_HEIGHT)
+        staff_name = ""
+        if appt.assigned_staff:
+            staff_name = appt.assigned_staff.get_full_name() or appt.assigned_staff.email
+        prepared.append({
+            "is_appointment": True,
+            "obj": appt,
+            "id": appt.pk,
+            "reference": appt.booking_reference,
+            "staff_id": appt.assigned_staff_id,
+            "staff_name": staff_name,
+            "customer_name": appt.customer_name_snapshot,
+            "service_name": appt.service_name,
+            "status": appt.status,
+            "status_display": appt.get_status_display(),
+            "url": reverse("bookings:detail", kwargs={"reference": appt.booking_reference}),
+            "date_iso": appt.appointment_date.isoformat(),
+            "start_time_iso": appt.start_time.strftime("%H:%M"),
+            "end_time_iso": e_time.strftime("%H:%M"),
+            "start_time_display": appt.start_time.strftime("%I:%M %p").lstrip("0"),
+            "end_time_display": e_time.strftime("%I:%M %p").lstrip("0"),
+            "reason": f"Appointment: {appt.customer_name_snapshot}",
+            "top_px": int(top_px),
+            "height_px": int(height_px),
+            "color_class": "block-color-appointment",
             "eff_s": eff_s,
             "eff_e": eff_e,
         })
@@ -579,11 +625,35 @@ def time_block_list(request):
     page_obj = Paginator(blocks_qs, 20).get_page(request.GET.get("page"))
 
     # Grid view data
+    from apps.bookings.models import Appointment
+
     week_blocks_qs = StaffTimeBlock.objects.filter(
         date__range=(week_start, week_end)
     ).select_related("staff").order_by("date", "start_time")
     if selected_staff:
         week_blocks_qs = week_blocks_qs.filter(staff=selected_staff)
+
+    week_appts_qs = (
+        Appointment.objects.filter(
+            appointment_date__range=(week_start, week_end)
+        )
+        .exclude(
+            status__in=(
+                Appointment.Status.UNVERIFIED,
+                Appointment.Status.CANCELLED,
+                Appointment.Status.REJECTED,
+                Appointment.Status.EXPIRED,
+            )
+        )
+        .select_related("assigned_staff", "customer")
+        .prefetch_related("appointment_services")
+        .order_by("appointment_date", "start_time")
+    )
+    if selected_staff:
+        week_appts_qs = week_appts_qs.filter(assigned_staff=selected_staff)
+
+    total_week_blocks = week_blocks_qs.count()
+    total_week_appointments = week_appts_qs.count()
 
     grid_start_min = START_HOUR * 60
     grid_end_min = END_HOUR * 60
@@ -593,7 +663,8 @@ def time_block_list(request):
     for i in range(7):
         current_date = week_start + timedelta(days=i)
         day_raw_blocks = [b for b in week_blocks_qs if b.date == current_date]
-        day_blocks = _layout_day_blocks(day_raw_blocks, grid_start_min, grid_end_min)
+        day_raw_appts = [a for a in week_appts_qs if a.appointment_date == current_date]
+        day_blocks = _layout_day_blocks(day_raw_blocks, grid_start_min, grid_end_min, day_raw_appts=day_raw_appts)
         day_columns.append({
             "date": current_date,
             "date_iso": current_date.isoformat(),
@@ -633,6 +704,8 @@ def time_block_list(request):
             "hours_display": hours_display,
             "row_height": ROW_HEIGHT,
             "total_grid_height": total_grid_height,
+            "total_week_blocks": total_week_blocks,
+            "total_week_appointments": total_week_appointments,
             "add_form": add_form,
             "view_mode": view_mode,
         },
@@ -795,6 +868,47 @@ def time_block_delete(request, pk):
             "title": "Delete staff time block",
             "cancel_url": "services:time_block_list",
         },
+    )
+
+
+@authenticated_internal_user_required
+@require_http_methods(["GET"])
+def walk_in_technicians(request):
+    """
+    Dedicated live monitor for reception/cashier to see available technicians
+    for walk-in clients in real-time.
+    """
+    from django.http import JsonResponse
+    from .availability import get_walk_in_technicians_status
+
+    data = get_walk_in_technicians_status()
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.GET.get("format") == "json":
+        # Safe JSON serializable
+        json_techs = []
+        for t in data["technicians"]:
+            json_techs.append({
+                "staff_id": t["staff_id"],
+                "name": t["name"],
+                "specialty": t["specialty"],
+                "status": t["status"],
+                "status_label": t["status_label"],
+                "is_available": t["is_available"],
+                "free_until": t["free_until"],
+                "details": t["details"],
+                "shift_hours": t["shift_hours"],
+            })
+        return JsonResponse({
+            "available_count": data["available_count"],
+            "busy_count": data["busy_count"],
+            "break_count": data["break_count"],
+            "off_duty_count": data["off_duty_count"],
+            "technicians": json_techs,
+        })
+
+    return render(
+        request,
+        "services/walk_in_technicians.html",
+        data,
     )
 
 

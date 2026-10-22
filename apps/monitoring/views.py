@@ -58,16 +58,46 @@ def _board_context(request):
             | Q(appointment__booking_reference__icontains=query)
         )
     items = list(items.order_by("appointment__start_time", "position", "pk"))
+    now = timezone.now()
     labels = dict(AppointmentService.Status.choices)
+    action_labels = {
+        AppointmentService.Status.APPROVED: "Confirm / Approve",
+        AppointmentService.Status.ONGOING: "Start Service (Ongoing)",
+        AppointmentService.Status.COMPLETED: "Confirm Completed",
+    }
+    column_headers = {
+        AppointmentService.Status.PENDING: "Pending Approval",
+        AppointmentService.Status.APPROVED: "Confirmed / Approved",
+        AppointmentService.Status.ONGOING: "Current Service (Ongoing)",
+        AppointmentService.Status.COMPLETED: "Completed / Confirmed Done",
+    }
+
+    current_ongoing_services = []
     for item in items:
         item.next_statuses = [
-            (status, labels[status])
+            (status, action_labels.get(status, labels[status]))
             for status in allowed_transitions(item, request.user)
         ]
+        if item.status == AppointmentService.Status.ONGOING:
+            if item.started_at:
+                elapsed = max(0, int((now - item.started_at).total_seconds() / 60))
+            else:
+                elapsed = 0
+            dur = item.duration_minutes or 30
+            pct = min(100, max(5, int((elapsed / dur) * 100)))
+            rem = max(0, dur - elapsed)
+            item.elapsed_minutes = elapsed
+            item.progress_percent = pct
+            item.remaining_minutes = rem
+            current_ongoing_services.append(item)
 
     statuses = AppointmentService.Status
     columns = [
-        {"status": status, "label": label, "items": [item for item in items if item.status == status]}
+        {
+            "status": status,
+            "label": column_headers.get(status, label),
+            "items": [item for item in items if item.status == status],
+        }
         for status, label in statuses.choices
     ]
     active_filter = Q(
@@ -105,6 +135,7 @@ def _board_context(request):
         "ongoing_count": sum(
             item.status == AppointmentService.Status.ONGOING for item in items
         ),
+        "current_ongoing_services": current_ongoing_services,
         "can_assign": has_capability(request.user, CAPABILITY_ASSIGN_SERVICES),
         "staff_choices": filter_form.fields["staff"].queryset,
         "poll_query": request.GET.urlencode(),

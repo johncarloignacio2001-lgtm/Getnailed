@@ -1,16 +1,177 @@
 {% extends 'base.html' %}
 {% block title %}{{ appointment.reference }} | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading">
+
+{% block content %}
+<div class="page-heading flex-wrap gap-2 mb-4">
   <div>
-    <div class="eyebrow">APPOINTMENT</div>
-    <h2>{{ appointment.reference }}</h2>
+    <div class="eyebrow">APPOINTMENT DETAILS</div>
+    <h2 class="mb-0 font-monospace">{{ appointment.reference }}</h2>
+    <div class="small text-muted mt-1">
+      Created on {{ appointment.created_at|date:"M d, Y · h:i A" }} · Source: <strong>{{ appointment.get_booking_source_display }}</strong>
+    </div>
   </div>
-  <div class="d-flex align-items-center gap-2">
+  <div class="d-flex align-items-center flex-wrap gap-2">
     {% if not appointment.sale and user.is_owner or not appointment.sale and user.is_cashier or not appointment.sale and user.can_use_pos %}
       <a href="{% url 'pos:index' %}?appointment={{ appointment.pk }}" class="btn btn-brand">
         <i class="bi bi-cart-check me-1"></i> Checkout in POS
       </a>
     {% endif %}
-    <a class="btn btn-outline-brand" href="{% if user.is_service_staff and not user.is_owner %}{% url 'bookings:assigned' %}{% else %}{% url 'bookings:manage' %}{% endif %}">Back to appointments</a>
+    <a class="btn btn-outline-brand" href="{% if user.is_service_staff and not user.is_owner %}{% url 'bookings:assigned' %}{% else %}{% url 'bookings:manage' %}{% endif %}">
+      <i class="bi bi-arrow-left me-1"></i> Back to appointments
+    </a>
   </div>
-</div><div class="row g-4"><div class="col-lg-7"><div class="content-card"><dl class="row mb-0"><dt class="col-sm-4">Customer</dt><dd class="col-sm-8">{{ appointment.customer_name }}</dd><dt class="col-sm-4">Contact</dt><dd class="col-sm-8">{{ appointment.email }}<br>{{ appointment.phone_number }}</dd><dt class="col-sm-4">Services</dt><dd class="col-sm-8">{{ appointment.service_name }}</dd><dt class="col-sm-4">Schedule</dt><dd class="col-sm-8">{{ appointment.scheduled_for }} to {{ appointment.end_time }}</dd><dt class="col-sm-4">Assigned staff</dt><dd class="col-sm-8">{{ appointment.assigned_staff|default:"Unassigned" }}</dd><dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ appointment.get_status_display }}</dd><dt class="col-sm-4">Notes</dt><dd class="col-sm-8">{{ appointment.notes|default:"None" }}</dd></dl></div><div class="content-card mt-4"><h3 class="h5">Status history</h3>{% for item in appointment.status_history.all %}<div class="border-top py-2"><strong>{{ item.get_to_status_display }}</strong> · {{ item.created_at }}{% if item.actor %} by {{ item.actor }}{% endif %}{% if item.note %}<div class="text-muted">{{ item.note }}</div>{% endif %}</div>{% empty %}<p class="mb-0 text-muted">No status changes yet.</p>{% endfor %}</div></div><div class="col-lg-5">{% if schedule_form %}<div class="content-card mb-4"><h3 class="h5">Schedule and assignment</h3><form method="post" novalidate>{% csrf_token %}<input type="hidden" name="action" value="schedule">{{ schedule_form.non_field_errors }}{% for field in schedule_form %}<div class="mb-3"><label class="form-label">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button class="btn btn-brand" type="submit">Save schedule</button></form></div>{% endif %}<div class="content-card"><h3 class="h5">Update status</h3>{% if form.fields.status.choices %}<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="action" value="status">{{ form.non_field_errors }}{% for field in form %}<div class="mb-3"><label class="form-label">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button class="btn btn-brand" type="submit">Update</button></form>{% else %}<p class="mb-0 text-muted">No status updates are available.</p>{% endif %}</div></div></div>{% endblock %}
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: Details, Consultation & History -->
+  <div class="col-lg-7">
+    <!-- Main Appointment Information -->
+    <div class="content-card shadow-sm mb-4">
+      <h5 class="fw-bold mb-3 pb-2 border-bottom"><i class="bi bi-calendar-event me-2 text-muted"></i>Booking Summary</h5>
+      <dl class="row mb-0 small">
+        <dt class="col-sm-4 text-muted">Customer Name:</dt>
+        <dd class="col-sm-8 fw-semibold">{{ appointment.customer_name }}</dd>
+
+        <dt class="col-sm-4 text-muted">Contact Info:</dt>
+        <dd class="col-sm-8">
+          <div><i class="bi bi-envelope me-1"></i>{{ appointment.email }}</div>
+          {% if appointment.phone_number %}<div><i class="bi bi-telephone me-1"></i>{{ appointment.phone_number }}</div>{% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-muted">Selected Services:</dt>
+        <dd class="col-sm-8 fw-semibold text-primary">{{ appointment.service_name }}</dd>
+
+        <dt class="col-sm-4 text-muted">Date &amp; Schedule:</dt>
+        <dd class="col-sm-8">
+          <strong>{{ appointment.appointment_date|date:"l, M d, Y" }}</strong><br>
+          <span class="badge bg-light text-dark border">{{ appointment.start_time|time:"h:i A" }} - {{ appointment.end_time|time:"h:i A" }}</span>
+        </dd>
+
+        <dt class="col-sm-4 text-muted">Assigned Specialist:</dt>
+        <dd class="col-sm-8">
+          {% if appointment.assigned_staff %}
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
+              <i class="bi bi-person-badge me-1"></i>{{ appointment.assigned_staff.get_full_name }}
+              {% if appointment.assigned_staff.staff_profile.specialty %}({{ appointment.assigned_staff.staff_profile.specialty }}){% endif %}
+            </span>
+          {% else %}
+            <span class="text-muted fst-italic">Unassigned</span>
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-muted">Current Status:</dt>
+        <dd class="col-sm-8">
+          <span class="badge rounded-pill px-3 py-1.5
+            {% if appointment.status == 'APPROVED' %}bg-success-subtle text-success border border-success-subtle
+            {% elif appointment.status == 'ONGOING' %}bg-primary-subtle text-primary border border-primary-subtle
+            {% elif appointment.status == 'COMPLETED' %}bg-dark-subtle text-dark border
+            {% elif appointment.status == 'PENDING' %}bg-warning-subtle text-warning border border-warning-subtle
+            {% elif appointment.status == 'CANCELLED' or appointment.status == 'REJECTED' %}bg-danger-subtle text-danger border border-danger-subtle
+            {% else %}bg-secondary-subtle text-secondary{% endif %}">
+            {{ appointment.get_status_display }}
+          </span>
+        </dd>
+      </dl>
+    </div>
+
+    <!-- Nail Consultation & Health Assessment Card -->
+    <div class="content-card shadow-sm mb-4 border-info" style="background: rgba(13, 202, 240, 0.03); border-left: 5px solid #0dcaf0 !important;">
+      <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+        <h5 class="fw-bold mb-0 text-info-emphasis">
+          <i class="bi bi-chat-heart-fill me-2 text-info"></i>Nail Health Consultation &amp; Assessment
+        </h5>
+        {% if "[NAIL CONSULTATION" in appointment.notes %}
+          <span class="badge bg-info-subtle text-info border border-info-subtle">Consultation Requested</span>
+        {% else %}
+          <span class="badge bg-light text-muted border">General Notes</span>
+        {% endif %}
+      </div>
+
+      <div class="small bg-white p-3 rounded-3 border mb-3" style="white-space: pre-line; line-height: 1.6;">
+        {{ appointment.notes|default:"No consultation or special requests recorded." }}
+      </div>
+
+      <!-- Form for technician to record consultation assessment & recommendations -->
+      {% if user.is_owner or user.is_cashier or user.is_service_staff %}
+        <form method="post" class="mt-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="consultation">
+          <label class="form-label small fw-bold text-uppercase text-muted">
+            <i class="bi bi-pencil-square me-1"></i> Add Technician Consultation Assessment &amp; Advice:
+          </label>
+          <textarea name="technician_notes" class="form-control mb-2" rows="2" placeholder="e.g., Client has brittle nails; recommended hydrating cuticles and 15-day break between gel sets. Avoid acetone."></textarea>
+          <button class="btn btn-sm btn-outline-info text-dark fw-semibold" type="submit">
+            <i class="bi bi-save me-1"></i> Save Consultation Assessment
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+    <!-- Status Audit History -->
+    <div class="content-card shadow-sm">
+      <h5 class="fw-bold mb-3 pb-2 border-bottom"><i class="bi bi-clock-history me-2 text-muted"></i>Status Lifecycle History</h5>
+      {% for item in appointment.status_history.all %}
+        <div class="border-top py-2.5 d-flex justify-content-between align-items-start">
+          <div>
+            <strong>{{ item.get_to_status_display }}</strong>
+            {% if item.actor %}<span class="text-muted small">&bull; by {{ item.actor.get_full_name|default:item.actor.email }}</span>{% endif %}
+            {% if item.note %}<div class="text-secondary small mt-1">{{ item.note }}</div>{% endif %}
+          </div>
+          <small class="text-muted text-nowrap">{{ item.created_at|date:"M d, Y h:i A" }}</small>
+        </div>
+      {% empty %}
+        <p class="mb-0 text-muted small">No status changes yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Right Column: Schedule & Status Update Forms -->
+  <div class="col-lg-5">
+    {% if schedule_form %}
+      <div class="content-card shadow-sm mb-4">
+        <h5 class="fw-bold mb-3 pb-2 border-bottom"><i class="bi bi-person-gear me-2 text-muted"></i>Manage Schedule &amp; Technician</h5>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="schedule">
+          {{ schedule_form.non_field_errors }}
+          {% for field in schedule_form %}
+            <div class="mb-3">
+              <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <button class="btn btn-brand w-100" type="submit">
+            <i class="bi bi-check2-circle me-1"></i> Save Schedule
+          </button>
+        </form>
+      </div>
+    {% endif %}
+
+    <div class="content-card shadow-sm">
+      <h5 class="fw-bold mb-3 pb-2 border-bottom"><i class="bi bi-arrow-repeat me-2 text-muted"></i>Update Appointment Status</h5>
+      {% if form.fields.status.choices %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="status">
+          {{ form.non_field_errors }}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <button class="btn btn-brand w-100" type="submit">
+            <i class="bi bi-arrow-right-circle me-1"></i> Update Status
+          </button>
+        </form>
+      {% else %}
+        <div class="alert alert-light border small text-muted mb-0">
+          <i class="bi bi-info-circle me-1"></i> No further status updates available for this appointment.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

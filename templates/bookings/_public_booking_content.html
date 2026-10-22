@@ -1,10 +1,32 @@
-<section class="public-hero min-vh-100 d-flex align-items-center py-5">
-  <div class="container">
-    <div class="content-card mx-auto" style="max-width: 760px;">
-      <div class="eyebrow">PUBLIC BOOKING{% if step %} · STEP {{ step }} OF 4{% endif %}</div>
-      <h1 class="h2">{{ step_title|default:"Book an appointment" }}</h1>
+<section class="public-hero min-vh-100 d-flex align-items-center py-4 py-md-5">
+  <div class="container px-3 px-sm-4">
+    <div class="content-card mx-auto shadow-sm" style="max-width: 780px;">
+
+      <!-- Responsive Wizard Stepper Header -->
+      <div class="wizard-stepper-header mb-3 pb-3 border-bottom">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="eyebrow mb-0">PUBLIC BOOKING{% if step %} · STEP {{ step }} OF 4{% endif %}</div>
+          <span class="badge bg-light text-muted border px-2.5 py-1 small">
+            {% if step == 1 %}1/4: Contact &amp; Consult
+            {% elif step == 2 %}2/4: Services
+            {% elif step == 3 %}3/4: Schedule
+            {% elif step == 4 %}4/4: Review
+            {% else %}Online Booking{% endif %}
+          </span>
+        </div>
+
+        <!-- Progress bar for mobile & desktop -->
+        <div class="progress" style="height: 6px; border-radius: 6px; background-color: rgba(139, 79, 92, 0.12);">
+          <div class="progress-bar" role="progressbar"
+               style="width: {% if step == 1 %}25%{% elif step == 2 %}50%{% elif step == 3 %}75%{% elif step == 4 %}100%{% else %}10%{% endif %}; background-color: var(--deep-rose, #8b4f5c);"
+               aria-valuenow="{{ step|default:'1' }}" aria-valuemin="1" aria-valuemax="4"></div>
+        </div>
+      </div>
+
+      <h1 class="h3 mb-3 fw-bold">{{ step_title|default:"Book an appointment" }}</h1>
+
       {% if step == 3 and total_duration %}
-        <div class="alert alert-light border d-flex align-items-center justify-content-between mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.05); border-color: var(--border)!important;">
+        <div class="alert alert-light border d-flex align-items-center justify-content-between mb-4 p-3 rounded-3 flex-wrap gap-2" style="background: rgba(139,79,92,0.05); border-color: var(--border)!important;">
           <div>
             <div class="fw-bold small text-uppercase" style="color: var(--deep-rose);">
               <i class="bi bi-clock-history me-1"></i> Required Block of Time: {{ total_duration }} mins
@@ -18,32 +40,81 @@
           </span>
         </div>
       {% endif %}
+
       <form method="post" novalidate id="booking-form">
         {% csrf_token %}
+
         {% for field in form %}
-          <div class="mb-3">
-            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% if field.is_hidden or field.name == 'website_url_check' %}
             {{ field }}
-            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-            {% if field.name == 'start_time' and step == 3 %}
-              <div class="form-text">Choose from the available technician slots below or enter a time.</div>
-            {% endif %}
-          </div>
-          {% if field.name == 'start_time' and step == 3 %}
-            <div class="mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border);">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fw-bold small text-uppercase" style="color: var(--deep-rose);"><i class="bi bi-calendar-check me-1"></i> Live Technician Availability ({{ total_duration|default:"30" }}-min block)</span>
-                <span id="slots-status" class="small text-muted"></span>
+          {% elif field.name == 'request_consultation' %}
+            <div class="p-3 mb-3 rounded-3 border" style="background: rgba(139, 79, 92, 0.04); border-color: rgba(139, 79, 92, 0.2) !important;">
+              <div class="form-check d-flex align-items-start gap-2">
+                {{ field }}
+                <label class="form-check-label fw-bold text-dark" for="{{ field.id_for_label }}" style="cursor: pointer;">
+                  <i class="bi bi-chat-heart-fill text-danger me-1"></i> {{ field.label }}
+                </label>
               </div>
-              <div id="slots-container" class="d-flex flex-wrap gap-2 pt-1">
-                <span class="text-muted small">Pick a date above to calculate real-time available technician slots.</span>
+              <div class="small text-muted mt-1 ms-4">
+                Complimentary consultation with a technician to evaluate nail health, cuticle care, sensitivities, or design options.
               </div>
             </div>
+          {% elif field.name == 'nail_condition' or field.name == 'nail_allergies' %}
+            <div class="mb-3 ps-3 border-start border-2 border-danger-subtle">
+              <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">
+                {{ field.label }}
+              </label>
+              {{ field }}
+              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          {% else %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              {% if field.name == 'start_time' and step == 3 %}
+                <div class="form-text">Choose from the available technician slots below or enter a time.</div>
+              {% endif %}
+            </div>
+
+            {% if field.name == 'start_time' and step == 3 %}
+              <div class="mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border);">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                  <span class="fw-bold small text-uppercase" style="color: var(--deep-rose);">
+                    <i class="bi bi-calendar-check me-1"></i> Live Technician Availability ({{ total_duration|default:"30" }}-min block)
+                  </span>
+                  <span id="slots-status" class="small text-muted"></span>
+                </div>
+                <div id="slots-container" class="d-flex flex-wrap gap-2 pt-1">
+                  <span class="text-muted small">Pick a date above to calculate real-time available technician slots.</span>
+                </div>
+              </div>
+            {% endif %}
           {% endif %}
         {% endfor %}
-        <button class="btn btn-brand" type="submit">{{ button_label|default:"Submit booking request" }}</button>
+
+        <!-- Form Submit & Security Notice -->
+        <div class="d-grid gap-2 pt-2">
+          <button class="btn btn-brand btn-lg py-2.5 fw-bold" type="submit">
+            {{ button_label|default:"Submit booking request" }} <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </div>
+
+        <!-- Anti-Spam Security Indicator -->
+        <div class="text-center mt-3 pt-2 text-muted small border-top">
+          <i class="bi bi-shield-check text-success me-1"></i> Protected by Anti-Spam Security &amp; Rate Limiting System
+        </div>
       </form>
-      <div class="d-flex flex-wrap gap-3 mt-4"><a href="{% url 'bookings:verify' %}">Verify a booking</a><a href="{% url 'bookings:status_lookup' %}">Check booking status</a></div>
+
+      <div class="d-flex flex-wrap justify-content-center gap-3 mt-4 pt-3 border-top small">
+        <a href="{% url 'bookings:verify' %}" class="text-decoration-none">
+          <i class="bi bi-key me-1"></i> Verify a booking code
+        </a>
+        <span class="text-muted">&bull;</span>
+        <a href="{% url 'bookings:status_lookup' %}" class="text-decoration-none">
+          <i class="bi bi-search me-1"></i> Check booking status
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -93,6 +164,9 @@ document.addEventListener("DOMContentLoaded", function () {
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "btn btn-sm " + (timeInput.value === slot ? "btn-brand" : "btn-outline-brand") + " slot-btn";
+            btn.style.minWidth = "84px";
+            btn.style.minHeight = "40px";
+            btn.style.margin = "2px";
             btn.textContent = formatTimeDisplay(slot);
             btn.addEventListener("click", function () {
               timeInput.value = slot;
@@ -126,4 +200,3 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 {% endif %}
-

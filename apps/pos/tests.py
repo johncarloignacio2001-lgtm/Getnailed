@@ -530,6 +530,14 @@ class PosTransactionTests(TestCase):
         self.assertIn(sale1, page_sales)
         self.assertNotIn(sale2, page_sales)
 
+        # Filter by specific time range
+        resp_time = self.client.get(
+            reverse("pos:history"),
+            {"period": "today", "start_time": "00:00", "end_time": "23:59"},
+        )
+        self.assertEqual(resp_time.status_code, 200)
+        self.assertIn(sale1, list(resp_time.context["page"]))
+
         # Filter yesterday
         resp = self.client.get(reverse("pos:history"), {"period": "yesterday"})
         self.assertEqual(resp.status_code, 200)

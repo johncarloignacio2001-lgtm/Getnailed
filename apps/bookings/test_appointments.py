@@ -390,3 +390,131 @@ class AppointmentWorkflowTests(TestCase):
         self.assertEqual(asvc.service_name, self.service.name)
         self.assertEqual(asvc.duration_minutes, 45)
 
+    def test_anti_spam_honeypot_rejection(self):
+        from apps.bookings.forms import PublicContactForm
+        # Normal human submission with empty honeypot
+        valid_form = PublicContactForm({
+            "first_name": "Maria",
+            "last_name": "Clara",
+            "email": "maria@example.com",
+            "phone": "09171234567",
+            "website_url_check": "",
+        })
+        self.assertTrue(valid_form.is_valid(), valid_form.errors)
+
+        # Bot submission with honeypot filled
+        bot_form = PublicContactForm({
+            "first_name": "SpamBot",
+            "last_name": "Trapped",
+            "email": "spambot@spam.com",
+            "phone": "09170000000",
+            "website_url_check": "https://spam-link.ru",
+        })
+        self.assertFalse(bot_form.is_valid())
+        self.assertIn("Spam submission detected.", str(bot_form.errors))
+
+    def test_filter_sort_search_and_export_csv(self):
+        from apps.customers.models import Customer
+        customer = Customer.objects.create(
+            first_name="UniqueSearchName",
+            last_name="Customer",
+            email="uniquesearch@example.com",
+            phone="09998887777",
+        )
+        self.client.force_login(self.owner)
+        target_date = timezone.localdate() + timedelta(days=3)
+        appt = Appointment.objects.create(
+            customer=customer,
+            customer_name_snapshot="UniqueSearchName Customer",
+            customer_email_snapshot="uniquesearch@example.com",
+            customer_phone_snapshot="09998887777",
+            appointment_date=target_date,
+            start_time=time(10, 0),
+            end_time=time(10, 45),
+            assigned_staff=self.staff,
+            status=Appointment.Status.APPROVED,
+            booking_source=Appointment.BookingSource.PUBLIC,
+            expires_at=timezone.now() + timedelta(hours=2),
+        )
+
+        # Search matching UniqueSearchName
+        url = reverse("bookings:manage")
+        res = self.client.get(url, {"search": "UniqueSearchName"})
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "UniqueSearchName")
+
+        # Search non-matching term
+        res_empty = self.client.get(url, {"search": "NonExistentXYZABC"})
+        self.assertEqual(res_empty.status_code, 200)
+        self.assertNotContains(res_empty, "UniqueSearchName")
+
+        # Export to CSV
+        csv_res = self.client.get(url, {"search": "UniqueSearchName", "export": "csv"})
+        self.assertEqual(csv_res.status_code, 200)
+        self.assertEqual(csv_res["Content-Type"], "text/csv")
+        self.assertIn("attachment; filename=", csv_res["Content-Disposition"])
+        content = csv_res.content.decode("utf-8")
+        self.assertIn("Reference,Customer Name,Email", content)
+        self.assertIn("UniqueSearchName", content)
+        self.assertIn("uniquesearch@example.com", content)
+
+    def test_walk_in_technician_availability_monitor(self):
+        from apps.services.availability import get_walk_in_technicians_status
+        status_data = get_walk_in_technicians_status()
+        self.assertIn("technicians", status_data)
+        self.assertIn("available_count", status_data)
+        self.assertIsInstance(status_data["technicians"], list)
+
+        # Access view as owner
+        self.client.force_login(self.owner)
+        res = self.client.get(reverse("services:walk_in_technicians"))
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Available Technicians for Walk-In")
+
+    def test_consultation_assessment_recording(self):
+        from apps.customers.models import Customer
+        from apps.bookings.forms import PublicContactForm
+        customer = Customer.objects.create(
+            first_name="Ana",
+            last_name="Santos",
+            email="ana@example.com",
+            phone="09171112222",
+        )
+        form = PublicContactForm({
+            "first_name": "Ana",
+            "last_name": "Santos",
+            "email": "ana@example.com",
+            "phone": "09171112222",
+            "request_consultation": True,
+            "nail_condition": "BRITTLE",
+            "nail_allergies": "Sensitive to harsh acetone",
+            "notes": "Prefers oval shape",
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIn("[NAIL CONSULTATION & HEALTH ASSESSMENT]", form.cleaned_data["notes"])
+        self.assertIn("Brittle / Weak / Damaged", form.cleaned_data["notes"])
+        self.assertIn("Sensitive to harsh acetone", form.cleaned_data["notes"])
+
+        # Create appointment and record technician consultation advice
+        appt = Appointment.objects.create(
+            customer=customer,
+            customer_name_snapshot="Ana Santos",
+            customer_email_snapshot="ana@example.com",
+            appointment_date=timezone.localdate() + timedelta(days=1),
+            start_time=time(11, 0),
+            end_time=time(11, 45),
+            assigned_staff=self.staff,
+            status=Appointment.Status.APPROVED,
+            notes=form.cleaned_data["notes"],
+            expires_at=timezone.now() + timedelta(hours=2),
+        )
+        self.client.force_login(self.staff)
+        detail_url = reverse("bookings:detail", kwargs={"reference": appt.reference})
+        post_res = self.client.post(detail_url, {
+            "action": "consultation",
+            "technician_notes": "Advised client on keratin treatment. Avoid buffing nails thin.",
+        })
+        self.assertEqual(post_res.status_code, 302)
+        appt.refresh_from_db()
+        self.assertIn("Technician Consultation Assessment", appt.notes)
+        self.assertIn("Advised client on keratin treatment", appt.notes)

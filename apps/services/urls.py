@@ -25,4 +25,5 @@ urlpatterns = [
     path("time-blocks/new/", views.time_block_create, name="time_block_create"),
     path("time-blocks/<int:pk>/edit/", views.time_block_update, name="time_block_update"),
     path("time-blocks/<int:pk>/delete/", views.time_block_delete, name="time_block_delete"),
+    path("walk-in-technicians/", views.walk_in_technicians, name="walk_in_technicians"),
 ]

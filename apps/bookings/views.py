@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
@@ -18,6 +19,11 @@ from apps.accounts.decorators import (
 )
 from apps.audittrail.events import record_security_event
 from apps.audittrail.models import SecurityEvent
+from apps.bookings.security import (
+    check_ip_booking_rate_limit,
+    check_email_pending_limit,
+    log_spam_blocked,
+)
 from apps.services.models import Service
 
 from .forms import (
@@ -258,6 +264,25 @@ def review(request):
     )
 
     if request.method == "POST":
+        if not is_internal_admin:
+            is_ip_allowed, _ = check_ip_booking_rate_limit(request, max_attempts=12, window_seconds=600)
+            if not is_ip_allowed:
+                log_spam_blocked(request, "IP rate limit exceeded")
+                messages.error(
+                    request,
+                    "Too many appointment requests detected from your network. Please wait a few minutes before trying again to prevent spam.",
+                )
+                return redirect("bookings:review")
+
+            email = appointment_data.get("email", "").strip().lower()
+            if not check_email_pending_limit(email, max_pending=5):
+                log_spam_blocked(request, "Email pending spam limit exceeded", email=email)
+                messages.error(
+                    request,
+                    "Multiple pending booking requests already exist for this email address. Please check your inbox or wait before creating another.",
+                )
+                return redirect("bookings:review")
+
         try:
             if is_internal_admin:
                 appointment = create_internal_appointment(
@@ -420,12 +445,32 @@ def reschedule(request, reference, token):
 def _filtered_appointments(request, queryset):
     form = AppointmentFilterForm(request.GET or None)
     if form.is_valid():
-        if form.cleaned_data["date"]:
+        search_query = form.cleaned_data.get("search")
+        if search_query:
+            from django.db.models import Q
+            q_term = search_query.strip()
+            queryset = queryset.filter(
+                Q(booking_reference__icontains=q_term)
+                | Q(customer_name_snapshot__icontains=q_term)
+                | Q(customer_email_snapshot__icontains=q_term)
+                | Q(customer_phone_snapshot__icontains=q_term)
+                | Q(notes__icontains=q_term)
+            )
+        if form.cleaned_data.get("date"):
             queryset = queryset.filter(appointment_date=form.cleaned_data["date"])
-        if form.cleaned_data["status"]:
+        if form.cleaned_data.get("status"):
             queryset = queryset.filter(status=form.cleaned_data["status"])
-        if form.cleaned_data["staff"]:
+        if form.cleaned_data.get("staff"):
             queryset = queryset.filter(assigned_staff=form.cleaned_data["staff"])
+        if form.cleaned_data.get("source"):
+            queryset = queryset.filter(booking_source=form.cleaned_data["source"])
+        sort_by = form.cleaned_data.get("sort")
+        if sort_by:
+            queryset = queryset.order_by(sort_by)
+        else:
+            queryset = queryset.order_by("-appointment_date", "-start_time")
+    else:
+        queryset = queryset.order_by("-appointment_date", "-start_time")
     return queryset.select_related("customer", "assigned_staff").prefetch_related(
         "appointment_services"
     ), form
@@ -436,13 +481,76 @@ def manage(request):
     appointments, form = _filtered_appointments(
         request, Appointment.objects.visible_to(request.user)
     )
+
+    # Export to CSV feature (Filter, sort, export and search)
+    if request.GET.get("export") == "csv":
+        import csv
+        from django.http import HttpResponse
+
+        today_str = timezone.localdate().strftime("%Y-%m-%d")
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="appointments_export_{today_str}.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            "Reference",
+            "Customer Name",
+            "Email",
+            "Phone",
+            "Appointment Date",
+            "Start Time",
+            "End Time",
+            "Assigned Staff",
+            "Booking Source",
+            "Status",
+            "Services",
+            "Total Price (PHP)",
+            "Notes / Consultation",
+        ])
+
+        for appt in appointments:
+            service_names = ", ".join(
+                item.service_name_snapshot for item in appt.appointment_services.all()
+            )
+            total_price = sum(item.price_snapshot for item in appt.appointment_services.all())
+            staff_name = (
+                appt.assigned_staff.get_full_name() if appt.assigned_staff else "Unassigned"
+            )
+            clean_notes = appt.notes.replace("\n", " | ").replace("\r", "") if appt.notes else ""
+            writer.writerow([
+                appt.reference,
+                appt.customer_name,
+                appt.customer_email_snapshot,
+                appt.customer_phone_snapshot,
+                str(appt.appointment_date),
+                str(appt.start_time),
+                str(appt.end_time or ""),
+                staff_name,
+                appt.get_booking_source_display(),
+                appt.get_status_display(),
+                service_names,
+                f"{total_price:.2f}",
+                clean_notes,
+            ])
+        return response
+
     legacy_bookings = Booking.objects.visible_to(request.user)
     if form.is_valid():
-        if form.cleaned_data["date"]:
+        search_query = form.cleaned_data.get("search")
+        if search_query:
+            from django.db.models import Q
+            q_term = search_query.strip()
+            legacy_bookings = legacy_bookings.filter(
+                Q(reference__icontains=q_term)
+                | Q(customer_name__icontains=q_term)
+                | Q(email__icontains=q_term)
+                | Q(phone_number__icontains=q_term)
+            )
+        if form.cleaned_data.get("date"):
             legacy_bookings = legacy_bookings.filter(
                 scheduled_for__date=form.cleaned_data["date"]
             )
-        if form.cleaned_data["staff"]:
+        if form.cleaned_data.get("staff"):
             legacy_bookings = legacy_bookings.filter(
                 assigned_staff=form.cleaned_data["staff"]
             )
@@ -514,6 +622,18 @@ def detail(request, reference):
         else:
             messages.success(request, "Appointment status updated.")
             return redirect("bookings:detail", reference=reference)
+
+    if request.method == "POST" and request.POST.get("action") == "consultation":
+        tech_notes = request.POST.get("technician_notes", "").strip()
+        if tech_notes:
+            stamp = timezone.localtime().strftime("%b %d, %Y %I:%M %p")
+            staff_name = request.user.get_full_name() or request.user.email
+            addition = f"\n[Technician Consultation Assessment ({stamp} by {staff_name})]:\n{tech_notes}"
+            appointment.notes = (appointment.notes + addition).strip()
+            appointment.save(update_fields=["notes", "updated_at"])
+            messages.success(request, "Technician consultation assessment recorded successfully.")
+            return redirect("bookings:detail", reference=reference)
+
     if schedule_data is not None and schedule_form.is_valid():
         try:
             update_appointment_schedule(

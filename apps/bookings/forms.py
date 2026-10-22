@@ -48,6 +48,13 @@ class PublicBookingForm(forms.ModelForm):
         return scheduled_for
 
 
+from apps.bookings.security import (
+    generate_anti_spam_timestamp,
+    validate_submission_speed,
+    log_spam_blocked,
+)
+
+
 class PublicContactForm(forms.Form):
     customer = forms.ModelChoiceField(
         queryset=Customer.objects.none(),
@@ -66,6 +73,49 @@ class PublicContactForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={**FORM_CONTROL, "autocomplete": "tel"}),
     )
+    # Anti-Spam Security Features
+    website_url_check = forms.CharField(
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "tabindex": "-1",
+                "autocomplete": "off",
+                "style": "display:none!important;position:absolute;left:-9999px;opacity:0;",
+                "aria-hidden": "true",
+            }
+        ),
+    )
+    form_load_token = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+    # Consultation Feature
+    request_consultation = forms.BooleanField(
+        required=False,
+        label="Request Nail & Health Consultation (Complimentary with service)",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    nail_condition = forms.ChoiceField(
+        required=False,
+        label="Nail Condition",
+        choices=[
+            ("", "Select nail condition (Optional)"),
+            ("NATURAL", "Natural Nails (Healthy)"),
+            ("BRITTLE", "Brittle / Weak / Damaged"),
+            ("ACRYLIC_EXISTING", "Existing Acrylic / Gel Overlay"),
+            ("INGROWN", "Ingrown Prone / Sensitive Cuticles"),
+            ("OTHER", "Other Special Concern"),
+        ],
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
+    nail_allergies = forms.CharField(
+        required=False,
+        max_length=200,
+        label="Known Allergies / Skin Sensitivities",
+        widget=forms.TextInput(
+            attrs={**FORM_CONTROL, "placeholder": "e.g., Gel polish, latex, acetone, or none"}
+        ),
+    )
     notes = forms.CharField(
         required=False,
         max_length=2000,
@@ -81,12 +131,31 @@ class PublicContactForm(forms.Form):
         else:
             del self.fields["customer"]
 
+        # Stamp anti-spam token if not bound or empty
+        if not self.is_bound and "form_load_token" in self.fields:
+            self.fields["form_load_token"].initial = generate_anti_spam_timestamp()
+
     def clean_email(self):
         email = self.cleaned_data.get("email", "")
         return email.strip().lower() if email else ""
 
     def clean(self):
         cleaned_data = super().clean()
+
+        # 1. Anti-spam honeypot detection
+        honeypot_val = cleaned_data.get("website_url_check")
+        if honeypot_val:
+            log_spam_blocked(None, "Honeypot field triggered")
+            raise forms.ValidationError("Spam submission detected.")
+
+        # 2. Anti-spam submission speed check
+        token = cleaned_data.get("form_load_token")
+        if token and not validate_submission_speed(token, min_seconds=1.5):
+            log_spam_blocked(None, "Submission speed too rapid (< 1.5s)")
+            raise forms.ValidationError(
+                "Submission was processed too quickly. Please take a moment to review before submitting."
+            )
+
         cust = cleaned_data.get("customer")
         if cust:
             if not cleaned_data.get("first_name"):
@@ -97,6 +166,26 @@ class PublicContactForm(forms.Form):
                 cleaned_data["email"] = cust.email or ""
             if not cleaned_data.get("phone"):
                 cleaned_data["phone"] = cust.phone or ""
+
+        # 3. Format structured Consultation data into notes
+        req_consult = cleaned_data.get("request_consultation")
+        condition = cleaned_data.get("nail_condition")
+        allergies = cleaned_data.get("nail_allergies")
+        custom_notes = cleaned_data.get("notes", "").strip()
+
+        if req_consult or condition or allergies:
+            consult_lines = ["[NAIL CONSULTATION & HEALTH ASSESSMENT]"]
+            if req_consult:
+                consult_lines.append("• Client requested complimentary Nail Consultation.")
+            if condition:
+                dict_cond = dict(self.fields["nail_condition"].choices)
+                consult_lines.append(f"• Nail Condition: {dict_cond.get(condition, condition)}")
+            if allergies:
+                consult_lines.append(f"• Sensitivities/Allergies: {allergies.strip()}")
+            if custom_notes:
+                consult_lines.append(f"• Client Remarks: {custom_notes}")
+            cleaned_data["notes"] = "\n".join(consult_lines)
+
         return cleaned_data
 
 
@@ -170,6 +259,16 @@ class PublicScheduleForm(forms.Form):
 
 
 class AppointmentFilterForm(forms.Form):
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                **FORM_CONTROL,
+                "placeholder": "Search reference, customer, email, phone...",
+                "class": "form-control",
+            }
+        ),
+    )
     date = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={**FORM_CONTROL, "type": "date"}),
@@ -177,13 +276,31 @@ class AppointmentFilterForm(forms.Form):
     status = forms.ChoiceField(
         required=False,
         choices=(("", "All statuses"), *Appointment.Status.choices),
-        widget=forms.Select(attrs=FORM_CONTROL),
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
     )
     staff = forms.ModelChoiceField(
         required=False,
         queryset=User.objects.filter(role=User.Role.STAFF),
         empty_label="All staff",
-        widget=forms.Select(attrs=FORM_CONTROL),
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
+    source = forms.ChoiceField(
+        required=False,
+        choices=(("", "All sources"), *Appointment.BookingSource.choices),
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
+    sort = forms.ChoiceField(
+        required=False,
+        choices=(
+            ("-appointment_date", "Date: Newest first"),
+            ("appointment_date", "Date: Oldest first"),
+            ("start_time", "Time: Earliest first"),
+            ("-start_time", "Time: Latest first"),
+            ("customer_name_snapshot", "Customer Name: A - Z"),
+            ("-customer_name_snapshot", "Customer Name: Z - A"),
+            ("status", "Status: A - Z"),
+        ),
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
     )
 
 

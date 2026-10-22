@@ -75,7 +75,7 @@
 
   <!-- Color Legend Matching Categories -->
   <div class="tb-legend" id="tbLegendSection" {% if view_mode == 'table' %}style="display:none;"{% endif %}>
-    <span class="small fw-bold text-muted me-1">Categories:</span>
+    <span class="small fw-bold text-muted me-1">Legend:</span>
     <div class="tb-legend-item">
       <span class="tb-legend-dot" style="background: #c5e038;"></span>
       <span>Lunch</span>
@@ -88,7 +88,19 @@
       <span class="tb-legend-dot" style="background: #d9536e;"></span>
       <span>Leave</span>
     </div>
-    <span class="ms-auto small text-muted"><i class="bi bi-info-circle me-1"></i>Click any hour slot to add &bull; Click a block to edit</span>
+    <div class="tb-legend-item">
+      <span class="tb-legend-dot" style="background: linear-gradient(135deg, #6a1b9a, #8e24aa);"></span>
+      <span class="fw-semibold text-dark"><i class="bi bi-calendar-event me-1"></i>Customer Appointments</span>
+    </div>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <span class="badge bg-secondary-subtle text-secondary border small">
+        <i class="bi bi-person-workspace me-1"></i>{{ total_week_blocks|default:0 }} Time Blocks
+      </span>
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">
+        <i class="bi bi-calendar-check me-1"></i>{{ total_week_appointments|default:0 }} Appointments
+      </span>
+      <span class="small text-muted d-none d-md-inline">&bull; Click an appointment to view details</span>
+    </div>
   </div>
 
   <!-- Visual Grid View (Matches User Image) -->
@@ -166,33 +178,55 @@
             </div>
           {% endfor %}
 
-          <!-- Rendered Time Block Pills (Side-by-side positioning for concurrent blocks) -->
+          <!-- Rendered Time Block and Appointment Pills (Time Block -> Technician -> Appointment) -->
           {% for block in col.blocks %}
-            <div class="time-block-pill {{ block.color_class }} {% if block.height_px < 38 %}tb-pill-compact{% endif %}"
-                 style="top: {{ block.top_px }}px; height: {{ block.height_px }}px; left: calc({{ block.left_pct }}% + 2px); width: calc({{ block.width_pct }}% - 4px); right: auto;"
-                 data-block-id="{{ block.id }}"
-                 data-staff-id="{{ block.staff_id }}"
-                 data-staff-name="{{ block.staff_name }}"
-                 data-date="{{ block.date_iso }}"
-                 data-start="{{ block.start_time_iso }}"
-                 data-end="{{ block.end_time_iso }}"
-                 data-reason="{{ block.reason }}"
-                 onclick="openEditModalFromBlock(this)"
-                 title="{{ block.reason|title }} ({{ block.start_time_display }} - {{ block.end_time_display }}) - {{ block.staff_name }}">
-              {% if block.height_px < 38 %}
-                <span class="tb-pill-compact-text text-truncate">
-                  <strong>{{ block.start_time_display }}</strong> {{ block.reason }}
-                </span>
-              {% else %}
-                <span class="tb-pill-title text-truncate">{{ block.reason }}</span>
-                {% if block.height_px >= 46 %}
+            {% if block.is_appointment %}
+              <div class="time-block-pill {{ block.color_class }} {% if block.height_px < 38 %}tb-pill-compact{% endif %}"
+                   style="top: {{ block.top_px }}px; height: {{ block.height_px }}px; left: calc({{ block.left_pct }}% + 2px); width: calc({{ block.width_pct }}% - 4px); right: auto;"
+                   onclick="window.location.href='{{ block.url }}';"
+                   title="Appointment #{{ block.reference }} - {{ block.customer_name }} ({{ block.start_time_display }} - {{ block.end_time_display }}) - Technician: {{ block.staff_name }}">
+                {% if block.height_px < 38 %}
+                  <span class="tb-pill-compact-text text-truncate">
+                    <strong><i class="bi bi-calendar-event me-1"></i>{{ block.start_time_display }}</strong> {{ block.customer_name }}
+                  </span>
+                {% else %}
+                  <span class="tb-pill-title text-truncate"><i class="bi bi-calendar-event me-1"></i>{{ block.customer_name }}</span>
                   <span class="tb-pill-time">{{ block.start_time_display }} - {{ block.end_time_display }}</span>
+                  {% if block.height_px >= 50 %}
+                    <span class="small text-truncate" style="opacity: 0.9; font-size: 0.72rem;">{{ block.service_name }}</span>
+                  {% endif %}
+                  {% if not selected_staff and block.height_px >= 64 %}
+                    <span class="tb-pill-staff text-truncate"><i class="bi bi-person me-1"></i>{{ block.staff_name }}</span>
+                  {% endif %}
                 {% endif %}
-                {% if not selected_staff and block.height_px >= 64 %}
-                  <span class="tb-pill-staff text-truncate">{{ block.staff_name }}</span>
+              </div>
+            {% else %}
+              <div class="time-block-pill {{ block.color_class }} {% if block.height_px < 38 %}tb-pill-compact{% endif %}"
+                   style="top: {{ block.top_px }}px; height: {{ block.height_px }}px; left: calc({{ block.left_pct }}% + 2px); width: calc({{ block.width_pct }}% - 4px); right: auto;"
+                   data-block-id="{{ block.id }}"
+                   data-staff-id="{{ block.staff_id }}"
+                   data-staff-name="{{ block.staff_name }}"
+                   data-date="{{ block.date_iso }}"
+                   data-start="{{ block.start_time_iso }}"
+                   data-end="{{ block.end_time_iso }}"
+                   data-reason="{{ block.reason }}"
+                   onclick="openEditModalFromBlock(this)"
+                   title="{{ block.reason|title }} ({{ block.start_time_display }} - {{ block.end_time_display }}) - {{ block.staff_name }}">
+                {% if block.height_px < 38 %}
+                  <span class="tb-pill-compact-text text-truncate">
+                    <strong>{{ block.start_time_display }}</strong> {{ block.reason }}
+                  </span>
+                {% else %}
+                  <span class="tb-pill-title text-truncate">{{ block.reason }}</span>
+                  {% if block.height_px >= 46 %}
+                    <span class="tb-pill-time">{{ block.start_time_display }} - {{ block.end_time_display }}</span>
+                  {% endif %}
+                  {% if not selected_staff and block.height_px >= 64 %}
+                    <span class="tb-pill-staff text-truncate">{{ block.staff_name }}</span>
+                  {% endif %}
                 {% endif %}
-              {% endif %}
-            </div>
+              </div>
+            {% endif %}
           {% endfor %}
         </div>
       {% endfor %}

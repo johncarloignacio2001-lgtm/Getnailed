@@ -43,6 +43,7 @@ class SecurityEvent(models.Model):
         BOOKING_VERIFIED = 'BOOKING_VERIFIED', 'Booking verified'
         SERVICE_STATUS_CHANGED = 'SERVICE_STATUS_CHANGED', 'Service status changed'
         SERVICE_ASSIGNED = 'SERVICE_ASSIGNED', 'Service staff assignment changed'
+        SPAM_ATTEMPT_BLOCKED = 'SPAM_ATTEMPT_BLOCKED', 'Spam booking attempt blocked'
 
     class Result(models.TextChoices):
         SUCCESS = 'SUCCESS', 'Success'
