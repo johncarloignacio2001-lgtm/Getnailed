@@ -1,3 +1,171 @@
 {% extends 'base.html' %}
-{% block title %}Cashier Dashboard | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading service-heading"><div><div class="eyebrow">CASHIER WORKSPACE · {{ today }}</div><h2>Today's POS and bookings</h2></div><a class="btn btn-brand" href="{% url 'pos:index' %}">New sale</a></div><div class="dashboard-kpis"><div class="stat-card"><span>My net sales</span><strong>₱{{ pos_totals.net|floatformat:2 }}</strong><small>{{ pos_totals.transactions }} completed transactions</small></div><div class="stat-card"><span>Gross sales</span><strong>₱{{ pos_totals.gross|floatformat:2 }}</strong><small>Before ₱{{ pos_totals.discounts|floatformat:2 }} discounts</small></div><div class="stat-card"><span>Today's bookings</span><strong>{{ bookings_count }}</strong><small>{{ pending_bookings }} pending approval</small></div></div><div class="row g-4 mt-1"><div class="col-xl-7"><section class="content-card"><div class="d-flex justify-content-between"><h3 class="h5">Appointments</h3><a href="{% url 'bookings:manage' %}">Manage</a></div><div class="table-responsive"><table class="table"><thead><tr><th>Time</th><th>Customer</th><th>Status</th><th>Staff</th></tr></thead><tbody>{% for appointment in appointments %}<tr><td>{{ appointment.start_time }}</td><td>{{ appointment.customer_name }}</td><td>{{ appointment.get_status_display }}</td><td>{{ appointment.assigned_staff|default:"Unassigned" }}</td></tr>{% empty %}<tr><td colspan="4">No bookings today.</td></tr>{% endfor %}</tbody></table></div></section></div><div class="col-xl-5"><section class="content-card"><div class="d-flex justify-content-between"><h3 class="h5">My transactions</h3><a href="{% url 'reports:daily_summary' %}">Summary</a></div>{% for sale in recent_transactions %}<div class="transaction-row"><a href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}">{{ sale.receipt_number }}</a><span>₱{{ sale.total|floatformat:2 }}</span></div>{% empty %}<p class="text-muted">No completed transactions today.</p>{% endfor %}</section></div></div>{% endblock %}
+{% load humanize static %}
+{% block title %}Cashier Home | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading flex-wrap gap-3 mb-4">
+  <div>
+    <div class="eyebrow">CASHIER WORKSPACE &bull; {{ today }}</div>
+    <h2 class="mb-1">Today's POS &amp; checkouts</h2>
+    <p class="text-muted mb-0">Process customer payments, track till cash, and manage daily register totals.</p>
+  </div>
+  <div class="d-flex align-items-center flex-wrap gap-2">
+    <a class="btn btn-outline-dark rounded-pill px-3 py-2 fw-semibold" href="{% url 'services:walk_in_technicians' %}">
+      <i class="bi bi-person-badge me-1"></i> Available Technicians
+    </a>
+    <a class="btn btn-outline-dark rounded-pill px-3 py-2 fw-semibold" href="{% url 'services:schedule_list' %}">
+      <i class="bi bi-calendar3-range me-1"></i> Staff Schedules
+    </a>
+    <a class="btn btn-outline-dark rounded-pill px-3 py-2 fw-semibold shadow-sm" href="{% url 'pos:shift_dashboard' %}">
+      <i class="bi bi-cash-stack me-1"></i> Till &amp; Shift
+    </a>
+    <a class="btn btn-brand rounded-pill px-4 py-2 fw-semibold shadow-sm" href="{% url 'pos:index' %}">
+      <i class="bi bi-cart3 me-1"></i> Open POS Register
+    </a>
+  </div>
+</div>
+
+<!-- Key Register Metrics -->
+<div class="dashboard-kpis mb-4">
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Today's Net Sales</span>
+      <i class="bi bi-cash-coin text-success fs-4"></i>
+    </div>
+    <strong class="fs-2 text-success">₱{{ pos_totals.net|floatformat:2 }}</strong>
+    <small class="text-muted">{{ pos_totals.transactions }} completed transaction{{ pos_totals.transactions|pluralize }}</small>
+  </div>
+
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Gross Collections</span>
+      <i class="bi bi-wallet2 text-primary fs-4"></i>
+    </div>
+    <strong class="fs-2">₱{{ pos_totals.gross|floatformat:2 }}</strong>
+    <small class="text-muted">Discounts: ₱{{ pos_totals.discounts|floatformat:2 }}</small>
+  </div>
+
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Today's Bookings</span>
+      <i class="bi bi-calendar-check text-warning fs-4"></i>
+    </div>
+    <strong class="fs-2">{{ bookings_count }}</strong>
+    <small class="text-muted">{{ pending_bookings }} pending confirmation</small>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Today's Customer Appointments (Left / 7 cols) -->
+  <div class="col-xl-7">
+    <section class="content-card shadow-sm p-4 rounded-4">
+      <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <div>
+          <h3 class="h5 mb-0 fw-bold">Today's Appointments</h3>
+          <small class="text-muted">Scheduled client arrivals and checkout queue</small>
+        </div>
+        <a href="{% url 'bookings:manage' %}" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+          Manage &rarr;
+        </a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr style="font-size: 0.84rem;">
+              <th>Time</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Assigned Staff</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for appointment in appointments %}
+              <tr>
+                <td class="fw-semibold">
+                  <span class="badge bg-light text-dark border px-2.5 py-1.5">{{ appointment.start_time|time:"g:i A" }}</span>
+                </td>
+                <td>
+                  <div class="fw-bold text-dark">{{ appointment.customer_name }}</div>
+                  {% if appointment.customer_phone %}
+                    <small class="text-muted">{{ appointment.customer_phone }}</small>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if appointment.status == 'CONFIRMED' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill">Confirmed</span>
+                  {% elif appointment.status == 'COMPLETED' %}
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1 rounded-pill">Completed</span>
+                  {% elif appointment.status == 'PENDING' %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1 rounded-pill">Pending</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark border px-2.5 py-1 rounded-pill">{{ appointment.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="small text-muted">{{ appointment.assigned_staff|default:"Unassigned" }}</span>
+                </td>
+                <td class="text-end">
+                  <a href="{% url 'pos:index' %}?appointment={{ appointment.pk }}" class="btn btn-sm btn-brand rounded-pill px-3 py-1" title="Checkout this appointment">
+                    Checkout
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">
+                  <i class="bi bi-calendar2-x fs-3 opacity-50 mb-2 d-block"></i>
+                  <span class="small">No appointments scheduled for today.</span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Recent Transactions (Right / 5 cols) -->
+  <div class="col-xl-5">
+    <section class="content-card shadow-sm p-4 rounded-4">
+      <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <div>
+          <h3 class="h5 mb-0 fw-bold">Recent Completed Sales</h3>
+          <small class="text-muted">Processed register receipts today</small>
+        </div>
+        <a href="{% url 'reports:daily_summary' %}" class="small text-decoration-none fw-semibold" style="color: var(--deep-rose, #8b4f5c);">
+          Full Summary &rarr;
+        </a>
+      </div>
+
+      <div class="d-flex flex-column gap-2.5">
+        {% for sale in recent_transactions %}
+          <div class="p-3 rounded-3 border d-flex justify-content-between align-items-center" style="background: #ffffff; border-color: #ebd6de !important;">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="rounded-circle p-2 text-white" style="background: var(--deep-rose, #8b4f5c); width: 34px; height: 34px; display: grid; place-items: center;">
+                <i class="bi bi-receipt"></i>
+              </div>
+              <div>
+                <a href="{% url 'pos:receipt' receipt_number=sale.receipt_number %}" class="fw-bold text-dark text-decoration-none small d-block">
+                  #{{ sale.receipt_number }}
+                </a>
+                <small class="text-muted" style="font-size: 0.76rem;">{{ sale.completed_at|date:"M j, g:i A" }}</small>
+              </div>
+            </div>
+            <div class="text-end">
+              <strong class="fs-6 fw-bold" style="color: var(--deep-rose, #8b4f5c);">₱{{ sale.total|floatformat:2 }}</strong>
+              <small class="d-block text-muted" style="font-size: 0.72rem;">{{ sale.get_payment_method_display }}</small>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-receipt-cutoff fs-3 opacity-50 mb-2 d-block"></i>
+            <span class="small">No completed transactions today yet.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

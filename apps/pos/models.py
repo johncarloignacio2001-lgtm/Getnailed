@@ -255,6 +255,11 @@ class Sale(models.Model):
         related_name="sales",
     )
     customer_name_snapshot = models.CharField(max_length=201, default="Walk-in customer")
+    walk_in_referral_number = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text="Referral / walk-in tracking number for walk-in customers.",
+    )
     appointment = models.OneToOneField(
         "bookings.Appointment",
         blank=True,

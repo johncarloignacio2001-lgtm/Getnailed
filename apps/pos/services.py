@@ -177,6 +177,7 @@ def create_sale(
     payment_reference="",
     customer=None,
     appointment=None,
+    walk_in_referral_number="",
     discount_type=Sale.DiscountType.NONE,
     discount_value=ZERO,
     discount_id_number="",
@@ -230,11 +231,21 @@ def create_sale(
             ).first()
 
         receipt_number = _next_receipt_number()
+        walk_in_ref = (walk_in_referral_number or "").strip()
+        if not customer and not locked_appointment and not walk_in_ref:
+            import secrets
+            walk_in_ref = f"WLK-{timezone.localdate():%Y%m%d}-{secrets.randbelow(9000) + 1000}"
+
         sale = Sale.objects.create(
             receipt_number=receipt_number,
             shift=shift,
             customer=customer,
-            customer_name_snapshot=customer.full_name if customer else "Walk-in customer",
+            customer_name_snapshot=(
+                customer.full_name
+                if customer
+                else (f"Walk-in customer ({walk_in_ref})" if walk_in_ref else "Walk-in customer")
+            ),
+            walk_in_referral_number=walk_in_ref,
             appointment=locked_appointment,
             subtotal=subtotal,
             discount_type=discount_type,

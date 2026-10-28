@@ -518,3 +518,107 @@ class AppointmentWorkflowTests(TestCase):
         appt.refresh_from_db()
         self.assertIn("Technician Consultation Assessment", appt.notes)
         self.assertIn("Advised client on keratin treatment", appt.notes)
+
+    def test_branch_selection_and_approval_promo_code_notification(self):
+        appt = self.create_appointment(branch=Appointment.Branch.RETIRO_QC)
+        self.assertEqual(appt.branch, Appointment.Branch.RETIRO_QC)
+        appt.status = Appointment.Status.PENDING
+        appt.save(update_fields=("status",))
+
+        transition_appointment(appt, Appointment.Status.APPROVED, self.owner, note="Approved by owner")
+        appt.refresh_from_db()
+        self.assertEqual(appt.status, Appointment.Status.APPROVED)
+        self.assertTrue(bool(appt.promo_code_issued))
+        self.assertIn(appt.promo_code_issued, mail.outbox[-1].body)
+
+    def test_friday_to_sunday_peak_policy_for_services_300_and_below(self):
+        low_service = Service.objects.create(
+            category=self.category,
+            name="Basic Nail Trim",
+            duration_minutes=30,
+            price="250.00",
+        )
+        # Find next Friday (weekday == 4)
+        today = timezone.localdate()
+        days_until_friday = (4 - today.weekday()) % 7 or 7
+        friday = today + timedelta(days=days_until_friday)
+
+        # Allowed when no bookings exist on that Friday yet
+        first = create_public_appointment(
+            self.appointment_data(email="first_fri@example.com", start_time=time(10, 0)) | {"appointment_date": friday},
+            [low_service],
+            self.request,
+        )
+        self.assertEqual(first.appointment_date, friday)
+
+        # Rejected online when an active booking already exists on that Friday and service <= 300
+        with self.assertRaisesMessage(ValidationError, "Friday–Sunday Peak Policy"):
+            create_public_appointment(
+                self.appointment_data(email="second_fri@example.com", start_time=time(14, 0)) | {"appointment_date": friday},
+                [low_service],
+                self.request,
+            )
+
+    def test_mandatory_reason_on_status_cancellation_or_no_show(self):
+        from .forms import AppointmentStatusForm
+
+        appt = self.create_appointment()
+        appt.status = Appointment.Status.APPROVED
+        appt.save(update_fields=("status",))
+
+        invalid_form = AppointmentStatusForm(
+            {"status": Appointment.Status.NO_SHOW, "note": ""},
+            appointment=appt,
+            actor=self.owner,
+        )
+        self.assertFalse(invalid_form.is_valid())
+        self.assertIn("note", invalid_form.errors)
+
+        valid_form = AppointmentStatusForm(
+            {"status": Appointment.Status.NO_SHOW, "note": "Client did not arrive within 15 minutes."},
+            appointment=appt,
+            actor=self.owner,
+        )
+        self.assertTrue(valid_form.is_valid())
+
+    def test_grace_period_auto_releases_slot_and_technician(self):
+        from datetime import datetime
+        from .services import process_booking_reminders_and_grace_period
+
+        today = timezone.localdate()
+        appt = self.create_appointment(
+            appointment_date=today,
+            start_time=time(10, 0),
+        )
+        appt.status = Appointment.Status.APPROVED
+        appt.save(update_fields=("status",))
+
+        simulated_now = timezone.make_aware(
+            datetime.combine(today, time(10, 20)),
+            timezone.get_current_timezone(),
+        )
+        summary = process_booking_reminders_and_grace_period(now=simulated_now)
+        self.assertEqual(summary["grace_period_released"], 1)
+        appt.refresh_from_db()
+        self.assertEqual(appt.status, Appointment.Status.NO_SHOW)
+
+    def test_walk_in_referral_number_in_pos_and_messaging_chatbot(self):
+        from apps.pos.services import create_sale
+        from apps.pos.models import Payment
+
+        sale = create_sale(
+            cashier=self.owner,
+            raw_items=[{"service": self.service, "assigned_staff": self.staff, "quantity": 1}],
+            payment_method=Payment.Method.CASH,
+            amount_tendered=Decimal("1000.00"),
+        )
+        self.assertTrue(sale.walk_in_referral_number.startswith("WLK-"))
+
+        chat_res = self.client.post(
+            reverse("notifications:chatbot_api"),
+            data='{"message": "What are your branches and Friday policy?"}',
+            content_type="application/json",
+        )
+        self.assertEqual(chat_res.status_code, 200)
+        self.assertIn("Plaridel Branch", chat_res.json()["reply"])
+        self.assertIn("Retiro QC Branch", chat_res.json()["reply"])

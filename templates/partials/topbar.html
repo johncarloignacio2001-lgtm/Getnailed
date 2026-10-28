@@ -3,7 +3,7 @@
     <button class="btn btn-outline-dark btn-sm d-lg-none" type="button" id="sidebar-toggle" aria-label="Toggle navigation">
       <i class="bi bi-list fs-5"></i>
     </button>
-    <button class="btn btn-outline-dark btn-sm d-none d-lg-inline-flex" type="button" id="sidebar-collapse-toggle" aria-controls="admin-sidebar" aria-expanded="true" aria-label="Minimize side navigation" title="Minimize side navigation">
+    <button class="btn btn-outline-dark btn-sm d-none d-lg-inline-flex" type="button" id="sidebar-collapse-toggle" aria-controls="admin-sidebar" aria-expanded="true" aria-label="Toggle side navigation" title="Toggle side navigation">
       <i class="bi bi-list fs-5"></i>
     </button>
     <div>
@@ -11,12 +11,59 @@
       <small class="text-muted">{{ user.get_role_display }}</small>
     </div>
   </div>
-  <div class="d-flex flex-wrap gap-2">
-    <a class="btn btn-outline-dark btn-sm" href="{% url 'accounts:password_change' %}">Change password</a>
-    <a class="btn btn-outline-dark btn-sm d-none d-sm-inline-block" href="{% url 'accounts:logout_all_devices' %}">Log out all devices</a>
-    <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
-      {% csrf_token %}
-      <button class="btn btn-outline-dark btn-sm" type="submit">Log out</button>
-    </form>
+
+  <div class="d-flex align-items-center gap-2">
+    <!-- Notification Bell -->
+    <a href="{% url 'notifications:index' %}" class="btn btn-outline-dark btn-sm position-relative d-inline-flex align-items-center justify-content-center" style="width: 42px; height: 42px; border-radius: 12px;" aria-label="Notifications" title="Notifications">
+      <i class="bi bi-bell fs-5"></i>
+      {% if unread_notifications_count and unread_notifications_count > 0 %}
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.7rem;">
+          {{ unread_notifications_count }}
+        </span>
+      {% endif %}
+    </a>
+
+    <!-- Settings Dropdown (Compresses Change password, Log out all devices, Log out) -->
+    <div class="dropdown">
+      <button class="btn btn-outline-dark btn-sm d-inline-flex align-items-center justify-content-center gap-2 px-3" style="height: 42px; border-radius: 12px;" type="button" id="topbarSettingsDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Settings &amp; Account">
+        <i class="bi bi-gear fs-5"></i>
+        <span class="d-none d-sm-inline fw-semibold">Settings</span>
+        <i class="bi bi-chevron-down small opacity-75"></i>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow border p-2 rounded-3 mt-1" aria-labelledby="topbarSettingsDropdown" style="min-width: 240px; border-color: #ebd6de !important;">
+        <li class="px-3 py-2 border-bottom mb-1">
+          <div class="fw-bold text-dark text-truncate">{{ user.get_full_name|default:user.email }}</div>
+          <small class="badge bg-light text-dark border mt-1">{{ user.get_role_display }}</small>
+        </li>
+        <li>
+          <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2.5" href="{% url 'mfa_index' %}">
+            <i class="bi bi-shield-check text-muted fs-6"></i>
+            <span>Account Security (2FA)</span>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2.5" href="{% url 'accounts:password_change' %}">
+            <i class="bi bi-key text-muted fs-6"></i>
+            <span>Change password</span>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2.5" href="{% url 'accounts:logout_all_devices' %}">
+            <i class="bi bi-shield-x text-muted fs-6"></i>
+            <span>Log out all devices</span>
+          </a>
+        </li>
+        <li><hr class="dropdown-divider my-1"></li>
+        <li>
+          <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+            {% csrf_token %}
+            <button class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2.5 text-danger fw-semibold" type="submit">
+              <i class="bi bi-box-arrow-right fs-6"></i>
+              <span>Log out</span>
+            </button>
+          </form>
+        </li>
+      </ul>
+    </div>
   </div>
 </header>

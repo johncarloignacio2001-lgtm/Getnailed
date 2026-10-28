@@ -1,25 +1,123 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
+{% block title %}Log In | {{ BRAND_NAME }}{% endblock %}
 {% block public_content %}
-<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
-  <div class="login-card">
-    <div class="text-center mb-4">
-      <img src="{% static 'images/get-nailed-logo.png' %}" class="login-logo" alt="Get Nailed logo">
-      <h1 class="h3 mt-3">Welcome back</h1>
-      {% if request.resolver_match.url_name == 'customer_login' %}<p class="text-muted">Sign in to manage your appointments.</p>{% else %}<p class="text-muted">Sign in to your assigned workspace.</p>{% endif %}
+<div class="modern-auth-page min-vh-100 d-flex align-items-center justify-content-center py-4 px-3">
+  <div class="container" style="max-width: 1080px;">
+    <div class="row align-items-center justify-content-between g-4 g-lg-5">
+      
+      <!-- Left Column: Brand & Visual Lookbook Showcase (Facebook / Instagram Web Style) -->
+      <div class="col-lg-6 d-none d-lg-block">
+        <div class="pe-lg-4">
+          <a href="{% url 'core:home' %}" class="d-inline-flex align-items-center gap-3 text-decoration-none mb-3">
+            <img src="{% static 'images/get-nailed-logo.png' %}" alt="Get Nailed" style="width: 64px; height: 64px; border-radius: 18px; object-fit: cover; box-shadow: 0 10px 24px rgba(72, 34, 45, 0.14);">
+            <div>
+              <span class="d-block fw-bold" style="font-size: 2.35rem; letter-spacing: 0.04em; color: #261419; line-height: 1.05;">GET NAILED</span>
+              <span class="d-block fw-semibold" style="color: #8b3d52; font-size: 0.95rem; letter-spacing: 0.12em;">NAIL BAR &amp; SPA • EST. 2014</span>
+            </div>
+          </a>
+
+          <!-- Visual Nail Art Mosaic -->
+          <div class="row g-3 mt-2">
+            <div class="col-7">
+              <div class="overflow-hidden shadow" style="border-radius: 24px; height: 320px;">
+                <img src="{% static 'images/gallery/nail-4.jpg' %}" alt="Signature Nail Set" class="w-100 h-100 object-fit-cover">
+              </div>
+            </div>
+            <div class="col-5 d-flex flex-column gap-3">
+              <div class="overflow-hidden shadow-sm" style="border-radius: 20px; height: 152px;">
+                <img src="{% static 'images/gallery/slide-4.jpg' %}" alt="3D Floral Nails" class="w-100 h-100 object-fit-cover">
+              </div>
+              <div class="overflow-hidden shadow-sm" style="border-radius: 20px; height: 152px;">
+                <img src="{% static 'images/gallery/nail-1.jpg' %}" alt="Cat Eye Gel" class="w-100 h-100 object-fit-cover">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Clean Modern Platform Login Card (No Clutter at Top) -->
+      <div class="col-12 col-md-8 col-lg-5 mx-auto">
+        <div class="modern-auth-card">
+          {% include 'partials/messages.html' %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger fs-6 rounded-3 mb-3" role="alert">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <form method="post" novalidate class="modern-auth-form">
+            {% csrf_token %}
+            {% if redirect_field_value %}
+              <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+            {% endif %}
+
+            <div class="mb-3">
+              <input
+                type="email"
+                name="{{ form.login.html_name }}"
+                id="{{ form.login.id_for_label }}"
+                value="{{ form.login.value|default:'' }}"
+                class="form-control modern-auth-input"
+                placeholder="Email address"
+                autocomplete="username"
+                required
+                autofocus
+              >
+              {% for error in form.login.errors %}<div class="text-danger mt-1 small fw-semibold">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              <div class="modern-password-wrap">
+                <input
+                  type="password"
+                  name="{{ form.password.html_name }}"
+                  id="{{ form.password.id_for_label }}"
+                  class="form-control modern-auth-input pe-5"
+                  placeholder="Password"
+                  autocomplete="current-password"
+                  required
+                >
+                <button type="button" class="modern-password-toggle" data-toggle-password="{{ form.password.id_for_label }}">Show</button>
+              </div>
+              {% for error in form.password.errors %}<div class="text-danger mt-1 small fw-semibold">{{ error }}</div>{% endfor %}
+            </div>
+
+            {% if form.captcha %}
+              <div class="mb-3">
+                <label class="form-label fw-semibold small" for="{{ form.captcha.id_for_label }}">{{ form.captcha.label }}</label>
+                {{ form.captcha }}
+                {% for error in form.captcha.errors %}<div class="text-danger mt-1 small fw-semibold">{{ error }}</div>{% endfor %}
+              </div>
+            {% endif %}
+
+            {% if form.remember %}
+              <div class="form-check mb-3">
+                {{ form.remember }}
+                <label class="form-check-label small text-muted ms-1" for="{{ form.remember.id_for_label }}">Keep me signed in</label>
+              </div>
+            {% endif %}
+
+            <button class="btn modern-login-btn w-100 py-3 fw-bold fs-5" type="submit">Log In</button>
+
+            <div class="text-center mt-3">
+              <a class="modern-forgot-link" href="{% url 'accounts:password_reset' %}">Forgot password?</a>
+            </div>
+
+            <hr class="my-4" style="border-color: #e5d5dc; opacity: 0.85;">
+
+            <div class="text-center">
+              <a class="btn modern-create-btn px-4 py-3 fw-bold fs-5" href="{% url 'customers:register_customer' %}">
+                Create new account
+              </a>
+            </div>
+          </form>
+        </div>
+
+        <div class="text-center mt-4">
+          <a class="text-decoration-none fw-semibold" style="color: #5c434a;" href="{% url 'core:home' %}">← Back to Gallery &amp; Home</a>
+        </div>
+      </div>
+
     </div>
-    {% include 'partials/messages.html' %}
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-      <div class="mb-3"><label class="form-label" for="{{ form.login.id_for_label }}">Email address</label>{{ form.login }}</div>
-      <div class="mb-3"><label class="form-label">Password</label>{{ form.password }}</div>
-      {% if form.remember %}<div class="form-check mb-3">{{ form.remember }} <label class="form-check-label" for="{{ form.remember.id_for_label }}">Remember me</label></div>{% endif %}
-      {% if form.captcha %}<div class="mb-3 captcha-field"><label class="form-label" for="{{ form.captcha.id_for_label }}">Security check</label>{{ form.captcha }}{% for error in form.captcha.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>{% endif %}
-      <button class="btn btn-brand w-100 py-2" type="submit">Sign in</button>
-    </form>
-    <div class="text-center mt-3"><a href="{% url 'accounts:password_reset' %}">Forgot your password?</a></div>
-    {% if request.resolver_match.url_name == 'customer_login' %}<div class="text-center mt-2">Don't have an account? <a href="{% url 'customers:register_customer' %}">Create account</a></div>{% endif %}
   </div>
 </div>
 {% endblock %}

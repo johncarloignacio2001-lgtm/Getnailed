@@ -11,123 +11,118 @@
   <div class="role-chip">{{ user.get_role_display }}</div>
   <nav class="sidebar-nav">
     <a href="{% url 'core:dashboard_router' %}">
-      <i class="bi bi-speedometer2"></i>
-      <span>Dashboard</span>
+      <i class="bi bi-house-door"></i>
+      <span>Home</span>
     </a>
-    {% if user.is_customer %}
-      <a href="{% url 'bookings:index' %}">
-        <i class="bi bi-calendar-plus"></i>
-        <span>Book Appointment</span>
-      </a>
-      <a href="{% url 'core:customer_appointments' %}">
-        <i class="bi bi-calendar-check"></i>
-        <span>My Appointments</span>
-      </a>
-      <a href="{% url 'core:customer_services' %}">
-        <i class="bi bi-card-list"></i>
-        <span>Services & Pricing</span>
-      </a>
-      <a href="{% url 'core:customer_profile' %}">
-        <i class="bi bi-person"></i>
-        <span>My Profile</span>
-      </a>
-    {% endif %}
-    {% if user.is_owner or user.is_cashier or user.can_manage_bookings %}
-      <a href="{% url 'bookings:manage' %}">
-        <i class="bi bi-calendar-event"></i>
-        <span>Appointments</span>
-      </a>
-      <a href="{% url 'bookings:index' %}">
-        <i class="bi bi-calendar-plus"></i>
-        <span>Book Appointment</span>
-      </a>
-    {% elif user.is_service_staff %}
+
+    {% if user.is_service_staff %}
       <a href="{% url 'bookings:assigned' %}">
         <i class="bi bi-calendar-check"></i>
         <span>My Appointments</span>
       </a>
+      <a href="{% url 'monitoring:index' %}">
+        <i class="bi bi-kanban"></i>
+        <span>Service Monitoring</span>
+      </a>
+      <a href="{% url 'services:schedule_list' %}">
+        <i class="bi bi-calendar3-range"></i>
+        <span>My Schedule</span>
+      </a>
+      <a href="{% url 'services:time_block_list' %}">
+        <i class="bi bi-clock-history"></i>
+        <span>Time Blocks</span>
+      </a>
     {% endif %}
-    {% if user.is_owner or user.is_cashier or user.can_use_pos %}
+
+    {% if user.is_cashier %}
       <a href="{% url 'pos:index' %}">
         <i class="bi bi-cart3"></i>
         <span>Point of Sale</span>
       </a>
       <a href="{% url 'pos:shift_dashboard' %}">
         <i class="bi bi-cash-stack"></i>
-        <span>Till & Shifts</span>
+        <span>Till &amp; Shifts</span>
       </a>
-    {% endif %}
-    {% if user.is_owner or user.is_cashier or user.can_manage_customers %}
+      <a href="{% url 'services:walk_in_technicians' %}">
+        <i class="bi bi-person-badge"></i>
+        <span>Available Technicians</span>
+      </a>
+      <a href="{% url 'services:schedule_list' %}">
+        <i class="bi bi-calendar3-range"></i>
+        <span>Staff Schedules</span>
+      </a>
+      <a href="{% url 'bookings:manage' %}">
+        <i class="bi bi-calendar-event"></i>
+        <span>Appointments</span>
+      </a>
       <a href="{% url 'customers:index' %}">
         <i class="bi bi-people"></i>
         <span>Customers</span>
       </a>
-    {% endif %}
-    {% if user.is_owner or user.is_cashier or user.is_service_staff %}
-      <a href="{% url 'monitoring:index' %}">
-        <i class="bi bi-kanban"></i>
-        <span>Service Monitoring</span>
+      <a href="{% url 'services:index' %}">
+        <i class="bi bi-scissors"></i>
+        <span>Services &amp; Pricing</span>
       </a>
-    {% endif %}
-    {% if user.is_owner or user.is_cashier or user.can_assign_services %}
-      <a href="{% url 'monitoring:assignments' %}">
-        <i class="bi bi-person-check"></i>
-        <span>Service Assignments</span>
-      </a>
-    {% endif %}
-    {% if user.is_cashier %}
       <a href="{% url 'reports:daily_summary' %}">
         <i class="bi bi-file-earmark-bar-graph"></i>
         <span>Daily Summary</span>
       </a>
     {% endif %}
-    {% if user.is_owner or user.is_cashier %}
-      <a href="{% url 'services:index' %}">
-        <i class="bi bi-scissors"></i>
-        <span>Services</span>
-      </a>
-    {% endif %}
+
     {% if user.is_owner %}
-      <a href="{% url 'accounts:invite_internal' %}">
-        <i class="bi bi-person-gear"></i>
-        <span>Internal Accounts</span>
+      <a href="{% url 'bookings:manage' %}">
+        <i class="bi bi-calendar-event"></i>
+        <span>Appointments</span>
       </a>
-      <a href="{% url 'services:staff_list' %}">
-        <i class="bi bi-person-badge"></i>
-        <span>Staff Profiles</span>
+      <a href="{% url 'pos:index' %}">
+        <i class="bi bi-cart3"></i>
+        <span>Point of Sale</span>
+      </a>
+      <a href="{% url 'pos:shift_dashboard' %}">
+        <i class="bi bi-cash-stack"></i>
+        <span>Till &amp; Shifts</span>
+      </a>
+      <a href="{% url 'customers:index' %}">
+        <i class="bi bi-people"></i>
+        <span>Customers</span>
+      </a>
+      <a href="{% url 'monitoring:index' %}">
+        <i class="bi bi-kanban"></i>
+        <span>Service Monitoring</span>
       </a>
       <a href="{% url 'services:schedule_list' %}">
-        <i class="bi bi-clock-history"></i>
+        <i class="bi bi-calendar3-range"></i>
         <span>Staff Schedules</span>
       </a>
       <a href="{% url 'services:time_block_list' %}">
-        <i class="bi bi-calendar3-range"></i>
+        <i class="bi bi-clock-history"></i>
         <span>Time Blocks</span>
       </a>
-      <a href="{% url 'pos:voucher_list' %}">
-        <i class="bi bi-ticket-perforated"></i>
-        <span>Promo Vouchers</span>
+      <a href="{% url 'services:index' %}">
+        <i class="bi bi-scissors"></i>
+        <span>Services &amp; Pricing</span>
       </a>
-      <a href="{% url 'pos:void_approval' %}">
-        <i class="bi bi-x-circle"></i>
-        <span>Void Approval</span>
+      <a href="{% url 'forecasting:index' %}">
+        <i class="bi bi-bar-chart-line"></i>
+        <span>AI Sales Forecasting</span>
       </a>
       <a href="{% url 'reports:index' %}">
         <i class="bi bi-graph-up-arrow"></i>
         <span>Reports</span>
       </a>
-      <a href="{% url 'forecasting:index' %}">
-        <i class="bi bi-bar-chart-line"></i>
-        <span>Sales Forecasting</span>
-      </a>
       <a href="{% url 'audittrail:index' %}">
         <i class="bi bi-journal-text"></i>
         <span>Audit Trail</span>
       </a>
+      <a href="{% url 'accounts:invite_internal' %}">
+        <i class="bi bi-person-gear"></i>
+        <span>Staff Accounts</span>
+      </a>
     {% endif %}
-    <a href="{% url 'mfa_index' %}">
-      <i class="bi bi-shield-lock"></i>
-      <span>Account Security</span>
+
+    <a href="{% url 'notifications:messages' %}">
+      <i class="bi bi-chat-dots"></i>
+      <span>Messages</span>
     </a>
     <a href="{% url 'notifications:index' %}">
       <i class="bi bi-bell"></i>
@@ -135,4 +130,3 @@
     </a>
   </nav>
 </aside>
-

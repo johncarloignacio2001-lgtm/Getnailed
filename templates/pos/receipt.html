@@ -25,6 +25,7 @@
       {{ sale.created_at }}<br>
       Cashier: {{ sale.cashier_name_snapshot }}<br>
       Customer: {{ sale.customer_name_snapshot }}
+      {% if sale.walk_in_referral_number %}<br>Walk-in Referral #: <strong>{{ sale.walk_in_referral_number }}</strong>{% endif %}
     </p>
     <table>
       <thead>

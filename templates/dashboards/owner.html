@@ -7,34 +7,31 @@
   <div>
     <div class="eyebrow">OWNER WORKSPACE · {{ today }}</div>
     <h2 class="mb-1">Business overview</h2>
-    <p class="text-muted small mb-0">Live salon performance metrics, revenue tracking, and operational KPIs.</p>
+    <p class="text-muted mb-0">Live salon performance metrics, revenue tracking, and operational KPIs.</p>
   </div>
-  <div class="d-flex align-items-center flex-wrap gap-2">
-    <div class="btn-group btn-group-sm" role="group" aria-label="KPI Period Filter">
-      <a href="{% url 'core:owner_dashboard' %}?period=today" class="btn {% if period == 'today' %}btn-brand{% else %}btn-outline-secondary{% endif %}">Today</a>
-      <a href="{% url 'core:owner_dashboard' %}?period=week" class="btn {% if period == 'week' %}btn-brand{% else %}btn-outline-secondary{% endif %}">7 Days</a>
-      <a href="{% url 'core:owner_dashboard' %}?period=month" class="btn {% if period == 'month' %}btn-brand{% else %}btn-outline-secondary{% endif %}">This Month</a>
-      <a href="{% url 'core:owner_dashboard' %}?period=all" class="btn {% if period == 'all' %}btn-brand{% else %}btn-outline-secondary{% endif %}">All Time</a>
+  <div class="d-flex align-items-center flex-wrap gap-3">
+    <div class="btn-group btn-group-lg shadow-sm" role="group" aria-label="KPI Period Filter" style="border-radius: 14px; overflow: hidden;">
+      <a href="{% url 'core:owner_dashboard' %}?period=today" class="btn px-4 py-3 fw-bold fs-5 {% if period == 'today' %}btn-brand{% else %}btn-outline-secondary{% endif %}">Today</a>
+      <a href="{% url 'core:owner_dashboard' %}?period=week" class="btn px-4 py-3 fw-bold fs-5 {% if period == 'week' %}btn-brand{% else %}btn-outline-secondary{% endif %}">7 Days</a>
+      <a href="{% url 'core:owner_dashboard' %}?period=month" class="btn px-4 py-3 fw-bold fs-5 {% if period == 'month' %}btn-brand{% else %}btn-outline-secondary{% endif %}">This Month</a>
+      <a href="{% url 'core:owner_dashboard' %}?period=all" class="btn px-4 py-3 fw-bold fs-5 {% if period == 'all' %}btn-brand{% else %}btn-outline-secondary{% endif %}">All Time</a>
     </div>
-    <a class="btn btn-outline-dark btn-sm" href="{% url 'services:time_block_list' %}">
-      <i class="bi bi-calendar3-range me-1"></i> Time Blocks
-    </a>
-    <a class="btn btn-brand btn-sm" href="{% url 'reports:index' %}">
-      <i class="bi bi-graph-up-arrow me-1"></i> Reports
-    </a>
-    <a class="btn btn-outline-brand btn-sm" href="{% url 'pos:index' %}">
-      <i class="bi bi-cart3 me-1"></i> POS
+    <a class="btn btn-brand btn-lg px-4 py-3 fw-bold fs-5 shadow-sm" href="{% url 'bookings:manage' %}">
+      <i class="bi bi-calendar2-check-fill me-2"></i> Review Appointments
+      {% if pending_appointments_count > 0 %}
+        <span class="badge bg-warning text-dark ms-2">{{ pending_appointments_count }}</span>
+      {% endif %}
     </a>
   </div>
 </div>
 
 {% if pending_appointments_count > 0 %}
-<div class="alert alert-warning d-flex justify-content-between align-items-center mb-4 py-2 px-3 rounded-4 shadow-sm border-warning">
-  <div class="d-flex align-items-center gap-2">
-    <i class="bi bi-exclamation-circle-fill text-warning fs-5"></i>
-    <span><strong>Action Required:</strong> You have <strong>{{ pending_appointments_count }}</strong> pending appointment{{ pending_appointments_count|pluralize }} awaiting confirmation.</span>
+<div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 py-3 px-4 rounded-4 shadow-sm border-warning">
+  <div class="d-flex align-items-center gap-3">
+    <i class="bi bi-exclamation-circle-fill text-warning fs-3"></i>
+    <span class="fs-5"><strong>Action Required:</strong> You have <strong>{{ pending_appointments_count }}</strong> pending appointment{{ pending_appointments_count|pluralize }} awaiting confirmation.</span>
   </div>
-  <a href="{% url 'bookings:manage' %}?status=PENDING" class="btn btn-sm btn-warning text-dark fw-semibold">Review Appointments →</a>
+  <a href="{% url 'bookings:manage' %}?status=PENDING" class="btn btn-lg btn-warning text-dark fw-bold px-4 py-2 fs-5 shadow-sm">Review Appointments →</a>
 </div>
 {% endif %}
 

@@ -3,15 +3,13 @@
 {% block content %}
 <div class="page-heading service-heading">
   <div>
-    <div class="eyebrow">TRANSACTIONAL CHECKOUT</div>
     <div class="d-flex align-items-center gap-3">
-      <h2 class="mb-0">Point of Sale</h2>
       {% if active_shift %}
-        <a href="{% url 'pos:shift_dashboard' %}" class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none py-2 px-3">
+        <a href="{% url 'pos:shift_dashboard' %}" class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none py-2 px-3 fs-6">
           <i class="bi bi-safe me-1"></i> Shift #{{ active_shift.pk }} Open (Float: ₱{{ active_shift.opening_cash|floatformat:2 }})
         </a>
       {% else %}
-        <a href="{% url 'pos:shift_open' %}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-decoration-none py-2 px-3">
+        <a href="{% url 'pos:shift_open' %}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-decoration-none py-2 px-3 fs-6">
           <i class="bi bi-exclamation-triangle me-1"></i> Till Unopened (Click to Open Shift)
         </a>
       {% endif %}
@@ -71,6 +69,18 @@
           <label class="form-label" for="{{ form.customer.id_for_label }}">{{ form.customer.label }}</label>
           {{ form.customer }}
           {{ form.customer.errors }}
+        </div>
+
+        <div class="mb-3 p-2 rounded-2" style="background: rgba(139,79,92,0.06); border: 1px dashed var(--brand);" id="walkin-referral-box">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label mb-0 fw-bold small" for="{{ form.walk_in_referral_number.id_for_label }}">
+              <i class="bi bi-hash me-1 text-brand"></i>{{ form.walk_in_referral_number.label }}
+            </label>
+            <button type="button" class="btn btn-xs btn-outline-brand" onclick="const d=new Date().toISOString().slice(0,10).replace(/-/g,''); const r=Math.floor(1000+Math.random()*9000); document.getElementById('id_walk_in_referral_number').value='WLK-'+d+'-'+r;">New Ref #</button>
+          </div>
+          {{ form.walk_in_referral_number }}
+          {% if form.walk_in_referral_number.help_text %}<div class="form-text small">{{ form.walk_in_referral_number.help_text }}</div>{% endif %}
+          {{ form.walk_in_referral_number.errors }}
         </div>
 
         <!-- Point of Sale Appointment Time Filter -->

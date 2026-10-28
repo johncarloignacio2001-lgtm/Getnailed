@@ -1,0 +1,122 @@
+{% load static %}
+<main class="container py-4">
+  <!-- Boutique Editorial Hero Section -->
+  <section class="nailgarden-hero position-relative overflow-hidden mb-5 text-white shadow-lg" style="border-radius: 36px; min-height: 520px; background: url('{% static 'images/gallery/nail-4.jpg' %}') center center / cover no-repeat;">
+    <!-- Elegant Gradient Overlay (Warm Dark Burgundy to Charcoal) -->
+    <div class="position-absolute top-0 start-0 w-100 h-100" style="background: linear-gradient(135deg, rgba(32, 14, 20, 0.94) 0%, rgba(68, 28, 38, 0.88) 52%, rgba(22, 10, 14, 0.95) 100%);"></div>
+
+    <div class="position-relative p-4 p-md-5 p-lg-5 d-flex flex-column justify-content-between h-100" style="z-index: 2;">
+      <!-- Top Eyebrow -->
+      <div class="mb-3">
+        <span class="d-inline-flex align-items-center gap-2 text-uppercase fw-bold" style="letter-spacing: 0.22em; font-size: 0.82rem; color: #fbcfe8;">
+          <i class="bi bi-sparkles text-warning"></i> WELCOME TO GET NAILED NAIL BAR &amp; SPA
+        </span>
+      </div>
+
+      <!-- Main Headline in Luxury Editorial Serif -->
+      <div class="my-auto py-3" style="max-width: 820px;">
+        <h1 class="display-3 fw-bold mb-3 text-white" style="font-family: 'Playfair Display', Georgia, serif; line-height: 1.1; letter-spacing: -0.01em;">
+          Be Pampered.<br>
+          Be Beautiful.<br>
+          <span style="font-style: italic; color: #fbcfe8;">Your Nails Deserve The Best Care.</span>
+        </h1>
+
+        <p class="fs-5 text-white-50 mb-4" style="max-width: 650px; line-height: 1.6; font-size: 1.12rem;">
+          A premier boutique nail salon &amp; spa in Plaridel, Bulacan and Retiro, Quezon City — where clean precision care, bespoke nail art, and warm boutique hospitality come together.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="btn btn-light btn-lg px-4 py-3 fw-bold rounded-pill shadow-sm" style="font-size: 1rem; letter-spacing: 0.04em;">
+            BOOK AN APPOINTMENT &rarr;
+          </a>
+          <a href="#branches" class="btn btn-outline-light btn-lg px-4 py-3 fw-bold rounded-pill" style="font-size: 1rem; letter-spacing: 0.04em;">
+            FIND A LOCATION &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lookbook Photo Gallery Showcase -->
+  <section class="mb-5">
+    <div class="d-flex justify-content-between align-items-end mb-3">
+      <div>
+        <span class="text-uppercase fw-bold text-muted small" style="letter-spacing: 0.12em;">STUDIO LOOKBOOK</span>
+        <h2 class="h3 fw-bold mb-0" style="color: #241318;">Featured Nail Artistry</h2>
+      </div>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="btn btn-outline-dark btn-sm rounded-pill px-3">Book Service &rarr;</a>
+    </div>
+
+    <!-- Featured Large Visual Grid (All unique, non-duplicate photographs) -->
+    <div class="row g-3" id="gallery">
+      <div class="col-lg-6">
+        <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow" style="border-radius: 26px;">
+          <img src="{% static 'images/gallery/nail-4.jpg' %}" alt="Burgundy & Gold Foil Gel Art" class="img-fluid w-100 object-fit-cover" style="height: 430px;">
+        </a>
+      </div>
+      <div class="col-lg-6">
+        <div class="row g-3">
+          <div class="col-6">
+            <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+              <img src="{% static 'images/gallery/nail-1.jpg' %}" alt="Starlight Cat Eye Gel" class="img-fluid w-100 object-fit-cover" style="height: 207px;">
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+              <img src="{% static 'images/gallery/nail-2.jpg' %}" alt="Champagne Cat Eye" class="img-fluid w-100 object-fit-cover" style="height: 207px;">
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+              <img src="{% static 'images/gallery/nail-3.jpg' %}" alt="3D Bridal Floral Nail Art" class="img-fluid w-100 object-fit-cover" style="height: 207px;">
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+              <img src="{% static 'images/gallery/nail-7.jpg' %}" alt="Softgel Blossom Set" class="img-fluid w-100 object-fit-cover" style="height: 207px;">
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distinct Studio Showcase (Gel Polish, Classic Care & Lounge) -->
+      <div class="col-md-4">
+        <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+          <img src="{% static 'images/gallery/nail-5.jpg' %}" alt="Glossy Red Gel Polish" class="img-fluid w-100 object-fit-cover" style="height: 230px;">
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+          <img src="{% static 'images/gallery/nail-6.jpg' %}" alt="Clean Nude Manicure & Pedicure" class="img-fluid w-100 object-fit-cover" style="height: 230px;">
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="d-block overflow-hidden shadow-sm" style="border-radius: 22px;">
+          <img src="{% static 'images/gallery/nail-8.jpg' %}" alt="Studio Nail Art & Lounge" class="img-fluid w-100 object-fit-cover" style="height: 230px;">
+        </a>
+      </div>
+    </div>
+
+    <!-- Moving Horizontal Nail Art Strip -->
+    {% include "core/_moving_gallery.html" %}
+  </section>
+
+  <!-- Slogan & Brand Philosophy Statement -->
+  <section class="text-center py-5 my-2" style="background: linear-gradient(180deg, rgba(253, 248, 250, 0) 0%, #fff6f8 50%, rgba(253, 248, 250, 0) 100%); border-radius: 28px;">
+    <div class="container" style="max-width: 860px;">
+      <span class="d-inline-block text-uppercase fw-bold mb-2" style="letter-spacing: 0.22em; font-size: 0.82rem; color: #8b3d52;">OUR PROMISE TO YOU</span>
+      <h2 class="display-5 fw-bold mb-3" style="color: #241318; font-family: 'Playfair Display', Georgia, serif; font-style: italic; letter-spacing: -0.01em;">
+        “Your Nails Deserve The Best Care.”
+      </h2>
+      <p class="text-muted mx-auto mb-0" style="font-size: 1.1rem; line-height: 1.65; max-width: 680px;">
+        From signature softgel enhancements and bespoke nail art to restorative spa rituals, we craft every set with premium care and passion across our Plaridel and Retiro QC branches.
+      </p>
+    </div>
+  </section>
+
+  <div id="branches">
+    {% include "core/_visit_us.html" %}
+  </div>
+</main>
+

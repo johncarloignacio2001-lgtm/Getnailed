@@ -2,5 +2,9 @@ Appointment update
 
 Reference: {{ appointment.reference }}
 Status: {{ appointment.get_status_display }}
+Branch Location: {{ appointment.get_branch_display }}
 Schedule: {{ appointment.scheduled_for }}
 Services: {{ appointment.service_name }}
+{% if appointment.status == 'APPROVED' and appointment.promo_code_issued %}Promo Code: {{ appointment.promo_code_issued }} (Present at checkout for your discount!){% endif %}
+{% if appointment.cancellation_reason %}Reason / Note: {{ appointment.cancellation_reason }}{% endif %}
+Reminder Policy: No advance payment required. Please arrive within 10-15 minutes of your scheduled time so your slot and technician remain reserved for you.

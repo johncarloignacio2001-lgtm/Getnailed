@@ -26,8 +26,111 @@ def _run(public_id):
 
 @owner_required
 def index(request):
-    runs = ForecastRun.objects.select_related("trained_by").prefetch_related("results")
-    return render(request, "forecasting/index.html", {"runs": runs})
+    from datetime import datetime
+    from decimal import Decimal
+
+    runs = ForecastRun.objects.select_related("trained_by").prefetch_related("results").order_by("-created_at")
+    latest_run = runs.filter(status=ForecastRun.Status.TRAINED).first()
+
+    context = {
+        "runs": runs,
+        "latest_run": latest_run,
+    }
+
+    if latest_run:
+        results = list(latest_run.results.all())
+        total_sales = sum((r.predicted_sales for r in results), Decimal("0.00"))
+        total_services = sum((r.predicted_service_quantity for r in results), Decimal("0.00"))
+
+        cat_sales = {}
+        cat_services = {}
+        dates_set = set()
+        for r in results:
+            cat_sales[r.service_category] = cat_sales.get(r.service_category, Decimal("0.00")) + r.predicted_sales
+            cat_services[r.service_category] = cat_services.get(r.service_category, Decimal("0.00")) + r.predicted_service_quantity
+            dates_set.add(r.forecast_date.isoformat())
+
+        sorted_dates = sorted(dates_set)
+        sorted_categories = sorted(cat_sales.keys())
+
+        top_cat_sales = max(cat_sales.items(), key=lambda x: x[1])[0] if cat_sales else "None"
+        top_cat_services = max(cat_services.items(), key=lambda x: x[1])[0] if cat_services else "None"
+
+        daily_sales = {}
+        daily_services = {}
+        for r in results:
+            d = r.forecast_date.isoformat()
+            daily_sales[d] = daily_sales.get(d, 0.0) + float(r.predicted_sales)
+            daily_services[d] = daily_services.get(d, 0.0) + float(r.predicted_service_quantity)
+
+        daily_breakdown = []
+        for d in sorted_dates:
+            dt = datetime.strptime(d, "%Y-%m-%d").date()
+            daily_breakdown.append({
+                "date": dt,
+                "date_display": dt.strftime("%a, %b %d"),
+                "sales": daily_sales.get(d, 0.0),
+                "services": int(round(daily_services.get(d, 0.0))),
+            })
+
+        chart_payload = {
+            "dates": sorted_dates,
+            "daily_sales": [round(daily_sales.get(d, 0.0), 2) for d in sorted_dates],
+            "daily_services": [round(daily_services.get(d, 0.0), 1) for d in sorted_dates],
+            "categories": sorted_categories,
+            "cat_sales": [round(float(cat_sales.get(c, 0.0)), 2) for c in sorted_categories],
+            "cat_services": [round(float(cat_services.get(c, 0.0)), 1) for c in sorted_categories],
+        }
+
+        context.update({
+            "results": results,
+            "total_sales": total_sales,
+            "total_services": total_services,
+            "top_cat_sales": top_cat_sales,
+            "top_cat_services": top_cat_services,
+            "daily_breakdown": daily_breakdown,
+            "chart_payload": chart_payload,
+        })
+
+    return render(request, "forecasting/index.html", context)
+
+
+@owner_required
+@require_http_methods(["POST"])
+def quick_sync(request):
+    """One-click automated training using actual salon POS sales data and automatic 14-day predictions."""
+    from datetime import timedelta
+    from apps.pos.models import Sale
+    from .services import train_forecast_model, generate_forecasts
+
+    today = timezone.localdate()
+    earliest_sale = (
+        Sale.objects.filter(status=Sale.Status.COMPLETED)
+        .order_by("created_at")
+        .first()
+    )
+    start_date = earliest_sale.created_at.date() if earliest_sale else today - timedelta(days=60)
+    end_date = today
+
+    try:
+        run = train_forecast_model(
+            start_date=start_date,
+            end_date=end_date,
+            actor=request.user,
+            n_estimators=100,
+            max_depth=10,
+            min_samples_leaf=2,
+        )
+        if run.status == ForecastRun.Status.TRAINED:
+            records = generate_forecasts(run, horizon_days=14)
+            messages.success(request, f"AI model successfully trained on POS sales. Generated 14-day forecasts for {len(records)} category projections.")
+        else:
+            messages.warning(request, run.message or "At least 35 days of sales records are required to train the forecast model.")
+    except Exception as exc:
+        logger.exception("Quick sync forecast failed")
+        messages.error(request, f"Forecast training could not complete: {exc}")
+
+    return redirect("forecasting:index")
 
 
 @owner_required

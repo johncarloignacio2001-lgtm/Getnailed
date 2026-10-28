@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
+from django.views.generic import RedirectView
 from django.views.static import serve
 from apps.customers.views import CustomerLoginView
 
@@ -16,6 +17,7 @@ urlpatterns = [
     path('services/', include('apps.services.urls')),
     path('customers/', include('apps.customers.urls')),
     path('bookings/', include('apps.bookings.urls')),
+    path('book/', RedirectView.as_view(url='/bookings/', permanent=False)),
     path('pos/', include('apps.pos.urls')),
     path('monitoring/', include('apps.monitoring.urls')),
     path('reports/', include('apps.reports.urls')),

@@ -23,7 +23,25 @@
         </div>
       </div>
 
-      <h1 class="h3 mb-3 fw-bold">{{ step_title|default:"Book an appointment" }}</h1>
+      <h1 class="h2 mb-3 fw-bold">{{ step_title|default:"Book an appointment" }}</h1>
+
+      {% if step == 1 %}
+        <div class="alert alert-light border mb-4 p-3 rounded-3" style="background: #fdf5f8; border-color: #ead0da !important;">
+          <div class="fw-bold fs-6" style="color: #8b3d52;">📍 Branch Selection &amp; Salon Reminder Policy</div>
+          <div class="small text-muted mt-1">
+            Choose between our <strong>Plaridel Branch (Rocka Commercial Complex)</strong> and <strong>Retiro QC Branch (Amoranto, Quezon City)</strong>. No advance payment is required — we send reminders 4–5 hours before and on the day of your booking via email &amp; phone/SMS, with a 10–15 minute grace period.
+          </div>
+        </div>
+      {% endif %}
+
+      {% if step == 2 or step == 3 %}
+        <div class="alert alert-warning border mb-4 p-3 rounded-3" style="background: #fff9ee; border-color: #f0d7a7 !important;">
+          <div class="fw-bold fs-6 text-dark">✨ Friday–Sunday Peak Booking Policy</div>
+          <div class="small text-muted mt-1">
+            On <strong>Friday, Saturday, and Sunday</strong>, online bookings prioritize <strong>package and major services above ₱300</strong>. Services <strong>₱300 and below</strong> are accepted online on Fri–Sun only when no other client is booked at that slot, or via walk-in when technicians are available.
+          </div>
+        </div>
+      {% endif %}
 
       {% if step == 3 and total_duration %}
         <div class="alert alert-light border d-flex align-items-center justify-content-between mb-4 p-3 rounded-3 flex-wrap gap-2" style="background: rgba(139,79,92,0.05); border-color: var(--border)!important;">
@@ -43,6 +61,9 @@
 
       <form method="post" novalidate id="booking-form">
         {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>
+        {% endif %}
 
         {% for field in form %}
           {% if field.is_hidden or field.name == 'website_url_check' %}
@@ -67,6 +88,91 @@
               {{ field }}
               {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
             </div>
+          {% elif field.name == 'services' and step == 2 and categories %}
+            <div class="mb-4">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label fw-bold fs-5 mb-0" style="color: #2b181d;">
+                  💅 Choose Your Salon Services
+                </label>
+                <span class="badge text-bg-light border text-muted">Select one or more treatments</span>
+              </div>
+              <p class="text-secondary small mb-3">
+                Treatments are organized by category. Your selected services determine your total appointment duration.
+              </p>
+
+              {% for cat in categories %}
+                <div class="booking-category-group mb-4 p-3 rounded-4" style="background: #ffffff; border: 1.5px solid #ebd6de;">
+                  <div class="d-flex align-items-center justify-content-between pb-2 mb-3 border-bottom" style="border-color: #ebd6de;">
+                    <h3 class="h5 fw-bold mb-0" style="color: #2b181d;">
+                      {% if 'Classic' in cat.name %}💅
+                      {% elif 'Foot' in cat.name %}🦶
+                      {% elif 'Gel' in cat.name %}✨
+                      {% elif 'Lash' in cat.name or 'Wax' in cat.name %}👁️
+                      {% else %}🌸{% endif %}
+                      {{ cat.name }}
+                    </h3>
+                    <span class="badge rounded-pill text-bg-light border text-muted px-2.5 py-1 small">
+                      {{ cat.services.all|length }} Option{{ cat.services.all|length|pluralize }}
+                    </span>
+                  </div>
+
+                  <div class="row g-3">
+                    {% for s in cat.services.all %}
+                      <div class="col-md-6">
+                        <label class="booking-service-card h-100 p-3 rounded-3 border d-flex gap-2.5 align-items-start position-relative w-100" style="cursor: pointer; background: #fffcfd; border-color: #edd5de !important; transition: all 0.2s ease;">
+                          <input type="checkbox" name="services" value="{{ s.pk }}" class="form-check-input mt-1 flex-shrink-0 booking-service-cb"
+                            {% if s.pk in selected_ids %}checked{% endif %}
+                            data-price="{{ s.price }}"
+                            data-duration="{{ s.duration_minutes }}"
+                            data-name="{{ s.name }}">
+                          <div class="flex-grow-1 min-w-0">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                              <span class="fw-bold text-dark" style="font-size: 0.95rem;">{{ s.name }}</span>
+                              <span class="badge px-2.5 py-1 rounded-pill flex-shrink-0" style="background: #fdf2f5; color: #8b3d52; border: 1px solid #ebd6de; font-weight: 700;">
+                                ₱{{ s.price|floatformat:2 }}
+                              </span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-1 mb-1.5">
+                              <span class="badge bg-light text-muted border small">
+                                <i class="bi bi-clock me-1"></i> {{ s.duration_minutes }}m
+                              </span>
+                              {% if s.price > 300 %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle small">
+                                  ✓ Fri–Sun Priority
+                                </span>
+                              {% else %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle small">
+                                  Open-Slot / Walk-In
+                                </span>
+                              {% endif %}
+                            </div>
+                            {% if s.description %}
+                              <div class="text-muted small" style="font-size: 0.82rem; line-height: 1.35;">
+                                {{ s.description|truncatechars:95 }}
+                              </div>
+                            {% endif %}
+                          </div>
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+
+              <!-- Live Booking Summary Bar -->
+              <div id="booking-live-summary" class="p-3 rounded-4 d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" style="background: rgba(139,79,92,0.06); border: 1.5px solid #ebd6de;">
+                <div>
+                  <span class="small text-uppercase fw-bold d-block" style="color: #8b3d52; letter-spacing: 0.05em;">Selected Treatments</span>
+                  <span class="small text-muted" id="booking-summary-items">No service selected yet</span>
+                </div>
+                <div class="text-end">
+                  <div class="fw-bold fs-5" id="booking-summary-total" style="color: #8b3d52;">₱0.00</div>
+                  <small class="text-muted" id="booking-summary-duration">0 mins total</small>
+                </div>
+              </div>
+
+              {% for error in field.errors %}<div class="text-danger small mt-2">{{ error }}</div>{% endfor %}
+            </div>
           {% else %}
             <div class="mb-3">
               <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -78,15 +184,32 @@
             </div>
 
             {% if field.name == 'start_time' and step == 3 %}
-              <div class="mb-4 p-3 rounded-3" style="background: rgba(139,79,92,0.06); border: 1px solid var(--border);">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                  <span class="fw-bold small text-uppercase" style="color: var(--deep-rose);">
-                    <i class="bi bi-calendar-check me-1"></i> Live Technician Availability ({{ total_duration|default:"30" }}-min block)
-                  </span>
-                  <span id="slots-status" class="small text-muted"></span>
+              <div class="time-block-picker-section mb-4 p-4 rounded-4" style="background: #ffffff; border: 1.5px solid #ebd6de; box-shadow: 0 10px 30px rgba(72, 34, 45, 0.06);">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
+                  <div>
+                    <span class="d-block fw-bold text-uppercase" style="letter-spacing: 0.08em; font-size: 0.85rem; color: #8b3d52;">
+                      <i class="bi bi-clock-history me-1"></i> Choose Your Appointment Time Block
+                    </span>
+                    <small class="text-muted">Estimated session duration: <strong>{{ total_duration|default:"30" }} minutes</strong></small>
+                  </div>
+                  <span id="slots-status" class="badge rounded-pill px-3 py-1.5 fw-semibold" style="background: #fdf2f4; color: #8b3d52; border: 1px solid #ebd6de;"></span>
                 </div>
-                <div id="slots-container" class="d-flex flex-wrap gap-2 pt-1">
-                  <span class="text-muted small">Pick a date above to calculate real-time available technician slots.</span>
+
+                <!-- Selected Block Highlight Banner -->
+                <div id="selected-block-banner" class="alert d-flex align-items-center gap-3 p-3 mb-3 rounded-4 shadow-sm" style="display: none !important; background: #f0fdf4; border: 1.5px solid #86efac; color: #166534;">
+                  <i class="bi bi-check-circle-fill fs-3 text-success"></i>
+                  <div>
+                    <strong class="d-block fs-6" id="selected-block-time">Selected: 10:00 AM</strong>
+                    <small class="text-muted" id="selected-block-details">Ready to proceed. Click "Review &amp; Confirm" below.</small>
+                  </div>
+                </div>
+
+                <!-- Dynamic Grouped Slots Container -->
+                <div id="slots-container">
+                  <div class="text-center py-4 text-muted">
+                    <i class="bi bi-calendar-event fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                    <span>Please select an appointment date above to view available time blocks.</span>
+                  </div>
                 </div>
               </div>
             {% endif %}
@@ -119,6 +242,60 @@
   </div>
 </section>
 
+{% if step == 2 %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const checkboxes = document.querySelectorAll(".booking-service-cb");
+  const itemsText = document.getElementById("booking-summary-items");
+  const totalText = document.getElementById("booking-summary-total");
+  const durationText = document.getElementById("booking-summary-duration");
+
+  function updateSummary() {
+    let count = 0;
+    let total = 0;
+    let duration = 0;
+    let names = [];
+
+    checkboxes.forEach(function (cb) {
+      const card = cb.closest(".booking-service-card");
+      if (cb.checked) {
+        count++;
+        total += parseFloat(cb.dataset.price || 0);
+        duration += parseInt(cb.dataset.duration || 0, 10);
+        names.push(cb.dataset.name);
+        if (card) {
+          card.style.background = "#fff0f3";
+          card.style.borderColor = "#c86d83";
+          card.style.boxShadow = "0 4px 12px rgba(139, 79, 92, 0.12)";
+        }
+      } else {
+        if (card) {
+          card.style.background = "#fffcfd";
+          card.style.borderColor = "#edd5de";
+          card.style.boxShadow = "none";
+        }
+      }
+    });
+
+    if (count > 0) {
+      if (itemsText) itemsText.textContent = names.join(" · ");
+      if (totalText) totalText.textContent = "₱" + total.toFixed(2);
+      if (durationText) durationText.textContent = duration + " mins estimated block";
+    } else {
+      if (itemsText) itemsText.textContent = "No service selected yet";
+      if (totalText) totalText.textContent = "₱0.00";
+      if (durationText) durationText.textContent = "0 mins total";
+    }
+  }
+
+  checkboxes.forEach(function (cb) {
+    cb.addEventListener("change", updateSummary);
+  });
+  updateSummary();
+});
+</script>
+{% endif %}
+
 {% if step == 3 %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -127,6 +304,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const timeInput = document.getElementById("id_start_time");
   const slotsContainer = document.getElementById("slots-container");
   const slotsStatus = document.getElementById("slots-status");
+  const selectedBanner = document.getElementById("selected-block-banner");
+  const selectedTimeText = document.getElementById("selected-block-time");
+  const selectedDetailsText = document.getElementById("selected-block-details");
 
   function formatTimeDisplay(timeStr) {
     const parts = timeStr.split(":");
@@ -137,12 +317,79 @@ document.addEventListener("DOMContentLoaded", function () {
     return h + ":" + m + " " + ampm;
   }
 
+  function renderGroup(title, icon, slots, container) {
+    if (!slots || slots.length === 0) return;
+
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "mb-4";
+
+    const header = document.createElement("div");
+    header.className = "d-flex align-items-center gap-2 mb-2.5 pb-1 border-bottom";
+    header.innerHTML = `<span class="fs-5">${icon}</span> <strong class="text-dark" style="font-size: 0.95rem; letter-spacing: 0.02em;">${title}</strong> <span class="badge rounded-pill text-bg-light border text-muted ms-auto">${slots.length} block${slots.length > 1 ? 's' : ''}</span>`;
+    groupDiv.appendChild(header);
+
+    const grid = document.createElement("div");
+    grid.className = "row g-2.5";
+
+    slots.forEach(slot => {
+      const col = document.createElement("div");
+      col.className = "col-6 col-sm-4 col-md-3 col-lg-3";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      const isSelected = (timeInput.value === slot);
+      btn.className = "w-100 p-2.5 rounded-3 d-flex flex-column align-items-center justify-content-center text-center time-block-btn " + (isSelected ? "active" : "");
+      btn.style.minHeight = "64px";
+      btn.style.cursor = "pointer";
+      btn.style.transition = "all 0.2s ease";
+
+      const formatted = formatTimeDisplay(slot);
+      btn.innerHTML = `
+        <span class="fw-bold fs-6 time-text">${formatted}</span>
+        <span class="small badge-text" style="font-size: 0.72rem; opacity: 0.85;">${isSelected ? '<i class="bi bi-check-circle-fill"></i> Selected' : '<i class="bi bi-dot"></i> Available'}</span>
+      `;
+
+      btn.addEventListener("click", function () {
+        timeInput.value = slot;
+
+        // Deselect all buttons
+        document.querySelectorAll(".time-block-btn").forEach(b => {
+          b.classList.remove("active");
+          const bt = b.querySelector(".badge-text");
+          if (bt) bt.innerHTML = '<i class="bi bi-dot"></i> Available';
+        });
+
+        // Select this button
+        btn.classList.add("active");
+        const badge = btn.querySelector(".badge-text");
+        if (badge) badge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Selected';
+
+        // Update selected banner
+        if (selectedBanner) {
+          selectedBanner.style.setProperty("display", "flex", "important");
+          if (selectedTimeText) selectedTimeText.textContent = `Selected Time Block: ${formatted}`;
+          if (selectedDetailsText) {
+            const dateStr = dateInput ? dateInput.value : "";
+            selectedDetailsText.textContent = `Scheduled on ${dateStr} (${document.querySelector('#id_assigned_staff option:checked')?.textContent || 'Any Technician'}) • Ready to proceed!`;
+          }
+        }
+      });
+
+      col.appendChild(btn);
+      grid.appendChild(col);
+    });
+
+    groupDiv.appendChild(grid);
+    container.appendChild(groupDiv);
+  }
+
   function fetchSlots() {
     if (!dateInput || !dateInput.value) {
-      slotsContainer.innerHTML = '<span class="text-muted small">Pick a date above to calculate real-time available technician slots.</span>';
+      slotsContainer.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-calendar-event fs-2 d-block mb-2 text-secondary opacity-50"></i><span>Please select an appointment date above to calculate real-time available technician blocks.</span></div>';
+      if (selectedBanner) selectedBanner.style.setProperty("display", "none", "important");
       return;
     }
-    slotsStatus.textContent = "Checking technician schedules...";
+    slotsStatus.textContent = "Checking schedules...";
     const dateVal = dateInput.value;
     const staffVal = staffInput ? staffInput.value : "";
     let url = "{% url 'bookings:api_available_slots' %}?date=" + encodeURIComponent(dateVal);
@@ -159,32 +406,50 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(data => {
         slotsContainer.innerHTML = "";
         if (data.slots && data.slots.length > 0) {
-          slotsStatus.textContent = data.slots.length + " slot(s) available";
-          data.slots.forEach(slot => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "btn btn-sm " + (timeInput.value === slot ? "btn-brand" : "btn-outline-brand") + " slot-btn";
-            btn.style.minWidth = "84px";
-            btn.style.minHeight = "40px";
-            btn.style.margin = "2px";
-            btn.textContent = formatTimeDisplay(slot);
-            btn.addEventListener("click", function () {
-              timeInput.value = slot;
-              document.querySelectorAll(".slot-btn").forEach(b => {
-                b.className = "btn btn-sm btn-outline-brand slot-btn";
-              });
-              btn.className = "btn btn-sm btn-brand slot-btn";
-            });
-            slotsContainer.appendChild(btn);
+          slotsStatus.textContent = `${data.slots.length} time block${data.slots.length > 1 ? 's' : ''} available`;
+
+          // Partition slots into Morning, Afternoon, Evening
+          const morning = [];
+          const afternoon = [];
+          const evening = [];
+
+          data.slots.forEach(s => {
+            const hour = parseInt(s.split(":")[0], 10);
+            if (hour < 12) {
+              morning.push(s);
+            } else if (hour < 17) {
+              afternoon.push(s);
+            } else {
+              evening.push(s);
+            }
           });
+
+          renderGroup("Morning Blocks", "🌅", morning, slotsContainer);
+          renderGroup("Afternoon Blocks", "☀️", afternoon, slotsContainer);
+          renderGroup("Evening Blocks", "🌙", evening, slotsContainer);
+
+          // If a slot was previously selected, activate banner
+          if (timeInput.value && data.slots.includes(timeInput.value)) {
+            if (selectedBanner) {
+              selectedBanner.style.setProperty("display", "flex", "important");
+              if (selectedTimeText) selectedTimeText.textContent = `Selected Time Block: ${formatTimeDisplay(timeInput.value)}`;
+            }
+          }
         } else {
           slotsStatus.textContent = "Fully booked";
-          slotsContainer.innerHTML = '<span class="text-danger small"><i class="bi bi-exclamation-circle me-1"></i> No technicians are available for this date/time. Please select a different date or staff member.</span>';
+          slotsContainer.innerHTML = `
+            <div class="alert alert-warning p-4 rounded-4 text-center my-3 shadow-sm border">
+              <i class="bi bi-calendar-x fs-1 text-warning d-block mb-2"></i>
+              <h5 class="fw-bold mb-1">No Available Time Blocks for this Date</h5>
+              <p class="text-muted small mb-0">All technician blocks on this day are currently booked or on scheduled break. Please pick another date or select another technician.</p>
+            </div>
+          `;
+          if (selectedBanner) selectedBanner.style.setProperty("display", "none", "important");
         }
       })
       .catch(() => {
         slotsStatus.textContent = "";
-        slotsContainer.innerHTML = '<span class="text-muted small">Could not load availability. You may enter your desired time directly.</span>';
+        slotsContainer.innerHTML = '<div class="alert alert-secondary p-3 text-center rounded-3">Could not load live slots. You may enter your preferred time directly above.</div>';
       });
   }
 

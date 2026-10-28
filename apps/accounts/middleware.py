@@ -35,6 +35,16 @@ class SessionSecurityMiddleware:
             if user.is_authenticated:
                 invalidate_user_sessions(user)
                 logout(request)
+
+        # Prevent browser back/forward cache (bfcache) from retaining protected pages after logout
+        if (
+            request.user.is_authenticated
+            or request.path.startswith(("/dashboard", "/pos", "/services", "/monitoring", "/reports", "/customers", "/bookings", "/audittrail", "/forecasting"))
+        ):
+            response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+            response["Pragma"] = "no-cache"
+            response["Expires"] = "0"
+
         return response
 
     @staticmethod

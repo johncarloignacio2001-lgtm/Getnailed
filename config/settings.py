@@ -23,7 +23,14 @@ if ENVIRONMENT not in {'development', 'test', 'production'}:
     )
 IS_PRODUCTION = ENVIRONMENT == 'production'
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'getnailed.vercel.app']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if host.strip()
+]
+for default_host in ['127.0.0.1', 'localhost', 'getnailed.vercel.app']:
+    if default_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(default_host)
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -319,6 +326,7 @@ AXES_SENSITIVE_PARAMETERS = [
     'secret',
     'key',
 ]
+ENABLE_LOGIN_CAPTCHA = os.getenv('ENABLE_LOGIN_CAPTCHA', 'False').lower() in ('true', '1')
 LOGIN_CAPTCHA_THRESHOLD = int(os.getenv('LOGIN_CAPTCHA_THRESHOLD', '3'))
 CAPTCHA_TIMEOUT = 5
 CAPTCHA_LENGTH = 5
@@ -349,7 +357,7 @@ EMAIL_BACKEND = os.getenv(
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'godzu1890@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'rraegrskxmaxuqjx')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))

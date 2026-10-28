@@ -9,9 +9,21 @@ from .views import (
 )
 
 
+class BrandedMFAAuthenticateView(base_views.AuthenticateView):
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.user.is_authenticated:
+            try:
+                from allauth.account.internal.flows.reauthentication import record_authentication
+                record_authentication(self.request, self.request.user, method="mfa", reauthenticated=True)
+            except Exception:
+                pass
+        return response
+
+
 urlpatterns = [
     path("", base_views.index, name="mfa_index"),
-    path("authenticate/", base_views.authenticate, name="mfa_authenticate"),
+    path("authenticate/", BrandedMFAAuthenticateView.as_view(), name="mfa_authenticate"),
     path("reauthenticate/", base_views.reauthenticate, name="mfa_reauthenticate"),
     path("totp/activate/", SecureActivateTOTPView.as_view(), name="mfa_activate_totp"),
     path("totp/deactivate/", SecureDeactivateTOTPView.as_view(), name="mfa_deactivate_totp"),

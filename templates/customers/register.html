@@ -1,92 +1,137 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Create Customer Account | {{ BRAND_NAME }}{% endblock %}
+{% block title %}Create Account | {{ BRAND_NAME }}{% endblock %}
 {% block public_content %}
-<div class="login-page min-vh-100 d-flex align-items-center justify-content-center p-3">
-  <div class="login-card register-card">
-    <div class="text-center mb-4">
-      <img src="{% static 'images/get-nailed-logo.png' %}" class="login-logo" alt="Get Nailed logo">
-      <p class="eyebrow mb-2">NEW CUSTOMER</p>
-      <h1 class="h3 mt-2 mb-1">Create your account</h1>
-      <p class="text-muted mb-0">Register to manage your appointments.</p>
-    </div>
-    {% include 'partials/messages.html' %}
-    <form method="post" novalidate id="register-form">
-      {% csrf_token %}
-      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
-          {{ form.first_name }}
-          {% for error in form.first_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-        </div>
-        <div class="col-md-6">
-          <label class="form-label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
-          {{ form.last_name }}
-          {% for error in form.last_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-        </div>
-        <div class="col-12">
-          <label class="form-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
-          {{ form.email }}
-          {% for error in form.email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-        </div>
-        <div class="col-12">
-          <label class="form-label" for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
-          {{ form.phone }}
-          {% for error in form.phone.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-        </div>
-        <div class="col-12">
-          <label class="form-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
-          <div class="input-group">
-            {{ form.password }}
-            <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="{{ form.password.id_for_label }}" aria-label="Toggle password visibility">
-              <i class="bi bi-eye"></i>
-            </button>
-          </div>
-          {% for error in form.password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+<div class="modern-auth-page min-vh-100 d-flex align-items-center justify-content-center py-4 px-3">
+  <div class="container" style="max-width: 1120px;">
+    <div class="row align-items-center justify-content-between g-4 g-lg-5">
 
-          <!-- Password Requirements Checklist (Always Visible & Interactive) -->
-          <div class="password-requirements-box" id="password-requirements">
-            <div class="password-requirements-title">
-              <i class="bi bi-shield-lock"></i> Password requirements:
+      <!-- Left Column: Brand & Visual Lookbook Showcase -->
+      <div class="col-lg-5 d-none d-lg-block">
+        <div class="pe-lg-3">
+          <a href="{% url 'core:home' %}" class="d-inline-flex align-items-center gap-3 text-decoration-none mb-3">
+            <img src="{% static 'images/get-nailed-logo.png' %}" alt="Get Nailed" style="width: 60px; height: 60px; border-radius: 18px; object-fit: cover; box-shadow: 0 10px 24px rgba(72, 34, 45, 0.14);">
+            <div>
+              <span class="d-block fw-bold" style="font-size: 2.15rem; letter-spacing: 0.04em; color: #261419; line-height: 1.05;">GET NAILED</span>
+              <span class="d-block fw-semibold" style="color: #8b3d52; font-size: 0.9rem; letter-spacing: 0.12em;">NAIL BAR &amp; SPA • EST. 2014</span>
             </div>
-            <div class="requirement-item" id="req-length">
-              <i class="bi bi-circle req-icon"></i>
-              <span>Minimum length 8 characters</span>
+          </a>
+
+          <div class="row g-3 mt-2">
+            <div class="col-6">
+              <div class="overflow-hidden shadow-sm" style="border-radius: 22px; height: 220px;">
+                <img src="{% static 'images/gallery/slide-1.jpg' %}" alt="Nail Art" class="w-100 h-100 object-fit-cover">
+              </div>
             </div>
-            <div class="requirement-item" id="req-upper">
-              <i class="bi bi-circle req-icon"></i>
-              <span>One uppercase letter [A-Z]</span>
+            <div class="col-6">
+              <div class="overflow-hidden shadow-sm" style="border-radius: 22px; height: 220px;">
+                <img src="{% static 'images/gallery/slide-6.jpg' %}" alt="Celestial Nails" class="w-100 h-100 object-fit-cover">
+              </div>
             </div>
-            <div class="requirement-item" id="req-lower">
-              <i class="bi bi-circle req-icon"></i>
-              <span>One lowercase letter [a-z]</span>
-            </div>
-            <div class="requirement-item" id="req-number">
-              <i class="bi bi-circle req-icon"></i>
-              <span>One numeric character [0-9]</span>
-            </div>
-            <div class="requirement-item" id="req-special">
-              <i class="bi bi-circle req-icon"></i>
-              <span>One special character ['!@$% etc]</span>
+            <div class="col-12">
+              <div class="overflow-hidden shadow-sm" style="border-radius: 22px; height: 200px;">
+                <img src="{% static 'images/gallery/nail-3.jpg' %}" alt="Bridal Floral Gel" class="w-100 h-100 object-fit-cover">
+              </div>
             </div>
           </div>
-        </div>
-        <div class="col-12">
-          <label class="form-label" for="{{ form.password_confirmation.id_for_label }}">{{ form.password_confirmation.label }}</label>
-          <div class="input-group">
-            {{ form.password_confirmation }}
-            <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="{{ form.password_confirmation.id_for_label }}" aria-label="Toggle password confirmation visibility">
-              <i class="bi bi-eye"></i>
-            </button>
-          </div>
-          <div id="password-match-indicator" style="display: none;"></div>
-          {% for error in form.password_confirmation.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
         </div>
       </div>
-      <button class="btn btn-brand w-100 py-2 mt-4" type="submit">Create account</button>
-    </form>
-    <div class="text-center mt-3"><a href="{% url 'customers:customer_login' %}">Already have an account? Sign in</a></div>
+
+      <!-- Right Column: Modern Sign Up Card -->
+      <div class="col-12 col-md-9 col-lg-7 mx-auto">
+        <div class="modern-auth-card">
+          <div class="mb-3 pb-2 border-bottom">
+            <h1 class="h3 fw-bold mb-1" style="color: #241318;">Sign Up</h1>
+            <p class="text-muted small mb-0">It's quick and easy.</p>
+          </div>
+
+          {% include 'partials/messages.html' %}
+          <form method="post" novalidate id="register-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold mb-1" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                {{ form.first_name }}
+                {% for error in form.first_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold mb-1" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                {{ form.last_name }}
+                {% for error in form.last_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold mb-1" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                {{ form.email }}
+                {% for error in form.email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold mb-1" for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
+                {{ form.phone }}
+                {% for error in form.phone.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold mb-1" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+                <div class="input-group">
+                  {{ form.password }}
+                  <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="{{ form.password.id_for_label }}" aria-label="Toggle password visibility">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                {% for error in form.password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+
+                <!-- Password Requirements Checklist (Always Visible & Interactive) -->
+                <div class="password-requirements-box mt-2" id="password-requirements">
+                  <div class="password-requirements-title">
+                    <i class="bi bi-shield-exclamation"></i> PASSWORD REQUIREMENTS:
+                  </div>
+                  <div class="requirement-item" id="req-length">
+                    <i class="bi bi-circle req-icon"></i>
+                    <span>Minimum length 8 characters</span>
+                  </div>
+                  <div class="requirement-item" id="req-upper">
+                    <i class="bi bi-circle req-icon"></i>
+                    <span>One uppercase letter [A-Z]</span>
+                  </div>
+                  <div class="requirement-item" id="req-lower">
+                    <i class="bi bi-circle req-icon"></i>
+                    <span>One lowercase letter [a-z]</span>
+                  </div>
+                  <div class="requirement-item" id="req-number">
+                    <i class="bi bi-circle req-icon"></i>
+                    <span>One numeric character [0-9]</span>
+                  </div>
+                  <div class="requirement-item" id="req-special">
+                    <i class="bi bi-circle req-icon"></i>
+                    <span>One special character ['!@$% etc]</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold mb-1" for="{{ form.password_confirmation.id_for_label }}">{{ form.password_confirmation.label }}</label>
+                <div class="input-group">
+                  {{ form.password_confirmation }}
+                  <button class="btn btn-outline-secondary toggle-password-btn" type="button" data-target="{{ form.password_confirmation.id_for_label }}" aria-label="Toggle password confirmation visibility">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div id="password-match-indicator" style="display: none;"></div>
+                {% for error in form.password_confirmation.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+
+            <div class="text-center mt-4">
+              <button class="btn modern-create-btn w-100 py-3 fw-bold fs-5" type="submit">Sign Up</button>
+            </div>
+          </form>
+
+          <div class="text-center mt-3 pt-3 border-top">
+            <a class="modern-forgot-link fs-6" href="{% url 'accounts:login' %}">Already have an account? Log In</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -134,7 +179,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (isValid) {
         rule.el.classList.add("valid");
         if (icon) {
-          icon.className = "bi bi-check-lg req-icon";
+          icon.className = "bi bi-check-circle-fill req-icon";
         }
       } else {
         rule.el.classList.remove("valid");
@@ -181,15 +226,18 @@ document.addEventListener("DOMContentLoaded", function () {
     passwordInput.addEventListener("input", updateCriteria);
     passwordInput.addEventListener("keyup", updateCriteria);
     passwordInput.addEventListener("change", updateCriteria);
+    passwordInput.addEventListener("paste", function () { setTimeout(updateCriteria, 15); });
+    passwordInput.addEventListener("cut", function () { setTimeout(updateCriteria, 15); });
   }
 
   if (confirmInput) {
     confirmInput.addEventListener("input", updateConfirm);
     confirmInput.addEventListener("keyup", updateConfirm);
     confirmInput.addEventListener("change", updateConfirm);
+    confirmInput.addEventListener("paste", function () { setTimeout(updateConfirm, 15); });
+    confirmInput.addEventListener("cut", function () { setTimeout(updateConfirm, 15); });
   }
 
-  // Toggle password visibility
   document.querySelectorAll(".toggle-password-btn").forEach((btn) => {
     btn.addEventListener("click", function () {
       const targetId = this.getAttribute("data-target");
@@ -212,7 +260,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Initial update
   updateCriteria();
 });
 </script>

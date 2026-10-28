@@ -120,7 +120,7 @@ class CustomerVerifyOTPView(View):
         login(request, verified_user)
         try:
             from allauth.account.internal.flows.reauthentication import record_authentication
-            record_authentication(request, verified_user, method="password")
+            record_authentication(request, verified_user, method="password", reauthenticated=True)
         except Exception:
             pass
 

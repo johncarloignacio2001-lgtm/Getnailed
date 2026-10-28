@@ -1,30 +1,35 @@
 {% extends 'base.html' %}
+{% load static humanize %}
 {% block title %}Staff Schedules | {{ BRAND_NAME }}{% endblock %}
 
 {% block content %}
 <div class="page-heading flex-wrap gap-3">
   <div>
-    <p class="eyebrow">TECHNICIAN SHIFTS & LEAVE SCHEDULE</p>
+    <p class="eyebrow"><i class="bi bi-clock-history me-1"></i>TECHNICIAN SHIFTS & LEAVE SCHEDULE</p>
     <h2 class="mb-1">Staff Working Schedules</h2>
     <p class="text-secondary mb-0">Monday to Sunday operating shifts, 12:00 PM – 1:00 PM lunch breaks, and weekly leave days.</p>
   </div>
-  <div class="d-flex flex-wrap gap-2">
-    <a class="btn btn-outline-dark btn-sm" href="{% url 'services:staff_list' %}">
-      <i class="bi bi-people me-1"></i> Staff Profiles
-    </a>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    {% if user.is_owner %}
+      <a class="btn btn-outline-dark btn-sm" href="{% url 'services:staff_list' %}">
+        <i class="bi bi-people me-1"></i> Staff Profiles
+      </a>
+    {% endif %}
     <a class="btn btn-outline-dark btn-sm" href="{% url 'services:time_block_list' %}">
       <i class="bi bi-calendar3-range me-1"></i> Time Blocks Calendar
     </a>
-    <form method="post" action="{% url 'services:schedule_list' %}" class="d-inline">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="sync_time_blocks">
-      <button type="submit" class="btn btn-outline-primary btn-sm" title="Sync shift lunch breaks (12-1pm) and leaves to the visual calendar planner">
-        <i class="bi bi-arrow-repeat me-1"></i> Sync Shifts to Calendar
-      </button>
-    </form>
-    <a class="btn btn-brand btn-sm" href="{% url 'services:schedule_create' %}">
-      <i class="bi bi-plus-circle me-1"></i> Add shift schedule
-    </a>
+    {% if user.is_owner %}
+      <form method="post" action="{% url 'services:schedule_list' %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="sync_time_blocks">
+        <button type="submit" class="btn btn-outline-primary btn-sm" title="Sync shift lunch breaks (12-1pm) and leaves to the visual calendar planner">
+          <i class="bi bi-arrow-repeat me-1"></i> Sync Shifts to Calendar
+        </button>
+      </form>
+      <a class="btn btn-brand btn-sm" href="{% url 'services:schedule_create' %}">
+        <i class="bi bi-plus-circle me-1"></i> Add Shift Schedule
+      </a>
+    {% endif %}
   </div>
 </div>
 
@@ -54,7 +59,7 @@
         <div>
           <span class="text-secondary small fw-bold text-uppercase d-block">Universal Lunch Break</span>
           <strong class="fs-6 d-block text-dark">12:00 PM – 01:00 PM</strong>
-          <small class="text-muted">Enforced on all bookings & calendar blocks</small>
+          <small class="text-muted">Enforced across all bookings and calendar blocks</small>
         </div>
       </div>
     </div>
@@ -76,8 +81,323 @@
   </div>
 </div>
 
+<!-- Categorized View Mode Switcher & Filter Toolbar -->
+<div class="content-card p-3 mb-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <!-- View Mode Switcher -->
+    <div class="schedule-view-switcher">
+      <a href="?view=roster{% if spec_filter %}&spec={{ spec_filter }}{% endif %}{% if staff_id %}&staff={{ staff_id }}{% endif %}"
+         class="schedule-view-btn {% if view_mode == 'roster' %}active{% endif %}">
+        <i class="bi bi-people-fill"></i> By Technician (Weekly Roster)
+      </a>
+      <a href="?view=daily{% if day_param %}&day={{ day_param }}{% endif %}"
+         class="schedule-view-btn {% if view_mode == 'daily' %}active{% endif %}">
+        <i class="bi bi-calendar-day"></i> By Day (Daily Duty Roster)
+      </a>
+      <a href="?view=table{% if staff_id %}&staff={{ staff_id }}{% endif %}{% if day_param %}&day={{ day_param }}{% endif %}{% if status_param %}&status={{ status_param }}{% endif %}"
+         class="schedule-view-btn {% if view_mode == 'table' %}active{% endif %}">
+        <i class="bi bi-table"></i> All Schedules (Table View)
+      </a>
+    </div>
+
+    <!-- Quick Staff Selector -->
+    <form method="get" class="d-flex align-items-center gap-2">
+      <input type="hidden" name="view" value="{{ view_mode }}">
+      {% if spec_filter %}<input type="hidden" name="spec" value="{{ spec_filter }}">{% endif %}
+      <select name="staff" class="form-select form-select-sm" style="min-width: 180px;" onchange="this.form.submit()">
+        <option value="">All Technicians ({{ total_staff_count }})</option>
+        {% for st in staff_list %}
+          <option value="{{ st.pk }}" {% if staff_id == st.pk|stringformat:"s" %}selected{% endif %}>
+            {{ st.get_full_name|default:st.email }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if staff_id or spec_filter %}
+        <a href="?view={{ view_mode }}" class="btn btn-outline-secondary btn-sm" title="Clear Filter">
+          <i class="bi bi-x-circle"></i>
+        </a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% if view_mode == 'roster' %}
+<!-- =========================================================================
+     VIEW 1: CATEGORIZED BY TECHNICIAN (WEEKLY ROSTER CARDS)
+     ========================================================================= -->
+<!-- Department / Specialty Categories Filter -->
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+  <span class="small fw-bold text-muted text-uppercase me-1"><i class="bi bi-funnel me-1"></i>Category:</span>
+  <a href="?view=roster{% if staff_id %}&staff={{ staff_id }}{% endif %}"
+     class="schedule-cat-pill {% if not spec_filter %}active{% endif %}">
+    All Staff ({{ category_counts.all }})
+  </a>
+  <a href="?view=roster&spec=nail_art{% if staff_id %}&staff={{ staff_id }}{% endif %}"
+     class="schedule-cat-pill {% if spec_filter == 'nail_art' %}active{% endif %}">
+    <i class="bi bi-brush"></i> Nail Art & Extensions ({{ category_counts.nail_art }})
+  </a>
+  <a href="?view=roster&spec=spa_lashes{% if staff_id %}&staff={{ staff_id }}{% endif %}"
+     class="schedule-cat-pill {% if spec_filter == 'spa_lashes' %}active{% endif %}">
+    <i class="bi bi-stars"></i> Lashes, Brows & Spa ({{ category_counts.spa_lashes }})
+  </a>
+  <a href="?view=roster&spec=classic_care{% if staff_id %}&staff={{ staff_id }}{% endif %}"
+     class="schedule-cat-pill {% if spec_filter == 'classic_care' %}active{% endif %}">
+    <i class="bi bi-hand-index-thumb"></i> Classic Nail Care ({{ category_counts.classic_care }})
+  </a>
+</div>
+
+<!-- Staff Cards Grid -->
+{% for item in staff_roster %}
+<div class="staff-roster-card">
+  <!-- Card Header -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pb-3 border-bottom">
+    <div class="d-flex align-items-center gap-3">
+      <div class="staff-avatar-circle">
+        {{ item.staff.first_name|slice:":1" }}{{ item.staff.last_name|slice:":1"|default:item.staff.email|slice:":1"|upper }}
+      </div>
+      <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h4 class="mb-0 fw-bold fs-5 text-dark">
+            {{ item.staff.get_full_name|default:item.staff.email }}
+          </h4>
+          {% if item.specialty %}
+            <span class="badge text-bg-light border small text-secondary">
+              <i class="bi bi-award me-1 text-primary"></i>{{ item.specialty }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="text-muted small mt-1">
+          <i class="bi bi-envelope me-1"></i>{{ item.staff.email }}
+          <span class="mx-2">&bull;</span>
+          <i class="bi bi-clock me-1 text-muted"></i>Standard Shift: <strong>{{ item.default_hours }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Badges & Quick Action -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+        <i class="bi bi-check-circle me-1"></i>{{ item.working_count }} Working Days
+      </span>
+      {% if item.off_days %}
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+          <i class="bi bi-moon-stars me-1"></i>Day Off: <strong>{{ item.off_day_str }}</strong>
+        </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Weekly 7-Day Matrix Strip -->
+  <div class="staff-week-grid">
+    {% for sched in item.schedules %}
+      {% if sched.is_working %}
+        <a href="{% url 'services:schedule_update' sched.pk %}" class="staff-day-cell is-working" title="Edit schedule for {{ sched.get_day_of_week_display }}">
+          <div>
+            <div class="staff-day-title">{{ sched.get_day_of_week_display|slice:":3" }}</div>
+            <div class="staff-day-hours">{{ sched.start_time|time:"g:i A" }} - {{ sched.end_time|time:"g:i A" }}</div>
+            <div class="staff-day-lunch">
+              <i class="bi bi-cup-hot me-1"></i>{{ sched.lunch_start|time:"g:i" }}-{{ sched.lunch_end|time:"g:i A" }}
+            </div>
+          </div>
+          <div>
+            <span class="badge bg-success text-white" style="font-size: 0.68rem; font-weight: 600;">
+              <i class="bi bi-check-circle me-1"></i>Duty
+            </span>
+            <div class="staff-day-edit-hint"><i class="bi bi-pencil me-1"></i>Edit</div>
+          </div>
+        </a>
+      {% else %}
+        <a href="{% url 'services:schedule_update' sched.pk %}" class="staff-day-cell is-off" title="Edit schedule for {{ sched.get_day_of_week_display }}">
+          <div>
+            <div class="staff-day-title">{{ sched.get_day_of_week_display|slice:":3" }}</div>
+            <div class="staff-day-hours text-danger">Off Duty</div>
+            <small class="text-muted" style="font-size: 0.72rem;">Leave Day</small>
+          </div>
+          <div>
+            <span class="badge bg-danger text-white" style="font-size: 0.68rem; font-weight: 700;">
+              <i class="bi bi-moon-stars me-1"></i>Day Off (Leave)
+            </span>
+            <div class="staff-day-edit-hint"><i class="bi bi-pencil me-1"></i>Edit</div>
+          </div>
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<div class="content-card text-center py-5">
+  <div class="text-muted fs-1 mb-2"><i class="bi bi-person-x"></i></div>
+  <h5>No staff members match the selected filter</h5>
+  <p class="text-muted small">Try resetting your filter to view all technician schedules.</p>
+  <a href="?view=roster" class="btn btn-outline-brand btn-sm">Reset Filters</a>
+</div>
+{% endfor %}
+
+{% elif view_mode == 'daily' %}
+<!-- =========================================================================
+     VIEW 2: CATEGORIZED BY DAY OF THE WEEK (DAILY DUTY SCHEDULE)
+     ========================================================================= -->
+<!-- Day of Week Selector Bar -->
+<div class="duty-day-picker-bar">
+  {% for d in days_summary %}
+    <a href="?view=daily&day={{ d.code }}" class="duty-day-pill {% if d.is_selected %}active{% endif %}">
+      <span class="duty-day-name">
+        {{ d.label }}
+        {% if d.is_today %}<span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Today</span>{% endif %}
+      </span>
+      <span class="duty-day-sub">
+        <i class="bi bi-check-circle me-1 text-success"></i>{{ d.working_count }} Working &bull; <i class="bi bi-moon-stars text-danger"></i>{{ d.off_count }} Off
+      </span>
+    </a>
+  {% endfor %}
+</div>
+
+<!-- Selected Day Heading -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="fw-bold mb-0 text-dark">
+      <i class="bi bi-calendar-event me-2 text-brand"></i>{{ selected_day_label }} Duty Roster
+    </h4>
+    <small class="text-muted">Active technician shifts and scheduled leaves for {{ selected_day_label }}.</small>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+      <i class="bi bi-people-fill me-1"></i>{{ daily_on_duty|length }} Technicians on Duty
+    </span>
+    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">
+      <i class="bi bi-moon-stars me-1"></i>{{ daily_off_duty|length }} on Day Off
+    </span>
+  </div>
+</div>
+
+<!-- Section 1: Technicians ON DUTY -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-success text-white rounded-pill px-3 py-1 fw-bold">
+      <i class="bi bi-check-circle me-1"></i>ON DUTY ({{ daily_on_duty|length }})
+    </span>
+    <span class="small text-muted">Technicians scheduled to accept appointment and walk-in clients.</span>
+  </div>
+
+  <div class="row g-3">
+    {% for sched in daily_on_duty %}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="duty-staff-card border-start border-4 border-success">
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <div class="staff-avatar-circle" style="width: 36px; height: 36px; font-size: 0.88rem;">
+                {{ sched.staff.first_name|slice:":1" }}{{ sched.staff.last_name|slice:":1"|default:sched.staff.email|slice:":1"|upper }}
+              </div>
+              <div>
+                <strong class="d-block text-dark">{{ sched.staff.get_full_name|default:sched.staff.email }}</strong>
+                <small class="text-muted font-monospace" style="font-size: 0.75rem;">{{ sched.staff.email }}</small>
+              </div>
+            </div>
+            <span class="badge bg-success text-white" style="font-size: 0.72rem;">Working</span>
+          </div>
+
+          {% if sched.staff.staff_profile.specialty %}
+            <div class="mb-2">
+              <span class="badge text-bg-light border text-truncate d-inline-block small" style="max-width: 100%;">
+                {{ sched.staff.staff_profile.specialty }}
+              </span>
+            </div>
+          {% endif %}
+
+          <div class="bg-light p-2 rounded small text-secondary mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <span><i class="bi bi-clock me-1 text-primary"></i>Shift Hours:</span>
+              <strong class="text-dark">{{ sched.start_time|time:"g:i A" }} - {{ sched.end_time|time:"g:i A" }}</strong>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span><i class="bi bi-cup-hot me-1 text-warning-emphasis"></i>Lunch Break:</span>
+              <span class="text-dark">{{ sched.lunch_start|time:"g:i A" }} - {{ sched.lunch_end|time:"g:i A" }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+          <a href="{% url 'services:schedule_update' sched.pk %}" class="btn btn-sm btn-outline-dark">
+            <i class="bi bi-pencil me-1"></i>Edit Shift
+          </a>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="alert alert-secondary text-center py-4">
+        No technicians on duty for this day.
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Section 2: Technicians ON DAY OFF (LEAVE) -->
+<div>
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-danger text-white rounded-pill px-3 py-1 fw-bold">
+      <i class="bi bi-moon-stars me-1"></i>DAY OFF / LEAVE ({{ daily_off_duty|length }})
+    </span>
+    <span class="small text-muted">Staff scheduled for their weekly rest day or leave.</span>
+  </div>
+
+  <div class="row g-3">
+    {% for sched in daily_off_duty %}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="duty-staff-card is-off border-start border-4 border-danger">
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <div class="staff-avatar-circle" style="width: 36px; height: 36px; font-size: 0.88rem; background: #cbd5e1; color: #475569;">
+                {{ sched.staff.first_name|slice:":1" }}{{ sched.staff.last_name|slice:":1"|default:sched.staff.email|slice:":1"|upper }}
+              </div>
+              <div>
+                <strong class="d-block text-dark">{{ sched.staff.get_full_name|default:sched.staff.email }}</strong>
+                <small class="text-muted font-monospace" style="font-size: 0.75rem;">{{ sched.staff.email }}</small>
+              </div>
+            </div>
+            <span class="badge bg-danger text-white" style="font-size: 0.72rem;">Day Off</span>
+          </div>
+
+          {% if sched.staff.staff_profile.specialty %}
+            <div class="mb-2">
+              <span class="badge text-bg-light border text-truncate d-inline-block small" style="max-width: 100%;">
+                {{ sched.staff.staff_profile.specialty }}
+              </span>
+            </div>
+          {% endif %}
+
+          <div class="p-2 rounded small text-danger-emphasis mb-2" style="background: rgba(239, 68, 68, 0.08);">
+            <i class="bi bi-info-circle me-1"></i>Designated weekly rest day (no client booking slots).
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+          <a href="{% url 'services:schedule_update' sched.pk %}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-arrow-repeat me-1"></i>Edit / Set Working
+          </a>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="alert alert-light border text-center py-3 text-muted">
+        All staff are on duty today. No scheduled leaves.
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% elif view_mode == 'table' %}
+<!-- =========================================================================
+     VIEW 3: DETAILED TABLE VIEW (WITH FILTERS & PAGINATION)
+     ========================================================================= -->
 <!-- Filter Toolbar -->
 <form class="content-card p-3 mb-4" method="get">
+  <input type="hidden" name="view" value="table">
   <div class="row g-2 align-items-end">
     <div class="col-12 col-sm-6 col-md-4">
       <label class="form-label small fw-bold text-secondary mb-1">Technician</label>
@@ -116,18 +436,17 @@
       <button class="btn btn-brand btn-sm w-100" type="submit">
         <i class="bi bi-funnel me-1"></i> Filter
       </button>
-      <a class="btn btn-outline-secondary btn-sm" href="{% url 'services:schedule_list' %}" title="Reset Filters">
+      <a class="btn btn-outline-secondary btn-sm" href="?view=table" title="Reset Filters">
         Reset
       </a>
     </div>
   </div>
 </form>
 
-<!-- Schedules Table -->
 <div class="content-card">
   <div class="table-responsive">
-    <table class="table align-middle mb-0">
-      <thead>
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
         <tr>
           <th scope="col">Technician / Staff</th>
           <th scope="col">Day of Week</th>
@@ -184,8 +503,12 @@
               {% endif %}
             </td>
             <td class="text-end text-nowrap">
-              <a class="btn btn-sm btn-outline-dark" href="{% url 'services:schedule_update' sched.pk %}">Edit</a>
-              <a class="btn btn-sm btn-outline-danger" href="{% url 'services:schedule_delete' sched.pk %}">Delete</a>
+              {% if user.is_owner %}
+                <a class="btn btn-sm btn-outline-dark" href="{% url 'services:schedule_update' sched.pk %}">Edit</a>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'services:schedule_delete' sched.pk %}">Delete</a>
+              {% else %}
+                <span class="badge text-bg-light border text-muted">Active Shift</span>
+              {% endif %}
             </td>
           </tr>
         {% empty %}
@@ -201,4 +524,7 @@
 </div>
 
 {% include 'services/pagination.html' with page_obj=page_obj staff=staff_id day=day_param status=status_param %}
+
+{% endif %}
+
 {% endblock %}

@@ -216,7 +216,7 @@
         <li class="nav-item">
           <a class="nav-link customer-nav-link {% if request.resolver_match.url_name == 'customer_dashboard' or request.resolver_match.url_name == 'dashboard_router' %}active{% endif %}" href="{% url 'core:customer_dashboard' %}">
             <i class="bi bi-house-door-fill"></i>
-            <span>Dashboard</span>
+            <span>Home</span>
           </a>
         </li>
         <li class="nav-item">
@@ -244,69 +244,87 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link customer-nav-link {% if request.resolver_match.app_name == 'notifications' %}active{% endif %}" href="{% url 'notifications:index' %}">
-            <i class="bi bi-bell"></i>
-            <span>Notifications</span>
+          <a class="nav-link customer-nav-link {% if request.resolver_match.url_name == 'messages' %}active{% endif %}" href="{% url 'notifications:messages' %}">
+            <i class="bi bi-chat-dots-fill"></i>
+            <span>Messages</span>
           </a>
         </li>
       </ul>
 
-      <!-- User Avatar Profile Menu -->
-      <div class="dropdown customer-user-dropdown my-1 my-lg-0">
-        <button class="customer-avatar-btn" type="button" id="customerUserMenu" data-bs-toggle="dropdown" aria-expanded="false" title="{{ user.get_full_name|default:user.email }}">
-          <div class="customer-avatar-circle">
-            {% if user.first_name and user.last_name %}
-              {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
-            {% elif user.first_name %}
-              {{ user.first_name|slice:":2"|upper }}
-            {% else %}
-              {{ user.email|slice:":2"|upper }}
-            {% endif %}
-          </div>
-          <i class="bi bi-chevron-down customer-avatar-chevron"></i>
-        </button>
+      <!-- Right Side Actions: Notification Bell + Settings Dropdown -->
+      <div class="d-flex align-items-center gap-2 ms-lg-auto my-2 my-lg-0">
+        <!-- Notification Bell -->
+        <a href="{% url 'notifications:index' %}" class="btn btn-outline-dark btn-sm position-relative d-inline-flex align-items-center justify-content-center" style="width: 42px; height: 42px; border-radius: 12px;" aria-label="Notifications" title="Notifications">
+          <i class="bi bi-bell fs-5"></i>
+          {% if unread_notifications_count and unread_notifications_count > 0 %}
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.7rem;">
+              {{ unread_notifications_count }}
+            </span>
+          {% endif %}
+        </a>
 
-        <ul class="dropdown-menu dropdown-menu-end customer-dropdown-menu shadow-sm" aria-labelledby="customerUserMenu">
-          <li class="px-3 py-2 border-bottom">
-            <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ user.get_full_name|default:user.email }}</div>
-            <small class="text-muted d-block text-truncate" style="max-width: 200px; font-size: 0.78rem;">{{ user.email }}</small>
-            <span class="badge bg-light text-dark border mt-1 font-monospace" style="font-size: 0.68rem;">Customer</span>
-          </li>
-          <li class="pt-1">
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'core:customer_profile' %}">
-              <i class="bi bi-person text-muted"></i>
-              <span>My Profile</span>
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'mfa_index' %}">
-              <i class="bi bi-shield-check text-muted"></i>
-              <span>Account Security (2FA)</span>
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'accounts:password_change' %}">
-              <i class="bi bi-key text-muted"></i>
-              <span>Change Password</span>
-            </a>
-          </li>
-          <li>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'accounts:logout_all_devices' %}">
-              <i class="bi bi-phone text-muted"></i>
-              <span>Log out all devices</span>
-            </a>
-          </li>
-          <li><hr class="dropdown-divider my-1"></li>
-          <li>
-            <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
-              {% csrf_token %}
-              <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger border-0 bg-transparent w-100 text-start">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>Log out</span>
-              </button>
-            </form>
-          </li>
-        </ul>
+        <!-- Settings Dropdown -->
+        <div class="dropdown customer-user-dropdown">
+          <button class="btn btn-outline-dark btn-sm d-inline-flex align-items-center justify-content-center gap-2 px-3" style="height: 42px; border-radius: 12px;" type="button" id="customerSettingsDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Settings &amp; Account">
+            <i class="bi bi-gear fs-5"></i>
+            <span class="d-none d-sm-inline fw-semibold">Settings</span>
+            <i class="bi bi-chevron-down small opacity-75"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow border p-2 rounded-3 mt-1" aria-labelledby="customerSettingsDropdown" style="min-width: 250px; border-color: #ebd6de !important;">
+            <li class="px-3 py-2 border-bottom mb-1">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="customer-avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                  {% if user.first_name and user.last_name %}
+                    {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+                  {% elif user.first_name %}
+                    {{ user.first_name|slice:":2"|upper }}
+                  {% else %}
+                    {{ user.email|slice:":2"|upper }}
+                  {% endif %}
+                </div>
+                <div class="overflow-hidden">
+                  <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ user.get_full_name|default:user.email }}</div>
+                  <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">{{ user.email }}</small>
+                </div>
+              </div>
+              <span class="badge bg-light text-dark border mt-1 font-monospace" style="font-size: 0.68rem;">Customer</span>
+            </li>
+            <li class="pt-1">
+              <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2" href="{% url 'core:customer_profile' %}">
+                <i class="bi bi-person text-muted fs-6"></i>
+                <span>My Profile</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2" href="{% url 'mfa_index' %}">
+                <i class="bi bi-shield-check text-muted fs-6"></i>
+                <span>Account Security (2FA)</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2" href="{% url 'accounts:password_change' %}">
+                <i class="bi bi-key text-muted fs-6"></i>
+                <span>Change password</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2" href="{% url 'accounts:logout_all_devices' %}">
+                <i class="bi bi-shield-x text-muted fs-6"></i>
+                <span>Log out all devices</span>
+              </a>
+            </li>
+            <li><hr class="dropdown-divider my-1"></li>
+            <li>
+              <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item py-2 rounded-2 d-flex align-items-center gap-2 text-danger fw-semibold border-0 bg-transparent w-100 text-start">
+                  <i class="bi bi-box-arrow-right fs-6"></i>
+                  <span>Log out</span>
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

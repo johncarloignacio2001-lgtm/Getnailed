@@ -108,7 +108,8 @@ def get_walk_in_technicians_status(target_datetime=None):
         )
         if active_block:
             item["status"] = "ON_BREAK"
-            item["status_label"] = f"On Break ({active_block.get_block_type_display()})"
+            reason_text = active_block.reason or "Break"
+            item["status_label"] = f"On Break ({reason_text})"
             item["badge_class"] = "bg-warning-subtle text-warning border border-warning-subtle"
             item["details"] = f"Until {active_block.end_time.strftime('%I:%M %p')}"
             break_count += 1

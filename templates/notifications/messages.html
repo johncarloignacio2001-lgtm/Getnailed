@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Messages &amp; Salon Chat | {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="eyebrow">Direct Communication</div>
+      <h1 class="h2 mb-1">
+        {% if is_customer_view %}
+          Message Owner &amp; Salon Staff
+        {% else %}
+          Customer Messages &amp; Support Inbox
+        {% endif %}
+      </h1>
+      <p class="text-muted mb-0">
+        {% if is_customer_view %}
+          Chat directly with our Plaridel &amp; Retiro QC branch managers and nail technicians regarding your booking, nail consultation, or schedule.
+        {% else %}
+          View and reply to direct customer inquiries, reschedule requests, and consultation messages.
+        {% endif %}
+      </p>
+    </div>
+    <div>
+      <a class="btn btn-outline-dark" href="{% url 'notifications:index' %}">View All Alerts</a>
+    </div>
+  </div>
+
+  {% if is_customer_view %}
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="gn-card p-4 shadow-sm" style="border-radius: 24px; border: 1px solid #ebd3dc;">
+          <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div style="width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, #2b181d, #8b4f5c); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.35rem;">
+                💅
+              </div>
+              <div>
+                <h2 class="h5 fw-bold mb-0" style="color: #2b181d;">Get Nailed Salon Team</h2>
+                <small class="text-muted">Owner &amp; Staff • Plaridel &amp; Retiro QC Branches</small>
+              </div>
+            </div>
+            <span class="badge rounded-pill text-bg-success px-3 py-2 fw-semibold"><i class="bi bi-circle-fill me-1" style="font-size: 0.55rem;"></i> Online Support</span>
+          </div>
+
+          <div class="d-flex flex-column gap-3 mb-4" style="max-height: 480px; overflow-y: auto; padding: 0.75rem; background: #faf4f6; border-radius: 18px; border: 1px solid #f0e2e7;">
+            {% for msg in thread %}
+              <div class="d-flex {% if msg.is_from_customer %}justify-content-end{% else %}justify-content-start{% endif %}">
+                <div style="max-width: 82%; padding: 0.95rem 1.25rem; border-radius: 20px; {% if msg.is_from_customer %}background: linear-gradient(135deg, #b85872, #963f56); color: #fff; box-shadow: 0 4px 14px rgba(184, 88, 114, 0.22); border-bottom-right-radius: 4px;{% else %}background: #ffffff; border: 1px solid #ebd6de; color: #2b181d; box-shadow: 0 2px 8px rgba(43, 24, 29, 0.05); border-bottom-left-radius: 4px;{% endif %}">
+                  <div class="small fw-bold mb-1" style="opacity: 0.88; font-size: 0.82rem;">
+                    {% if msg.is_from_customer %}You{% else %}{{ msg.sender_name|default:"Salon Staff" }}{% endif %}
+                  </div>
+                  <div style="white-space: pre-wrap; font-size: 1.02rem; line-height: 1.48;">{{ msg.body }}</div>
+                  <div class="small text-end mt-1" style="opacity: 0.75; font-size: 0.76rem;">{{ msg.created_at|date:"M d, Y h:i A" }}</div>
+                </div>
+              </div>
+            {% empty %}
+              <div class="text-center py-5 text-muted">
+                <div class="fs-1 mb-2">💬</div>
+                <p class="fs-5 fw-semibold mb-1" style="color: #2b181d;">No messages yet.</p>
+                <p class="mb-0 small">Send us a message below if you have questions about services, branches, or your appointment!</p>
+              </div>
+            {% endfor %}
+          </div>
+
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label fw-bold" for="id_message_body" style="color: #2b181d;">Your Message</label>
+              <textarea id="id_message_body" name="body" rows="3" class="form-control rounded-4 p-3" style="border-color: #dfcbd4; font-size: 1rem;" placeholder="Type your question, reschedule note, or custom nail art inquiry..." required></textarea>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="small text-muted"><i class="bi bi-shield-check text-success me-1"></i> Responses appear here &amp; in your notifications</span>
+              <button type="submit" class="btn btn-dark btn-lg px-4 py-2 rounded-pill fw-bold shadow-sm" style="background: linear-gradient(135deg, #2b181d, #8b4f5c); border: none;">
+                <i class="bi bi-send-fill me-1"></i> Send Message
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="gn-card p-4 mb-3" style="border-radius: 20px; border: 1px solid #ebd3dc;">
+          <div class="eyebrow">Branch Contacts</div>
+          <h3 class="h5 mb-3 fw-bold" style="color: #2b181d;">Visit or Call Us</h3>
+          <div class="mb-3 pb-3 border-bottom">
+            <div class="fw-bold">Plaridel Branch (Bulacan)</div>
+            <p class="small text-muted mb-1">Unit 14 G/F Rocka Commercial Complex, Tabang, Plaridel, Bulacan</p>
+            <div class="small fw-semibold">📞 0905 084 3892 / (044) 794-7692</div>
+          </div>
+          <div>
+            <div class="fw-bold">Retiro QC Branch (Quezon City)</div>
+            <p class="small text-muted mb-1">N.S. Amoranto Sr. St. (Retiro), Santa Mesa Heights, Quezon City</p>
+            <div class="small fw-semibold">📞 0905 084 3892</div>
+          </div>
+        </div>
+
+        <div class="gn-card p-4" style="border-radius: 20px; border: 1px solid #ebd3dc;">
+          <div class="eyebrow">Salon Guidelines</div>
+          <h3 class="h5 mb-2 fw-bold" style="color: #2b181d;">Quick Guidelines</h3>
+          <ul class="small text-muted ps-3 mb-0">
+            <li class="mb-2"><strong>No Advance Payment:</strong> We never charge deposits. Reminders are sent 4–5 hrs before &amp; on the day.</li>
+            <li class="mb-2"><strong>10–15 Min Grace Period:</strong> Slots auto-release if delayed with no response. Message here if in traffic.</li>
+            <li><strong>Fri–Sun Peak:</strong> Major packages &gt; ₱300 are prioritized online; basic services welcome via walk-in when free.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="gn-card p-3 shadow-sm" style="border-radius: 20px; border: 1px solid #ebd3dc;">
+          <div class="fw-bold px-2 py-2 border-bottom mb-2 d-flex justify-content-between align-items-center">
+            <span>Conversations History</span>
+            <span class="badge rounded-pill text-bg-light border px-2 py-1">{{ customers|length }} chats</span>
+          </div>
+
+          <!-- Messenger-style Search Filter -->
+          <form method="get" class="mb-2 px-1">
+            <div class="input-group input-group-sm">
+              <input type="text" name="q" value="{{ search_query|default:'' }}" class="form-control rounded-pill-start" placeholder="Search customer name, phone, email...">
+              <button class="btn btn-outline-secondary rounded-pill-end" type="submit"><i class="bi bi-search"></i></button>
+            </div>
+          </form>
+
+          <div class="list-group list-group-flush" style="max-height: 560px; overflow-y: auto;">
+            {% for cust in customers %}
+              <a href="?customer={{ cust.pk }}{% if search_query %}&q={{ search_query }}{% endif %}" class="list-group-item list-group-item-action rounded-3 mb-1 p-2.5 {% if selected_customer and cust.pk == selected_customer.pk %}active{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="d-flex align-items-center gap-2 text-truncate">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: {% if cust.last_msg_at %}#10b981{% else %}#d1d5db{% endif %}; flex-shrink: 0;"></span>
+                    <strong class="text-truncate">{{ cust.full_name }}</strong>
+                  </div>
+                  {% if cust.last_msg_at %}
+                    <small class="opacity-75" style="font-size: 0.76rem;">{{ cust.last_msg_at|date:"M d, g:i A" }}</small>
+                  {% endif %}
+                </div>
+                <div class="small opacity-75 text-truncate ps-3">{{ cust.phone|default:cust.email|default:"Client" }}</div>
+              </a>
+            {% empty %}
+              <div class="p-3 text-muted small text-center">No customer conversations found.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="gn-card p-4 shadow-sm" style="border-radius: 24px; border: 1px solid #ebd3dc;">
+          {% if selected_customer %}
+            <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-3 mb-3 gap-2">
+              <div class="d-flex align-items-center gap-3">
+                <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #fdf2f5, #f5dce4); color: #8b3d52; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; border: 1px solid #ebd3dc;">
+                  {{ selected_customer.first_name|slice:":1" }}{{ selected_customer.last_name|slice:":1" }}
+                </div>
+                <div>
+                  <h2 class="h5 fw-bold mb-0" style="color: #2b181d;">{{ selected_customer.full_name }}</h2>
+                  <div class="small text-muted">
+                    Email: {{ selected_customer.email|default:"N/A" }} • Phone: {{ selected_customer.phone|default:"N/A" }}
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge text-bg-light border px-3 py-2 small"><i class="bi bi-clock-history me-1"></i> Full History Visible to Owner &amp; Staff</span>
+                <a class="btn btn-outline-dark btn-sm rounded-pill px-3" href="{% url 'customers:detail' selected_customer.pk %}">Client Profile</a>
+              </div>
+            </div>
+
+            <div class="d-flex flex-column gap-3 mb-4" style="max-height: 480px; overflow-y: auto; padding: 0.85rem; background: #faf4f6; border-radius: 18px; border: 1px solid #f0e2e7;">
+              {% for msg in thread %}
+                <div class="d-flex {% if not msg.is_from_customer %}justify-content-end{% else %}justify-content-start{% endif %}">
+                  <div style="max-width: 82%; padding: 0.95rem 1.25rem; border-radius: 20px; {% if not msg.is_from_customer %}background: linear-gradient(135deg, #2b181d, #4b2a33); color: #fff; box-shadow: 0 4px 14px rgba(43, 24, 29, 0.2); border-bottom-right-radius: 4px;{% else %}background: #ffffff; border: 1px solid #ebd6de; color: #2b181d; box-shadow: 0 2px 8px rgba(43, 24, 29, 0.05); border-bottom-left-radius: 4px;{% endif %}">
+                    <div class="small fw-bold mb-1" style="opacity: 0.88; font-size: 0.82rem;">
+                      {% if msg.is_from_customer %}
+                        👤 {{ selected_customer.full_name }}
+                      {% else %}
+                        ✨ {{ msg.sender_name|default:"Salon Staff" }}
+                      {% endif %}
+                    </div>
+                    <div style="white-space: pre-wrap; font-size: 1.02rem; line-height: 1.48;">{{ msg.body }}</div>
+                    <div class="small text-end mt-1" style="opacity: 0.75; font-size: 0.76rem;">{{ msg.created_at|date:"M d, Y h:i A" }}</div>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="text-center py-5 text-muted">
+                  <div class="fs-1 mb-2">💬</div>
+                  <p class="mb-0">No past messages with {{ selected_customer.full_name }}. Send a direct reminder, reschedule advice, or consultation note below.</p>
+                </div>
+              {% endfor %}
+            </div>
+
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="customer_id" value="{{ selected_customer.pk }}">
+              <div class="mb-3">
+                <label class="form-label fw-bold" for="id_staff_reply" style="color: #2b181d;">Reply / Send Reminder to {{ selected_customer.full_name }}</label>
+                <textarea id="id_staff_reply" name="body" rows="3" class="form-control rounded-4 p-3" style="border-color: #dfcbd4; font-size: 1rem;" placeholder="Type your reply, appointment reminder, or promo code note..." required></textarea>
+              </div>
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex gap-2 flex-wrap">
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="document.getElementById('id_staff_reply').value='Hi {{ selected_customer.first_name }}! Friendly reminder from Get Nailed Salon regarding your booking today. Please reply to confirm your arrival (10-15 min grace period applies). Thank you!';">Insert Reminder</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="document.getElementById('id_staff_reply').value='Hi {{ selected_customer.first_name }}! Your appointment is approved. Present your promo code GETNAILED10 at checkout!';">Insert Promo Code</button>
+                </div>
+                <button type="submit" class="btn btn-dark btn-lg px-4 py-2 rounded-pill fw-bold shadow-sm" style="background: linear-gradient(135deg, #2b181d, #8b4f5c); border: none;">
+                  <i class="bi bi-reply-fill me-1"></i> Send Reply
+                </button>
+              </div>
+            </form>
+          {% else %}
+            <p class="text-muted mb-0">Select a customer from the left list to view or reply to messages.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+

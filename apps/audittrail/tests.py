@@ -360,3 +360,17 @@ class SecurityEventTests(TestCase):
         log = AuditLog.objects.get(path=reverse("accounts:logout"))
         self.assertEqual(log.user, user)
         self.assertEqual(log.method, "POST")
+
+    def test_owner_can_export_csv_and_non_owner_cannot(self):
+        owner = self.create_user("owner@example.com", User.Role.OWNER)
+        staff = self.create_user("staff@example.com", User.Role.STAFF)
+
+        self.client.force_login(owner)
+        resp = self.client.get(reverse("audittrail:export_events_csv"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "text/csv")
+
+        self.client.force_login(staff)
+        denied = self.client.get(reverse("audittrail:export_events_csv"))
+        self.assertIn(denied.status_code, (302, 403))
+

@@ -180,6 +180,10 @@ class AppointmentQuerySet(models.QuerySet):
 
 
 class Appointment(models.Model):
+    class Branch(models.TextChoices):
+        PLARIDEL = "PLARIDEL", "Plaridel Branch (Rocka Commercial Complex)"
+        RETIRO_QC = "RETIRO_QC", "Retiro QC Branch (Amoranto, Quezon City)"
+
     class BookingSource(models.TextChoices):
         PUBLIC = "PUBLIC", "Public booking"
         WALK_IN = "WALK_IN", "Walk-in"
@@ -203,6 +207,15 @@ class Appointment(models.Model):
         default=generate_booking_reference,
         editable=False,
     )
+    branch = models.CharField(
+        max_length=20,
+        choices=Branch.choices,
+        default=Branch.PLARIDEL,
+    )
+    promo_code_issued = models.CharField(max_length=50, blank=True)
+    day_of_reminder_sent_at = models.DateTimeField(blank=True, null=True)
+    four_hour_reminder_sent_at = models.DateTimeField(blank=True, null=True)
+    late_alert_sent_at = models.DateTimeField(blank=True, null=True)
     customer = models.ForeignKey(
         Customer,
         on_delete=models.PROTECT,

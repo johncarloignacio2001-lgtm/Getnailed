@@ -15,6 +15,7 @@ urlpatterns = [
     path('access/<str:reference>/<str:token>/cancel/', views.cancel, name='cancel'),
     path('access/<str:reference>/<str:token>/reschedule/', views.reschedule, name='reschedule'),
     path('manage/', views.manage, name='manage'),
+    path('alerts/process/', views.process_alerts_view, name='process_alerts'),
     path('calendar/', views.calendar, name='calendar'),
     path('assigned/', views.assigned, name='assigned'),
     path('appointments/<str:reference>/', views.detail, name='detail'),

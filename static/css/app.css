@@ -21,7 +21,35 @@ html, body {
   overflow-x: hidden;
   background: var(--blush);
   color: var(--text-main);
+  font-size: 16.5px;
+  line-height: 1.6;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.btn {
+  font-size: 1rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+.btn-lg {
+  font-size: 1.12rem;
+  padding: 0.8rem 1.55rem;
+  border-radius: 14px;
+}
+.form-control, .form-select {
+  font-size: 1.04rem;
+  padding: 0.68rem 0.95rem;
+  border-radius: 12px;
+}
+.form-label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.gn-card, .content-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(71, 45, 53, 0.06);
 }
 .text-muted { color: var(--text-muted) !important; }
 a { text-decoration: none; }
@@ -429,39 +457,30 @@ thead th { text-align: center; vertical-align: middle; }
 }
 
 @media (min-width: 992px) {
-  .sidebar,
+  .sidebar {
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.28s ease, width 0.28s ease;
+  }
   .app-main {
-    transition: width 0.25s ease, margin-left 0.25s ease;
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
+  /* When sidebar is collapsed on initial render, disable transition so it never animates or pops into view */
+  html.sidebar-collapsed:not(.sidebar-interactive) .sidebar,
+  html.sidebar-collapsed:not(.sidebar-interactive) .app-main,
+  body.sidebar-collapsed:not(.sidebar-interactive) .sidebar,
+  body.sidebar-collapsed:not(.sidebar-interactive) .app-main {
+    transition: none !important;
+  }
+  html.sidebar-collapsed .sidebar,
   body.sidebar-collapsed .sidebar {
-    width: 76px;
-    padding-inline: 10px;
+    transform: translateX(-100%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
   }
+  html.sidebar-collapsed .app-main,
   body.sidebar-collapsed .app-main {
-    width: calc(100% - 76px);
-    margin-left: 76px;
-  }
-  body.sidebar-collapsed .sidebar-header {
-    justify-content: center !important;
-  }
-  body.sidebar-collapsed .brand {
-    justify-content: center;
-    gap: 0;
-  }
-  body.sidebar-collapsed .brand span,
-  body.sidebar-collapsed .role-chip,
-  body.sidebar-collapsed .sidebar-nav a span {
-    display: none;
-  }
-  body.sidebar-collapsed .sidebar-nav a {
-    justify-content: center;
-    padding-inline: 0;
-  }
-  body.sidebar-collapsed .sidebar-nav a i {
-    margin-right: 0;
-  }
-  body.sidebar-collapsed .sidebar-nav a:hover {
-    transform: none;
+    width: 100% !important;
+    margin-left: 0 !important;
   }
 }
 
@@ -872,6 +891,16 @@ html {
   line-height: 1.45;
 }
 
+.visit-qr-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.visit-qr-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(72, 34, 45, 0.12) !important;
+  border-color: #8b3d52 !important;
+}
+
 @media print {
   .receipt-page { background: white; padding: 0; }
   .receipt { box-shadow: none; width: 80mm; padding: 6mm; }
@@ -884,44 +913,50 @@ html {
 }
 
 .password-requirements-box {
-  background: #152722;
-  border: 1px solid #244238;
-  border-radius: 12px;
-  padding: 13px 16px;
-  color: #d1d5db;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  color: #374151;
   font-size: 0.88rem;
-  margin-top: 6px;
-  margin-bottom: 4px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  margin-top: 8px;
+  margin-bottom: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s ease;
 }
 
 .password-requirements-box.all-valid {
-  border-color: #059669;
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: #f0fdf4;
+  border-color: #22c55e;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.15);
 }
 
 .password-requirements-title {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9ca3af;
-  margin-bottom: 8px;
+  color: #475569;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.password-requirements-box.all-valid .password-requirements-title {
+  color: #15803d;
 }
 
 .requirement-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 3px 0;
-  color: #9ca3af;
+  padding: 4px 0;
+  color: #4b5563;
   font-size: 0.875rem;
+  font-weight: 500;
   line-height: 1.4;
-  transition: color 0.18s ease;
+  transition: all 0.2s ease;
 }
 
 .requirement-item .req-icon {
@@ -931,17 +966,18 @@ html {
   width: 18px;
   height: 18px;
   font-size: 0.95rem;
-  color: #6b7280;
-  transition: color 0.18s ease, transform 0.18s ease;
+  color: #9ca3af;
+  transition: all 0.2s ease;
 }
 
 .requirement-item.valid {
-  color: #ffffff;
+  color: #15803d;
+  font-weight: 600;
 }
 
 .requirement-item.valid .req-icon {
-  color: #34d399; /* Emerald checkmark matching screenshot */
-  transform: scale(1.1);
+  color: #16a34a;
+  transform: scale(1.15);
 }
 
 .toggle-password-btn {
@@ -1019,16 +1055,57 @@ html {
 .tb-scroll-container {
   overflow-x: auto;
   padding: 24px 20px 28px;
-  min-width: 860px;
+  min-width: 1000px;
 }
 
 .tb-header-row {
   display: grid;
-  grid-template-columns: 75px repeat(7, 1fr);
+  grid-template-columns: 75px repeat(7, minmax(140px, 1fr));
   gap: 10px;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tb-allday-row {
+  display: grid;
+  grid-template-columns: 75px repeat(7, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.tb-allday-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 28px;
+  padding: 3px 6px;
+  background: rgba(248, 249, 250, 0.85);
+  border-radius: 8px;
+  border: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.tb-allday-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #fda4af;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tb-allday-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.2);
 }
 
 .tb-time-col-header {
@@ -1075,7 +1152,7 @@ html {
 .tb-grid-body {
   position: relative;
   display: grid;
-  grid-template-columns: 75px repeat(7, 1fr);
+  grid-template-columns: 75px repeat(7, minmax(140px, 1fr));
   gap: 10px;
 }
 
@@ -1100,15 +1177,16 @@ html {
 }
 
 .tb-time-hour {
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: #1e293b;
   line-height: 1;
 }
 
 .tb-time-half {
-  font-size: 0.65rem;
-  font-weight: 500;
-  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
   position: absolute;
   top: 28px;
   right: 14px;
@@ -1223,35 +1301,43 @@ html {
 }
 
 /* --------------------------------------------------------------------------
-   Time Block Pills (Rounded capsule design matching user image)
+   Time Block Pills (Modern legible card design)
    -------------------------------------------------------------------------- */
 .time-block-pill {
   position: absolute;
-  left: 4px;
-  border-radius: 24px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  padding: 4px 6px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+  padding: 5px 8px;
   cursor: pointer;
   z-index: 5;
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, z-index 0.1s ease;
   user-select: none;
   box-sizing: border-box;
   overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.time-block-pill strong,
+.time-block-pill span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .time-block-pill.tb-pill-compact {
-  padding: 2px 6px;
-  border-radius: 12px;
+  padding: 3px 6px;
+  border-radius: 8px;
 }
 
 .tb-pill-compact-text {
-  font-size: 0.72rem;
-  line-height: 1.1;
-  font-weight: 600;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1259,79 +1345,92 @@ html {
 }
 
 .time-block-pill:hover {
-  transform: translateY(-2px) scale(1.02);
-  z-index: 12;
+  transform: translateY(-2px) scale(1.03);
+  z-index: 60 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22) !important;
+  min-width: 160px;
 }
 
 /* Lime Green: Lunch */
 .block-color-lime {
-  background: #c5e038;
-  color: #364900;
-  box-shadow: 0 4px 14px rgba(175, 203, 33, 0.42);
+  background: #d9f99d;
+  color: #365314;
+  border: 1px solid #bef264;
+  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.25);
 }
 .block-color-lime:hover {
-  background: #baec22;
-  box-shadow: 0 8px 22px rgba(175, 203, 33, 0.6);
+  background: #bef264;
+  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.4);
 }
 
 /* Vibrant Blue: Work Time */
 .block-color-blue {
-  background: #398bc9;
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(57, 139, 201, 0.42);
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
 }
 .block-color-blue:hover {
-  background: #2e83c2;
-  box-shadow: 0 8px 22px rgba(57, 139, 201, 0.6);
+  background: #bae6fd;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
 }
 
 /* Dark Navy: Legacy / fallback */
 .block-color-navy {
-  background: #11233e;
+  background: #1e293b;
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(17, 35, 62, 0.45);
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.25);
 }
 .block-color-navy:hover {
-  background: #0d1c32;
-  box-shadow: 0 8px 22px rgba(17, 35, 62, 0.65);
+  background: #0f172a;
 }
 
 /* Rose / Red: Leave */
 .block-color-rose {
-  background: #d9536e;
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(217, 83, 110, 0.42);
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #fda4af;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.2);
 }
 .block-color-rose:hover {
-  background: #ce4561;
-  box-shadow: 0 8px 22px rgba(217, 83, 110, 0.6);
+  background: #fecdd3;
 }
 
-/* Deep Plum / Violet: Customer Appointments (Time Block -> Technician -> Appointment) */
+/* Deep Plum / Violet: Customer Appointments */
 .block-color-appointment {
-  background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
   color: #ffffff;
-  border-left: 3.5px solid #ffd54f;
-  box-shadow: 0 4px 14px rgba(106, 27, 154, 0.45);
+  border-left: 3.5px solid #fbbf24;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 3px 12px rgba(109, 40, 217, 0.35);
   cursor: pointer;
 }
 .block-color-appointment:hover {
-  background: linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%);
-  box-shadow: 0 8px 22px rgba(106, 27, 154, 0.65);
+  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
+  box-shadow: 0 8px 22px rgba(109, 40, 217, 0.5);
 }
 
 .tb-pill-title {
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.25;
   letter-spacing: -0.01em;
-  text-transform: lowercase;
 }
 
 .tb-pill-time {
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  opacity: 0.88;
+  opacity: 0.9;
+}
+
+.tb-pill-staff {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+  font-weight: 600;
+  opacity: 0.95;
   margin-top: 3px;
 }
 
@@ -1611,6 +1710,592 @@ html {
   .table-responsive table td {
     white-space: nowrap !important;
   }
+}
+
+
+
+/* Moving Horizontal Nail Art Marquee Showcase */
+.gn-marquee-section {
+  width: 100%;
+  overflow: hidden;
+  padding: 0.75rem 0;
+}
+
+.gn-marquee-viewport {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #f9f3f0;
+  padding: 1rem;
+  border: 1px solid #ead4dc;
+}
+
+.gn-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  animation: gnNailMarquee 34s linear infinite;
+}
+
+.gn-marquee-viewport:hover .gn-marquee-track {
+  animation-play-state: paused;
+}
+
+.gn-marquee-card {
+  display: block;
+  flex: 0 0 auto;
+  width: 220px;
+  height: 225px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(45, 22, 30, 0.1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.gn-marquee-card.gn-marquee-card-narrow {
+  width: 145px;
+}
+
+.gn-marquee-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 14px 28px rgba(45, 22, 30, 0.18);
+}
+
+.gn-marquee-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes gnNailMarquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Modern Platform Split-Screen Login & Signup (Facebook / Instagram Web Style) */
+.modern-auth-page {
+  background: radial-gradient(circle at top left, #fff9fb 0%, #f6e7ed 52%, #eedae2 100%);
+}
+
+.modern-auth-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2rem 1.85rem;
+  box-shadow: 0 12px 36px rgba(38, 20, 25, 0.12), 0 2px 6px rgba(38, 20, 25, 0.06);
+  border: 1px solid rgba(226, 202, 211, 0.75);
+}
+
+.modern-auth-input {
+  height: 56px;
+  border-radius: 12px !important;
+  border: 1.5px solid #dfd0d6 !important;
+  font-size: 1.08rem !important;
+  padding: 0.85rem 1rem !important;
+  background-color: #fcf9fa !important;
+  color: #241318 !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.modern-auth-input:focus {
+  background-color: #ffffff !important;
+  border-color: #b4566e !important;
+  box-shadow: 0 0 0 4px rgba(180, 86, 110, 0.15) !important;
+}
+
+.modern-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.modern-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #7c4b58;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.modern-password-toggle:hover {
+  background: rgba(180, 86, 110, 0.1);
+}
+
+.modern-login-btn {
+  background: linear-gradient(135deg, #2b161d 0%, #46232e 100%);
+  color: #ffffff !important;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(43, 22, 29, 0.2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.modern-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(43, 22, 29, 0.28);
+  opacity: 0.96;
+}
+
+.modern-forgot-link {
+  color: #8b3d52;
+  font-size: 0.96rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.modern-forgot-link:hover {
+  text-decoration: underline;
+  color: #632637;
+}
+
+.modern-create-btn {
+  background: linear-gradient(135deg, #b85872 0%, #963f56 100%);
+  color: #ffffff !important;
+  border: none;
+  border-radius: 12px;
+  display: inline-block;
+  min-width: 72%;
+  box-shadow: 0 8px 18px rgba(150, 63, 86, 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modern-create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(150, 63, 86, 0.3);
+  opacity: 0.96;
+}
+
+/* --------------------------------------------------------------------------
+   Time Block Picker & Booking Modern Cards
+-------------------------------------------------------------------------- */
+.time-block-btn {
+  background: #ffffff;
+  color: #2b181d;
+  border: 1.5px solid #ebd6de;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(72, 34, 45, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.time-block-btn:hover {
+  transform: translateY(-2px);
+  border-color: #8b3d52;
+  box-shadow: 0 8px 18px rgba(139, 61, 82, 0.14);
+  color: #8b3d52;
+  background: #fff8fa;
+}
+
+.time-block-btn.active {
+  background: linear-gradient(135deg, #2b181d 0%, #4a242f 100%) !important;
+  color: #ffffff !important;
+  border-color: #2b181d !important;
+  box-shadow: 0 10px 22px rgba(43, 24, 29, 0.28) !important;
+  transform: translateY(-2px);
+}
+
+.time-block-btn.active .time-text {
+  color: #ffffff !important;
+}
+
+.time-block-btn.active .badge-text {
+  color: #fbcfe8 !important;
+  font-weight: 600;
+}
+
+.nailgarden-hero {
+  transition: box-shadow 0.3s ease;
+}
+
+.nailgarden-hero:hover {
+  box-shadow: 0 25px 60px rgba(43, 24, 29, 0.22) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Day View & Day Picker Navigation (Isang Araw Kada Tingin)
+   -------------------------------------------------------------------------- */
+.tb-daypicker-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 6px 2px 8px 2px;
+  scrollbar-width: thin;
+}
+
+.tb-daypicker-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  min-width: 105px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.tb-daypicker-pill:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+}
+
+.tb-daypicker-pill.active {
+  background: linear-gradient(135deg, #2b181d 0%, #4a242f 100%) !important;
+  color: #ffffff !important;
+  border-color: #2b181d !important;
+  box-shadow: 0 8px 20px rgba(43, 24, 29, 0.28) !important;
+  transform: translateY(-2px);
+}
+
+.tb-daypicker-pill.active .tb-daypicker-name,
+.tb-daypicker-pill.active .tb-daypicker-date {
+  color: #ffffff !important;
+}
+
+.tb-daypicker-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.tb-daypicker-date {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* Day View with Technician Columns */
+.tb-tech-header-row {
+  display: grid;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 20;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tb-tech-header {
+  padding: 10px 12px;
+  text-align: center;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.tb-tech-header .tb-tech-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tb-tech-allday-row {
+  display: grid;
+  background: #fbfbfd;
+  border-bottom: 2px solid #e2e8f0;
+  min-height: 44px;
+}
+
+.tb-tech-grid-body {
+  display: grid;
+  position: relative;
+  background: #ffffff;
+}
+
+/* ==========================================================================
+   Modern & Categorized Staff Schedules
+   ========================================================================== */
+.schedule-view-switcher {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.schedule-view-btn {
+  border: none;
+  background: transparent;
+  padding: 7px 18px;
+  border-radius: 9999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.schedule-view-btn:hover {
+  color: #1e293b;
+}
+
+.schedule-view-btn.active {
+  background: #ffffff;
+  color: var(--brand, #8b4f5c);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.schedule-cat-pill {
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.schedule-cat-pill:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.schedule-cat-pill.active {
+  background: #1e293b;
+  border-color: #1e293b;
+  color: #ffffff;
+}
+
+/* Staff Roster Card (Categorized by Technician) */
+.staff-roster-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.staff-roster-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+  border-color: #cbd5e1;
+}
+
+.staff-avatar-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b4f5c, #a86271);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(139, 79, 92, 0.25);
+}
+
+.staff-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1199px) {
+  .staff-week-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .staff-week-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .staff-week-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.staff-day-cell {
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100px;
+  transition: all 0.2s ease;
+  position: relative;
+  text-decoration: none;
+}
+
+.staff-day-cell.is-working {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.staff-day-cell.is-working:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.staff-day-cell.is-off {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
+
+.staff-day-cell.is-off:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.08);
+}
+
+.staff-day-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.staff-day-cell.is-off .staff-day-title {
+  color: #be123c;
+}
+
+.staff-day-hours {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.staff-day-lunch {
+  font-size: 0.72rem;
+  color: #b45309;
+  margin-top: 4px;
+}
+
+.staff-day-edit-hint {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--brand, #8b4f5c);
+  margin-top: 4px;
+}
+
+.staff-day-cell:hover .staff-day-edit-hint {
+  opacity: 1;
+}
+
+/* Daily Duty View (Categorized by Day of Week) */
+.duty-day-picker-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 20px;
+}
+
+.duty-day-pill {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  text-decoration: none;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 105px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.duty-day-pill:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.duty-day-pill.active {
+  background: var(--brand, #8b4f5c);
+  border-color: var(--brand, #8b4f5c);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(139, 79, 92, 0.28);
+}
+
+.duty-day-pill .duty-day-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.duty-day-pill .duty-day-sub {
+  font-size: 0.74rem;
+  color: #64748b;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.duty-day-pill.active .duty-day-sub {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.duty-staff-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.duty-staff-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.duty-staff-card.is-off {
+  background: #fff8f8;
+  border-color: #fed7aa;
 }
 
 

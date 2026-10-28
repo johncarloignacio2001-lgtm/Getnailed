@@ -29,6 +29,11 @@
     <div class="content-card shadow-sm mb-4">
       <h5 class="fw-bold mb-3 pb-2 border-bottom"><i class="bi bi-calendar-event me-2 text-muted"></i>Booking Summary</h5>
       <dl class="row mb-0 small">
+        <dt class="col-sm-4 text-muted">Branch Location:</dt>
+        <dd class="col-sm-8 fw-bold" style="color: #8b3d52;">
+          📍 {{ appointment.get_branch_display }}
+        </dd>
+
         <dt class="col-sm-4 text-muted">Customer Name:</dt>
         <dd class="col-sm-8 fw-semibold">{{ appointment.customer_name }}</dd>
 
@@ -40,6 +45,20 @@
 
         <dt class="col-sm-4 text-muted">Selected Services:</dt>
         <dd class="col-sm-8 fw-semibold text-primary">{{ appointment.service_name }}</dd>
+
+        {% if appointment.promo_code_issued %}
+        <dt class="col-sm-4 text-muted">Issued Promo Code:</dt>
+        <dd class="col-sm-8">
+          <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1.5 fs-6">
+            🎁 {{ appointment.promo_code_issued }}
+          </span>
+        </dd>
+        {% endif %}
+
+        {% if appointment.cancellation_reason %}
+        <dt class="col-sm-4 text-muted">Removal / Cancel Reason:</dt>
+        <dd class="col-sm-8 text-danger fw-semibold">{{ appointment.cancellation_reason }}</dd>
+        {% endif %}
 
         <dt class="col-sm-4 text-muted">Date &amp; Schedule:</dt>
         <dd class="col-sm-8">
@@ -149,7 +168,10 @@
     {% endif %}
 
     <div class="content-card shadow-sm">
-      <h5 class="fw-bold mb-3 pb-2 border-bottom"><i class="bi bi-arrow-repeat me-2 text-muted"></i>Update Appointment Status</h5>
+      <h5 class="fw-bold mb-2 pb-2 border-bottom"><i class="bi bi-arrow-repeat me-2 text-muted"></i>Update Appointment Status / Removal</h5>
+      <div class="alert alert-warning py-2 px-3 small mb-3">
+        <strong>Policy Note:</strong> When cancelling, rejecting, rescheduling, or removing a client booking (e.g., sudden cancellation or 10–15 min no-show), you <strong>must</strong> enter a reason below. Approving a booking automatically notifies the client with their promo code.
+      </div>
       {% if form.fields.status.choices %}
         <form method="post" novalidate>
           {% csrf_token %}
@@ -159,9 +181,14 @@
             <div class="mb-3">
               <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
-              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              {% for error in field.errors %}<div class="text-danger small fw-semibold mt-1">{{ error }}</div>{% endfor %}
             </div>
           {% endfor %}
+          <div class="d-flex flex-wrap gap-1 mb-3">
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="document.getElementById('id_note').value='Client did not show up within 10–15 mins grace period (no response to call/text).';">Reason: No-Show (15m Grace)</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="document.getElementById('id_note').value='Sudden cancellation requested by client.';">Reason: Sudden Cancel</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="document.getElementById('id_note').value='Client requested reschedule to a new time slot.';">Reason: Reschedule</button>
+          </div>
           <button class="btn btn-brand w-100" type="submit">
             <i class="bi bi-arrow-right-circle me-1"></i> Update Status
           </button>

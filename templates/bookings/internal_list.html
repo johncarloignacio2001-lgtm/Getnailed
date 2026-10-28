@@ -8,6 +8,9 @@
     <h2 class="mb-0">{{ heading }}</h2>
   </div>
   <div class="d-flex align-items-center flex-wrap gap-2">
+    <a class="btn btn-outline-dark" href="{% url 'bookings:manage' %}?run_alerts=1" title="Send 4-5hr & same-day reminders and auto-release 15-min no-show slots">
+      <i class="bi bi-bell-fill me-1"></i> Send Reminders &amp; Check 15m Grace
+    </a>
     <a class="btn btn-outline-brand" href="{% url 'services:walk_in_technicians' %}">
       <i class="bi bi-people-fill me-1"></i> Available Technicians (Walk-in)
     </a>
@@ -50,6 +53,12 @@
         Technician
       </label>
       {{ filter_form.staff }}
+    </div>
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.branch.id_for_label }}">
+        Branch
+      </label>
+      {{ filter_form.branch }}
     </div>
     <div class="col-lg-2 col-md-4">
       <label class="form-label small fw-bold text-uppercase text-muted" for="{{ filter_form.sort.id_for_label }}">
@@ -128,6 +137,9 @@
               <td>
                 <div>{{ booking.scheduled_for|date:"M d, Y" }}</div>
                 <small class="text-muted">{{ booking.scheduled_for|time:"h:i A" }}</small>
+                {% if not booking.is_legacy_booking and booking.get_branch_display %}
+                  <div class="small fw-semibold" style="color: #8b3d52;">📍 {{ booking.get_branch_display }}</div>
+                {% endif %}
               </td>
               <td>
                 {% if booking.assigned_staff %}

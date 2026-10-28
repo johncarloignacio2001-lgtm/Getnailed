@@ -1,6 +1,7 @@
 from django import forms
 from django.forms import BaseFormSet, formset_factory
 from django.db.models import Q
+from itertools import groupby
 
 from apps.accounts.models import User
 from apps.bookings.models import Appointment
@@ -13,12 +14,41 @@ from .models import CashierShift, Payment, PromoVoucher, Sale
 FORM_CONTROL = {"class": "form-control"}
 
 
+class GroupedModelChoiceIterator(forms.models.ModelChoiceIterator):
+    def __iter__(self):
+        if self.field.empty_label is not None:
+            yield ("", self.field.empty_label)
+        queryset = self.queryset.select_related("category").order_by("category__name", "name")
+        for category, services in groupby(queryset, key=lambda x: x.category.name if x.category else "Other Treatments"):
+            yield (
+                category,
+                [self.choice(service) for service in services]
+            )
+
+
+class GroupedModelChoiceField(forms.ModelChoiceField):
+    iterator = GroupedModelChoiceIterator
+
+
 class CheckoutForm(forms.Form):
     customer = forms.ModelChoiceField(
         queryset=Customer.objects.none(),
         required=False,
         empty_label="Walk-in customer",
-        widget=forms.Select(attrs=FORM_CONTROL),
+        widget=forms.Select(attrs={**FORM_CONTROL, "id": "id_customer"}),
+    )
+    walk_in_referral_number = forms.CharField(
+        required=False,
+        max_length=40,
+        label="Walk-in Referral Number",
+        widget=forms.TextInput(
+            attrs={
+                **FORM_CONTROL,
+                "placeholder": "e.g., WLK-20261028-1042 (Required for Walk-in)",
+                "id": "id_walk_in_referral_number",
+            }
+        ),
+        help_text="Required referral / tracking code for walk-in customers.",
     )
     appointment = forms.ModelChoiceField(
         queryset=Appointment.objects.none(),
@@ -121,12 +151,27 @@ class CheckoutForm(forms.Form):
         self.fields["appointment"].label_from_instance = lambda obj: (
             f"[{obj.start_time.strftime('%I:%M %p')}] Ref #{obj.booking_reference} - {obj.customer_name_snapshot} ({obj.appointment_date})"
         )
+        if not self.is_bound and not self.initial.get("walk_in_referral_number"):
+            import secrets
+            from django.utils import timezone
+            self.fields["walk_in_referral_number"].initial = (
+                f"WLK-{timezone.localdate():%Y%m%d}-{secrets.randbelow(9000) + 1000}"
+            )
 
     def clean(self):
         cleaned_data = super().clean()
         dtype = cleaned_data.get("discount_type")
         id_num = cleaned_data.get("discount_id_number", "").strip()
         vcode = cleaned_data.get("voucher_code", "").strip()
+        customer = cleaned_data.get("customer")
+        appointment = cleaned_data.get("appointment")
+        walk_in_ref = (cleaned_data.get("walk_in_referral_number") or "").strip()
+
+        if not customer and not appointment and not walk_in_ref:
+            import secrets
+            from django.utils import timezone
+            walk_in_ref = f"WLK-{timezone.localdate():%Y%m%d}-{secrets.randbelow(9000) + 1000}"
+        cleaned_data["walk_in_referral_number"] = walk_in_ref
 
         if dtype in (Sale.DiscountType.SENIOR_CITIZEN, Sale.DiscountType.PWD):
             if not id_num:
@@ -144,7 +189,7 @@ class CheckoutForm(forms.Form):
 
 
 class CheckoutItemForm(forms.Form):
-    service = forms.ModelChoiceField(
+    service = GroupedModelChoiceField(
         queryset=Service.objects.none(),
         required=False,
         empty_label="-- Select Service --",
@@ -173,7 +218,10 @@ class CheckoutItemForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["service"].queryset = Service.objects.filter(
             is_active=True
-        ).select_related("category")
+        ).select_related("category").order_by("category__name", "name")
+        self.fields["service"].label_from_instance = (
+            lambda s: f"{s.name} — ₱{s.price:0.2f} ({s.duration_minutes}m)"
+        )
         self.fields["assigned_staff"].queryset = User.objects.filter(
             role=User.Role.STAFF,
             is_active=True,

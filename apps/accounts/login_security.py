@@ -25,6 +25,8 @@ def normalize_axes_username(request, credentials=None):
 
 
 def login_requires_captcha(request, email=None):
+    if not getattr(settings, "ENABLE_LOGIN_CAPTCHA", False):
+        return False
     if request is None:
         return False
     threshold = timezone.now() - get_cool_off(request)

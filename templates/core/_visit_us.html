@@ -1,24 +1,41 @@
-<section id="visit-us" class="visit-us-section">
-  <div class="container">
-    <h2 class="visit-us-heading">Visit Us</h2>
-    
-    <div class="row g-4 g-lg-5">
+{% load static %}
+<section id="visit-us" class="visit-us-section mt-5">
+  <div class="gn-card p-4 p-lg-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <h2 class="visit-us-heading mb-0">Visit Us</h2>
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'bookings:index' %}" class="btn btn-dark btn-lg px-4">Book Now</a>
+      {% else %}
+        <a href="{% url 'accounts:login' %}?next={% url 'bookings:index' %}" class="btn btn-dark btn-lg px-4">Book Now</a>
+      {% endif %}
+    </div>
+
+    <div class="row g-4 g-lg-5 mb-4">
       <!-- LOCATION -->
       <div class="col-12 col-md-4 col-lg-4">
         <h5 class="visit-column-title">LOCATION</h5>
         <ul class="visit-list">
-          <li>
+          <li class="mb-2">
             <span class="visit-bullet">•</span>
             <span class="visit-text">
               <span class="visit-icon">📍</span>
-              <a href="https://maps.google.com/?q=Unit+14+Rocka+Commercial+Complex+Plaridel+Bulacan" target="_blank" rel="noopener noreferrer" class="visit-link">
-                Unit 14 G/F Rocka Commercial Complex
+              <a href="https://maps.google.com/?q=Unit+14+Rocka+Commercial+Complex+Plaridel+Bulacan" target="_blank" rel="noopener noreferrer" class="visit-link fw-semibold">
+                Unit 14 G/F Rocka Commercial Complex, Tabang, Plaridel, Bulacan
+              </a>
+            </span>
+          </li>
+          <li class="mb-2">
+            <span class="visit-bullet">•</span>
+            <span class="visit-text">
+              <span class="visit-icon">📍</span>
+              <a href="https://maps.google.com/?q=Retiro+Amoranto+Quezon+City" target="_blank" rel="noopener noreferrer" class="visit-link fw-semibold">
+                Retiro Branch (N.S. Amoranto Sr. St., Quezon City)
               </a>
             </span>
           </li>
           <li>
             <span class="visit-bullet">•</span>
-            <span class="visit-text">Plaridel, Philippines</span>
+            <span class="visit-text">Open Daily: 9:00 AM – 8:00 PM</span>
           </li>
         </ul>
       </div>
@@ -27,57 +44,96 @@
       <div class="col-12 col-md-4 col-lg-3">
         <h5 class="visit-column-title">CONTACT NO.</h5>
         <ul class="visit-list">
-          <li>
+          <li class="mb-2">
             <span class="visit-bullet">•</span>
             <span class="visit-text">
               <span class="visit-icon">📞</span>
-              <a href="tel:09050843892" class="visit-link">0905 084 3892</a>
+              <a href="tel:09050843892" class="visit-link fw-semibold">0905 084 3892</a>
             </span>
           </li>
           <li>
             <span class="visit-bullet">•</span>
             <span class="visit-text">
               <span class="visit-icon">📞</span>
-              <a href="tel:0447947692" class="visit-link">(044) 794-7692</a>
+              <a href="tel:0447947692" class="visit-link fw-semibold">(044) 794-7692</a>
             </span>
           </li>
         </ul>
       </div>
 
-      <!-- SOCIALS -->
-      <div class="col-12 col-md-4 col-lg-5">
-        <h5 class="visit-column-title">SOCIALS</h5>
-        <div class="row g-3">
-          <!-- TikTok & Instagram handles -->
-          <div class="col-12 col-sm-5">
-            <div class="visit-social-item mb-3">
-              <div class="visit-social-label">TikTok:</div>
-              <a href="https://www.tiktok.com/@getnailed.est2014" target="_blank" rel="noopener noreferrer" class="visit-link">
-                @Getnailed.Est2014
-              </a>
+      <!-- SOCIALS & QR CODES -->
+      <div class="col-12 col-md-12 col-lg-5">
+        <h5 class="visit-column-title">CONNECT &amp; SOCIALS</h5>
+        <p class="small text-muted mb-3" style="font-size: 0.9rem; line-height: 1.45;">
+          Scan with your phone camera to view our nail lookbook, check daily updates, or chat with our team directly on Facebook &amp; Instagram.
+        </p>
+
+        <!-- QR Code Cards -->
+        <div class="d-flex flex-wrap gap-3 mb-3">
+          <!-- Facebook QR Card -->
+          <div class="visit-qr-card d-flex align-items-center gap-3 p-2 rounded-3 bg-white border shadow-sm flex-grow-1" style="max-width: 250px; border-color: #ebd6de !important;">
+            <div class="p-1 rounded-2 bg-light border">
+              <img src="{% static 'images/qr-facebook.png' %}" alt="Facebook QR Code" style="width: 72px; height: 72px; object-fit: contain; display: block;">
             </div>
-            <div class="visit-social-item">
-              <div class="visit-social-label">Instagram:</div>
-              <a href="https://www.instagram.com/getnailed.est2014" target="_blank" rel="noopener noreferrer" class="visit-link">
-                @Getnailed.Est2014
+            <div>
+              <div class="d-flex align-items-center gap-1 mb-1">
+                <i class="bi bi-facebook fs-6 text-primary"></i>
+                <span class="fw-bold small text-dark">Facebook</span>
+              </div>
+              <span class="d-block text-muted" style="font-size: 0.74rem; line-height: 1.25;">Scan to visit &amp; chat on Messenger</span>
+              <a href="https://www.facebook.com/Getnailed.Est2014" target="_blank" rel="noopener noreferrer" class="small text-decoration-none fw-semibold" style="color: #8b3d52; font-size: 0.8rem;">
+                Open page &rarr;
               </a>
             </div>
           </div>
 
-          <!-- Facebook & Instagram profile link -->
-          <div class="col-12 col-sm-7">
-            <div class="visit-social-item mb-3">
-              <a href="https://www.facebook.com/Getnailed.Est2014" target="_blank" rel="noopener noreferrer" class="visit-link">
-                Facebook
-              </a>
+          <!-- Instagram QR Card -->
+          <div class="visit-qr-card d-flex align-items-center gap-3 p-2 rounded-3 bg-white border shadow-sm flex-grow-1" style="max-width: 250px; border-color: #ebd6de !important;">
+            <div class="p-1 rounded-2 bg-light border">
+              <img src="{% static 'images/qr-instagram.png' %}" alt="Instagram QR Code" style="width: 72px; height: 72px; object-fit: contain; display: block;">
             </div>
-            <div class="visit-social-item">
-              <a href="https://www.instagram.com/getnailed.est2014" target="_blank" rel="noopener noreferrer" class="visit-link">
-                Get Nailed (@Getnailed.Est2014) • Instagram Photos And Videos
+            <div>
+              <div class="d-flex align-items-center gap-1 mb-1">
+                <i class="bi bi-instagram fs-6" style="color: #e4405f;"></i>
+                <span class="fw-bold small text-dark">Instagram</span>
+              </div>
+              <span class="d-block text-muted" style="font-size: 0.74rem; line-height: 1.25;">Scan for latest sets &amp; DM</span>
+              <a href="https://www.instagram.com/getnailed.est2014" target="_blank" rel="noopener noreferrer" class="small text-decoration-none fw-semibold" style="color: #8b3d52; font-size: 0.8rem;">
+                Open gallery &rarr;
               </a>
             </div>
           </div>
         </div>
+
+        <ul class="visit-list small">
+          <li class="mb-1.5">
+            <span class="visit-bullet">•</span>
+            <span class="visit-text">
+              <span class="fw-medium text-dark">TikTok:</span>
+              <a href="https://www.tiktok.com/@getnailed.est2014" target="_blank" rel="noopener noreferrer" class="visit-link fw-semibold">
+                @Getnailed.Est2014
+              </a>
+            </span>
+          </li>
+          <li class="mb-1.5">
+            <span class="visit-bullet">•</span>
+            <span class="visit-text">
+              <span class="fw-medium text-dark">Facebook Page:</span>
+              <a href="https://www.facebook.com/Getnailed.Est2014" target="_blank" rel="noopener noreferrer" class="visit-link fw-semibold">
+                Get Nailed (@Getnailed.Est2014)
+              </a>
+            </span>
+          </li>
+          <li>
+            <span class="visit-bullet">•</span>
+            <span class="visit-text">
+              <span class="fw-medium text-dark">Instagram:</span>
+              <a href="https://www.instagram.com/getnailed.est2014" target="_blank" rel="noopener noreferrer" class="visit-link fw-semibold">
+                @getnailed.est2014
+              </a>
+            </span>
+          </li>
+        </ul>
       </div>
     </div>
   </div>

@@ -1,73 +1,154 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Services &amp; Pricing | {{ BRAND_NAME }}{% endblock %}
-
 {% block content %}
-<div class="page-heading service-heading">
-  <div>
-    <div class="eyebrow">SALON MENU</div>
-    <h2>Services &amp; Pricing</h2>
-    <p class="text-muted mb-0">Browse our complete menu of nail care, spa treatments, and premium packages.</p>
+
+<section class="p-4 p-lg-5 mb-4" style="border-radius: 28px; background: linear-gradient(135deg, #fff9fb 0%, #f8e8ee 100%); border: 1px solid #ead4dc;">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <div class="eyebrow">CATEGORIZED SALON MENU</div>
+      <h1 class="display-6 fw-bold mb-2">Services &amp; Pricing by Category</h1>
+      <p class="fs-5 text-muted mb-0">
+        Select a category tab below to comfortably browse treatments, durations, and prices without visual clutter.
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-dark btn-lg px-4 py-3 fs-5 fw-bold" href="{% url 'bookings:index' %}">
+        ✨ Book Appointment
+      </a>
+      <a class="btn btn-outline-dark btn-lg px-4 py-3 fs-5" href="{% url 'core:customer_dashboard' %}">
+        ← Back to Home
+      </a>
+    </div>
   </div>
-  <a class="btn btn-brand" href="{% url 'bookings:index' %}">
-    <i class="bi bi-calendar-plus me-1"></i> Book an appointment
-  </a>
+</section>
+
+<!-- Weekend Policy & Promo Banner -->
+<div class="gn-card p-3 p-lg-4 mb-4" style="background: #fffdf9; border-left: 5px solid #c86d83;">
+  <div class="row align-items-center g-3">
+    <div class="col-lg-8">
+      <div class="fs-5 fw-bold mb-1">💡 Friday–Sunday Peak Booking &amp; Walk-In Guide</div>
+      <p class="mb-0 text-muted fs-6">
+        On <strong>Fridays, Saturdays, and Sundays</strong>, online bookings prioritize <strong>package and major services above ₱300</strong>. Services <strong>₱300 and below</strong> can be booked online if no other client is scheduled at that slot, or accommodated anytime via <strong>walk-in</strong> when a technician is free!
+      </p>
+    </div>
+    <div class="col-lg-4 text-lg-end">
+      <span class="badge text-bg-dark px-3 py-2 fs-6">Plaridel &amp; Retiro QC Branches</span>
+    </div>
+  </div>
 </div>
 
-<!-- Category & Search Filter -->
-<div class="content-card mb-4 p-3">
-  <form method="get" action="{% url 'core:customer_services' %}" class="row g-2 align-items-center">
-    <div class="col-md-5">
-      <div class="input-group">
-        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-        <input type="text" name="q" class="form-control" placeholder="Search service name or description..." value="{{ query }}">
-      </div>
+<!-- Large Search & Category Filter Pills -->
+<div class="gn-card p-4 mb-4">
+  <form method="get" class="row g-3 align-items-center mb-3">
+    <div class="col-md-8">
+      <input
+        type="text"
+        name="q"
+        value="{{ query }}"
+        class="form-control form-control-lg py-3 fs-5"
+        placeholder="🔍 Search a service by name (e.g. Soft Gel, Pedicure, Package, Foot Spa)..."
+      >
+      {% if selected_category %}
+        <input type="hidden" name="category" value="{{ selected_category }}">
+      {% endif %}
     </div>
-    <div class="col-md-4">
-      <select name="category" class="form-select">
-        <option value="">All Categories</option>
-        {% for cat in all_categories %}
-          <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-3 d-flex gap-2">
-      <button type="submit" class="btn btn-brand w-100">Filter</button>
+    <div class="col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-dark btn-lg py-3 px-4 fs-5 fw-bold flex-grow-1">Search</button>
       {% if query or selected_category %}
-        <a href="{% url 'core:customer_services' %}" class="btn btn-outline-secondary">Reset</a>
+        <a href="{% url 'core:customer_services' %}" class="btn btn-outline-secondary btn-lg py-3 px-3 fs-5">Reset</a>
       {% endif %}
     </div>
   </form>
-</div>
 
-<!-- Services Grid -->
-{% if services %}
-  <div class="service-grid">
-    {% for service in services %}
-      <div class="service-card h-100">
-        <div class="service-card-body d-flex flex-column">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <span class="badge bg-light text-dark border">{{ service.category.name|default:"General" }}</span>
-            <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ service.duration_minutes }} mins</span>
-          </div>
-          <h3 class="h5 mb-2 fw-bold text-dark">{{ service.name }}</h3>
-          <p class="text-muted small flex-grow-1">{{ service.description|default:"Professional nail and spa service tailored to pamper and refresh you." }}</p>
-          <div class="service-meta d-flex justify-content-between align-items-center pt-3 border-top mt-auto">
-            <strong class="fs-5" style="color: var(--deep-rose, #8b4f5c);">₱{{ service.price|floatformat:2 }}</strong>
-            <a class="btn btn-brand btn-sm" href="{% url 'bookings:index' %}?service={{ service.pk }}">
-              Book Now <i class="bi bi-arrow-right ms-1"></i>
-            </a>
-          </div>
-        </div>
-      </div>
+  <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+    <a href="{% url 'core:customer_services' %}{% if query %}?q={{ query|urlencode }}{% endif %}"
+       class="btn btn-lg px-4 py-2 fs-5 fw-bold {% if not selected_category %}btn-dark{% else %}btn-outline-dark{% endif %}"
+       style="border-radius: 999px;">
+      All Categories ({{ services_count }})
+    </a>
+    {% for cat in all_categories %}
+      <a href="{% url 'core:customer_services' %}?category={{ cat.pk }}{% if query %}&q={{ query|urlencode }}{% endif %}"
+         class="btn btn-lg px-4 py-2 fs-5 fw-semibold {% if selected_category == cat.pk|stringformat:'s' %}btn-dark{% else %}btn-outline-dark{% endif %}"
+         style="border-radius: 999px;">
+        {{ cat.name }}
+      </a>
     {% endfor %}
   </div>
+</div>
+
+<!-- Categorized Service Sections with Large, Easy-to-Read Cards -->
+{% if services %}
+  {% regroup services by category as category_groups %}
+  {% for group in category_groups %}
+    <section class="mb-5">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom" style="border-color: #e4ccd4 !important;">
+        <div>
+          <span class="eyebrow">SERVICE CATEGORY</span>
+          <h2 class="h2 fw-bold mb-0" style="color: #2b181d;">{{ group.grouper.name }}</h2>
+        </div>
+        <span class="badge text-bg-dark px-3 py-2 fs-6">{{ group.list|length }} Option{{ group.list|length|pluralize }}</span>
+      </div>
+
+      <div class="row g-4">
+        {% for service in group.list %}
+          <div class="col-md-6">
+            <div class="gn-card p-0 h-100 d-flex flex-column justify-content-between overflow-hidden" style="border-radius: 22px; border: 1px solid #ead6de;">
+              {% if service.image %}
+                <div style="height: 210px; overflow: hidden; background: #faf4f6;">
+                  <img src="{{ service.image.url }}" alt="{{ service.name }}" class="w-100 h-100 object-fit-cover">
+                </div>
+              {% endif %}
+              <div class="p-4 d-flex flex-column justify-content-between flex-grow-1">
+                <div>
+                  <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                    <h3 class="h3 fw-bold mb-0" style="color: #261419;">{{ service.name }}</h3>
+                    <div class="px-3 py-2 rounded-4 fw-bold fs-3 flex-shrink-0" style="background: #fdf2f5; color: #8b3d52; border: 1px solid #eccfd8;">
+                      ₱{{ service.price }}
+                    </div>
+                  </div>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <span class="badge bg-light text-dark border px-3 py-2 fs-6">
+                    ⏱️ {{ service.duration_minutes }} Minutes
+                  </span>
+                  {% if service.price > 300 %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
+                      ✓ Fri–Sun Priority Eligible
+                    </span>
+                  {% else %}
+                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-3 py-2 fs-6">
+                      Walk-In / Open-Slot on Fri–Sun
+                    </span>
+                  {% endif %}
+                </div>
+                {% if service.description %}
+                  <p class="fs-5 text-muted mb-3" style="line-height: 1.6;">{{ service.description }}</p>
+                {% else %}
+                  <p class="fs-5 text-muted mb-3" style="line-height: 1.6;">
+                    Performed with sanitized tools, gentle nail prep, and premium salon-grade products by our certified technicians.
+                  </p>
+                {% endif %}
+              </div>
+
+              <div class="pt-3 border-top d-flex justify-content-between align-items-center gap-2">
+                <span class="text-muted fs-6">Available at Plaridel &amp; Retiro QC</span>
+                <a class="btn btn-dark btn-lg px-4 py-2 fs-5 fw-bold" href="{% url 'bookings:index' %}?service={{ service.pk }}">
+                  Book This Service →
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
 {% else %}
-  <div class="content-card text-center py-5">
-    <div class="display-6 text-muted mb-3"><i class="bi bi-search"></i></div>
-    <h4 class="h6 text-muted mb-2">No services found</h4>
-    <p class="text-muted small mb-3">Try adjusting your search criteria or view all available services.</p>
-    <a href="{% url 'core:customer_services' %}" class="btn btn-outline-brand btn-sm">Clear filters</a>
+  <div class="gn-card p-5 text-center">
+    <h3 class="h3 mb-2">No matching services found</h3>
+    <p class="fs-5 text-muted mb-4">Try clearing your search filter or selecting "All Categories" above.</p>
+    <a class="btn btn-dark btn-lg px-4" href="{% url 'core:customer_services' %}">Show All Services</a>
   </div>
 {% endif %}
-{% endblock %}
 
+{% endblock %}

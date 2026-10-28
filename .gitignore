@@ -13,3 +13,4 @@ staticfiles/
 .pytest_cache/
 .idea/
 .vscode/
+backups/

@@ -353,6 +353,18 @@ def create_public_appointment(cleaned_data, services, request):
         if not services or len(services) != len(service_ids):
             raise ValidationError("Choose only currently available services.")
         duration = sum(item.duration_minutes for item in services)
+        from decimal import Decimal
+        total_price = sum((item.price for item in services), Decimal("0.00"))
+        appointment_date = cleaned_data["appointment_date"]
+        if appointment_date.weekday() in (4, 5, 6) and total_price <= Decimal("300.00"):
+            has_existing = Appointment.objects.filter(
+                appointment_date=appointment_date,
+                status__in=BLOCKING_STATUSES,
+            ).exists()
+            if has_existing:
+                raise ValidationError(
+                    "Friday–Sunday Peak Policy: Online bookings on Friday, Saturday, and Sunday prioritize package and major services above ₱300 when other clients are booked. Services ₱300 and below are only accepted online if there are no existing bookings on that date/slot, or via walk-in when technicians are free."
+                )
         end_time = _appointment_end(
             cleaned_data["appointment_date"], cleaned_data["start_time"], duration
         )
@@ -403,6 +415,7 @@ def create_public_appointment(cleaned_data, services, request):
         if changed:
             customer.save(update_fields=(*changed, "updated_at"))
         appointment = Appointment.objects.create(
+            branch=cleaned_data.get("branch") or Appointment.Branch.PLARIDEL,
             customer=customer,
             customer_name_snapshot=customer.full_name,
             customer_email_snapshot=email,
@@ -506,6 +519,7 @@ def create_internal_appointment(
                 )
 
         appointment = Appointment.objects.create(
+            branch=cleaned_data.get("branch") or Appointment.Branch.PLARIDEL,
             customer=customer,
             customer_name_snapshot=customer.full_name,
             customer_email_snapshot=customer.email or "",
@@ -805,9 +819,46 @@ def reschedule_public_booking(reference, token, scheduled_for):
         return booking
 
 
+def _get_or_create_active_promo_code():
+    from decimal import Decimal
+    from apps.pos.models import PromoVoucher
+
+    today = timezone.localdate()
+    voucher = (
+        PromoVoucher.objects.filter(
+            is_active=True,
+            valid_from__lte=today,
+            valid_until__gte=today,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if voucher and (voucher.usage_limit == 0 or voucher.times_used < voucher.usage_limit):
+        return voucher.code
+    voucher, _ = PromoVoucher.objects.update_or_create(
+        code="GETNAILED10",
+        defaults={
+            "description": "10% Approved Booking Exclusive Promo (Up to ₱200 off)",
+            "discount_type": PromoVoucher.DiscountType.PERCENT,
+            "discount_value": Decimal("10.00"),
+            "min_spend": Decimal("0.00"),
+            "max_discount_cap": Decimal("200.00"),
+            "usage_limit": 0,
+            "valid_from": today - timedelta(days=1),
+            "valid_until": today + timedelta(days=365),
+            "is_active": True,
+        },
+    )
+    return voucher.code
+
+
 def transition_appointment(appointment, new_status, actor, note=""):
     with transaction.atomic():
-        appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+        appointment = (
+            Appointment.objects.select_for_update()
+            .select_related("customer__user")
+            .get(pk=appointment.pk)
+        )
         if actor.is_service_staff and not actor.is_owner:
             if appointment.assigned_staff_id != actor.pk:
                 raise PermissionDenied("This appointment is not assigned to you.")
@@ -823,8 +874,24 @@ def transition_appointment(appointment, new_status, actor, note=""):
         if new_status == Appointment.Status.CANCELLED:
             appointment.cancelled_at = timezone.now()
             appointment.cancellation_reason = note
+        elif new_status in (
+            Appointment.Status.REJECTED,
+            Appointment.Status.NO_SHOW,
+            Appointment.Status.RESCHEDULED,
+        ) and note:
+            appointment.cancellation_reason = note
+
+        if new_status == Appointment.Status.APPROVED and not appointment.promo_code_issued:
+            appointment.promo_code_issued = _get_or_create_active_promo_code()
+
         appointment.save(
-            update_fields=("status", "cancelled_at", "cancellation_reason", "updated_at")
+            update_fields=(
+                "status",
+                "cancelled_at",
+                "cancellation_reason",
+                "promo_code_issued",
+                "updated_at",
+            )
         )
         AppointmentStatusHistory.objects.create(
             appointment=appointment,
@@ -841,14 +908,38 @@ def transition_appointment(appointment, new_status, actor, note=""):
             Appointment.Status.REJECTED: Notification.EventType.REJECTED,
             Appointment.Status.RESCHEDULED: Notification.EventType.RESCHEDULED,
             Appointment.Status.CANCELLED: Notification.EventType.CANCELLED,
+            Appointment.Status.NO_SHOW: Notification.EventType.NO_SHOW_ALERT,
         }.get(new_status)
         if event_type:
+            promo_suffix = (
+                f" Promo Code: {appointment.promo_code_issued}"
+                if new_status == Appointment.Status.APPROVED and appointment.promo_code_issued
+                else ""
+            )
+            reason_suffix = f" Reason: {note}" if note else ""
             _create_notifications(
                 appointment,
                 event_type,
                 f"Appointment {appointment.get_status_display().lower()}",
-                f"{appointment.reference} is now {appointment.get_status_display().lower()}.",
+                f"{appointment.reference} is now {appointment.get_status_display().lower()}.{promo_suffix}{reason_suffix}",
             )
+            customer_user = getattr(appointment.customer, "user", None)
+            if customer_user and customer_user.is_active:
+                Notification.objects.create(
+                    recipient=customer_user,
+                    appointment=appointment,
+                    event_type=event_type,
+                    title=(
+                        f"Booking Approved! Promo Code: {appointment.promo_code_issued}"
+                        if new_status == Appointment.Status.APPROVED and appointment.promo_code_issued
+                        else f"Appointment {appointment.get_status_display()}"
+                    ),
+                    message=(
+                        f"Your appointment {appointment.reference} at {appointment.get_branch_display()} on "
+                        f"{appointment.appointment_date} at {appointment.start_time.strftime('%I:%M %p')} is now "
+                        f"{appointment.get_status_display().lower()}.{promo_suffix}{reason_suffix}"
+                    )[:500],
+                )
             _send_status_email(appointment)
     return appointment
 
@@ -916,3 +1007,158 @@ def update_appointment_schedule(
         if schedule_changed:
             _send_status_email(appointment)
     return appointment
+
+
+def process_booking_reminders_and_grace_period(now=None):
+    """
+    1. Sends customer reminders on the day of the appointment and 4–5 hours before
+       via email and SMS/phone notification log + in-app notification.
+    2. Enforces the 10–15 minute grace period (no advance payment required; owner/staff
+       remind via calls/text, and if 15 minutes have elapsed past start_time with the
+       appointment still APPROVED/RESCHEDULED and not ONGOING/COMPLETED, alerts owner
+       and staff that the client is a no-show and automatically marks NO_SHOW so the
+       slot and assigned technician become immediately available).
+    """
+    now = now or timezone.now()
+    local_now = timezone.localtime(now)
+    today = local_now.date()
+    summary = {
+        "day_of_reminders_sent": 0,
+        "four_hour_reminders_sent": 0,
+        "grace_period_released": 0,
+    }
+
+    active_today = list(
+        Appointment.objects.filter(
+            appointment_date=today,
+            status__in=(Appointment.Status.APPROVED, Appointment.Status.RESCHEDULED),
+        ).select_related("customer__user", "assigned_staff")
+    )
+
+    for appt in active_today:
+        scheduled_dt = appt.scheduled_for
+        minutes_until = (scheduled_dt - local_now).total_seconds() / 60.0
+
+        # 1. Same-day morning / day-of reminder (email + phone/SMS notification)
+        if appt.day_of_reminder_sent_at is None and minutes_until > 15:
+            appt.day_of_reminder_sent_at = now
+            appt.save(update_fields=("day_of_reminder_sent_at", "updated_at"))
+            phone_display = appt.customer_phone_snapshot or (appt.customer.phone if appt.customer else "N/A")
+            customer_user = getattr(appt.customer, "user", None)
+            if customer_user and customer_user.is_active:
+                Notification.objects.create(
+                    recipient=customer_user,
+                    appointment=appt,
+                    event_type=Notification.EventType.REMINDER,
+                    title=f"Same-Day Reminder: Appointment Today at {appt.start_time.strftime('%I:%M %p')}",
+                    message=(
+                        f"Reminder sent to {appt.email or 'email'} & SMS ({phone_display}): "
+                        f"Your appointment {appt.reference} at {appt.get_branch_display()} is today at "
+                        f"{appt.start_time.strftime('%I:%M %p')}. Please arrive on time (10–15 min grace period applies)."
+                    )[:500],
+                )
+            _create_notifications(
+                appt,
+                Notification.EventType.REMINDER,
+                f"Call/Text Reminder Due: {appt.customer_name} ({appt.start_time.strftime('%I:%M %p')})",
+                (
+                    f"Same-day reminder dispatched for {appt.reference} ({appt.get_branch_display()}). "
+                    f"Client phone: {phone_display} | Email: {appt.email or 'N/A'}. No advance payment — please confirm via call/text."
+                )[:500],
+                include_managers=True,
+            )
+            _send_status_email(appt)
+            summary["day_of_reminders_sent"] += 1
+
+        # 2. 4–5 Hours Before Reminder (240 to 300 mins prior, or within 5 hours if not yet sent)
+        if appt.four_hour_reminder_sent_at is None and 15 < minutes_until <= 300:
+            appt.four_hour_reminder_sent_at = now
+            appt.save(update_fields=("four_hour_reminder_sent_at", "updated_at"))
+            phone_display = appt.customer_phone_snapshot or (appt.customer.phone if appt.customer else "N/A")
+            customer_user = getattr(appt.customer, "user", None)
+            if customer_user and customer_user.is_active:
+                Notification.objects.create(
+                    recipient=customer_user,
+                    appointment=appt,
+                    event_type=Notification.EventType.REMINDER,
+                    title=f"4–5 Hours Reminder: {appt.reference} at {appt.start_time.strftime('%I:%M %p')}",
+                    message=(
+                        f"Email & SMS ({phone_display}) Reminder: Your appointment at {appt.get_branch_display()} "
+                        f"starts at {appt.start_time.strftime('%I:%M %p')}. Please note our 10–15 minute grace period."
+                    )[:500],
+                )
+            _send_status_email(appt)
+            summary["four_hour_reminders_sent"] += 1
+
+        # 3. 10–15 Minute Grace Period Auto-Release if client has not arrived/responded
+        if minutes_until <= -15 and appt.late_alert_sent_at is None:
+            with transaction.atomic():
+                locked = (
+                    Appointment.objects.select_for_update()
+                    .select_related("customer__user", "assigned_staff")
+                    .filter(
+                        pk=appt.pk,
+                        status__in=(Appointment.Status.APPROVED, Appointment.Status.RESCHEDULED),
+                    )
+                    .first()
+                )
+                if locked is None:
+                    continue
+                previous_status = locked.status
+                staff_name = (
+                    locked.assigned_staff.get_full_name()
+                    if locked.assigned_staff
+                    else "Assigned Technician"
+                )
+                reason_msg = (
+                    "Auto-released after 15-minute grace period: Client did not arrive or respond to call/text. "
+                    "Slot and technician are now automatically available."
+                )
+                locked.status = Appointment.Status.NO_SHOW
+                locked.late_alert_sent_at = now
+                locked.cancellation_reason = reason_msg
+                locked.save(
+                    update_fields=(
+                        "status",
+                        "late_alert_sent_at",
+                        "cancellation_reason",
+                        "updated_at",
+                    )
+                )
+                AppointmentStatusHistory.objects.create(
+                    appointment=locked,
+                    from_status=previous_status,
+                    to_status=Appointment.Status.NO_SHOW,
+                    note=reason_msg,
+                )
+                from apps.monitoring.services import sync_services_for_appointment
+
+                sync_services_for_appointment(
+                    locked, Appointment.Status.NO_SHOW, actor=None, note=reason_msg
+                )
+                _create_notifications(
+                    locked,
+                    Notification.EventType.NO_SHOW_ALERT,
+                    f"Client No-Show (15m Grace Elapsed): Slot & {staff_name} Now Available",
+                    (
+                        f"{locked.customer_name} ({locked.customer_phone_snapshot or 'no phone'}) did not arrive within "
+                        f"10–15 mins of {locked.start_time.strftime('%I:%M %p')} ({locked.reference}). "
+                        f"Time slot and technician {staff_name} are now automatically available for walk-ins/bookings."
+                    )[:500],
+                    include_managers=True,
+                )
+                customer_user = getattr(locked.customer, "user", None)
+                if customer_user and customer_user.is_active:
+                    Notification.objects.create(
+                        recipient=customer_user,
+                        appointment=locked,
+                        event_type=Notification.EventType.NO_SHOW_ALERT,
+                        title=f"Grace Period Expired: {locked.reference}",
+                        message=(
+                            f"We waited 15 minutes past your {locked.start_time.strftime('%I:%M %p')} slot at "
+                            f"{locked.get_branch_display()}. Your slot has been released; please rebook or message us to reschedule."
+                        )[:500],
+                    )
+                summary["grace_period_released"] += 1
+
+    return summary

@@ -56,6 +56,13 @@ from apps.bookings.security import (
 
 
 class PublicContactForm(forms.Form):
+    branch = forms.ChoiceField(
+        label="Preferred Salon Branch / Location",
+        choices=Appointment.Branch.choices,
+        initial=Appointment.Branch.PLARIDEL,
+        required=False,
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
     customer = forms.ModelChoiceField(
         queryset=Customer.objects.none(),
         required=False,
@@ -134,6 +141,9 @@ class PublicContactForm(forms.Form):
         # Stamp anti-spam token if not bound or empty
         if not self.is_bound and "form_load_token" in self.fields:
             self.fields["form_load_token"].initial = generate_anti_spam_timestamp()
+
+    def clean_branch(self):
+        return self.cleaned_data.get("branch") or Appointment.Branch.PLARIDEL
 
     def clean_email(self):
         email = self.cleaned_data.get("email", "")
@@ -220,8 +230,10 @@ class PublicScheduleForm(forms.Form):
         widget=forms.TimeInput(attrs={**FORM_CONTROL, "type": "time"}),
     )
 
-    def __init__(self, *args, services=None, **kwargs):
+    def __init__(self, *args, services=None, is_internal=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.services = list(services or [])
+        self.is_internal = is_internal
         qs = User.objects.filter(
             role=User.Role.STAFF,
             is_active=True,
@@ -245,6 +257,9 @@ class PublicScheduleForm(forms.Form):
         )
 
     def clean(self):
+        from decimal import Decimal
+        from .services import BLOCKING_STATUSES
+
         cleaned_data = super().clean()
         appointment_date = cleaned_data.get("appointment_date")
         start_time = cleaned_data.get("start_time")
@@ -255,6 +270,18 @@ class PublicScheduleForm(forms.Form):
             )
             if scheduled_for <= timezone.now():
                 raise forms.ValidationError("Choose a future appointment time.")
+
+            if not self.is_internal and self.services and appointment_date.weekday() in (4, 5, 6):
+                total_price = sum((s.price for s in self.services), Decimal("0.00"))
+                if total_price <= Decimal("300.00"):
+                    has_bookings = Appointment.objects.filter(
+                        appointment_date=appointment_date,
+                        status__in=BLOCKING_STATUSES,
+                    ).exists()
+                    if has_bookings:
+                        raise forms.ValidationError(
+                            "Friday–Sunday Peak Policy: Online bookings on Friday, Saturday, and Sunday prioritize package and major services above ₱300 when other clients are booked. Services ₱300 and below are only accepted online if there are no existing bookings on that slot, or via walk-in when technicians are free."
+                        )
         return cleaned_data
 
 
@@ -289,6 +316,11 @@ class AppointmentFilterForm(forms.Form):
         choices=(("", "All sources"), *Appointment.BookingSource.choices),
         widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
     )
+    branch = forms.ChoiceField(
+        required=False,
+        choices=(("", "All branches"), *Appointment.Branch.choices),
+        widget=forms.Select(attrs={**FORM_CONTROL, "class": "form-select"}),
+    )
     sort = forms.ChoiceField(
         required=False,
         choices=(
@@ -309,7 +341,14 @@ class AppointmentStatusForm(forms.Form):
     note = forms.CharField(
         required=False,
         max_length=500,
-        widget=forms.Textarea(attrs={**FORM_CONTROL, "rows": 2}),
+        label="Reason / Status Note",
+        widget=forms.Textarea(
+            attrs={
+                **FORM_CONTROL,
+                "rows": 3,
+                "placeholder": "Required when cancelling, rejecting, rescheduling, or marking no-show (e.g. Client did not arrive / sudden cancellation / requested reschedule)...",
+            }
+        ),
     )
 
     def __init__(self, *args, appointment, actor, **kwargs):
@@ -323,6 +362,23 @@ class AppointmentStatusForm(forms.Form):
         self.fields["status"].choices = [
             choice for choice in Appointment.Status.choices if choice[0] in allowed
         ]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        status = cleaned_data.get("status")
+        note = (cleaned_data.get("note") or "").strip()
+        if status in (
+            Appointment.Status.CANCELLED,
+            Appointment.Status.REJECTED,
+            Appointment.Status.NO_SHOW,
+            Appointment.Status.RESCHEDULED,
+        ) and not note:
+            self.add_error(
+                "note",
+                "Please state the reason for removing, cancelling, rescheduling, or marking this booking as no-show.",
+            )
+        cleaned_data["note"] = note
+        return cleaned_data
 
 
 class AppointmentScheduleForm(forms.ModelForm):

@@ -1,3 +1,146 @@
 {% extends 'base.html' %}
-{% block title %}Staff Dashboard | {{ BRAND_NAME }}{% endblock %}
-{% block content %}<div class="page-heading service-heading"><div><div class="eyebrow">STAFF WORKSPACE · {{ today }}</div><h2>Today's assigned work</h2></div><div class="d-flex gap-2">{% if user.can_use_pos %}<a class="btn btn-outline-brand" href="{% url 'pos:index' %}"><i class="bi bi-calculator me-1"></i>Open POS</a>{% endif %}<a class="btn btn-brand" href="{% url 'monitoring:index' %}">Open live board</a></div></div><div class="dashboard-kpis"><div class="stat-card"><span>Assigned services</span><strong>{{ assigned_count }}</strong><small>Today's visible queue</small></div><div class="stat-card"><span>Ongoing</span><strong>{{ ongoing_count }}</strong><small>Currently in service</small></div><div class="stat-card"><span>Completed</span><strong>{{ completed_count }}</strong><small>Finished today</small></div><div class="stat-card"><span>Unread alerts</span><strong>{{ unread_notifications }}</strong><small>Appointment notifications</small></div></div><div class="row g-4 mt-1"><div class="col-xl-8"><section class="content-card"><h3 class="h5">Service schedule</h3>{% for item in assigned_work %}<div class="work-row"><div><strong>{{ item.appointment.start_time }} · {{ item.service_name }}</strong><span>{{ item.appointment.customer_name }}</span></div><span class="badge text-bg-light">{{ item.get_status_display }}</span></div>{% empty %}<p class="text-muted mb-0">No assigned services today.</p>{% endfor %}</section></div><div class="col-xl-4"><section class="content-card"><div class="d-flex justify-content-between"><h3 class="h5">Notifications</h3><a href="{% url 'notifications:index' %}">View all</a></div>{% for notification in notifications %}<div class="notification-row{% if not notification.is_read %} unread{% endif %}"><strong>{{ notification.title }}</strong><span>{{ notification.message }}</span><small>{{ notification.created_at }}</small></div>{% empty %}<p class="text-muted mb-0">No notifications.</p>{% endfor %}</section></div></div>{% endblock %}
+{% load humanize static %}
+{% block title %}Staff Home | {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-heading service-heading flex-wrap gap-3 mb-4">
+  <div>
+    <div class="eyebrow">STAFF WORKSPACE &bull; {{ today }}</div>
+    <h2 class="mb-1">Today's assigned work</h2>
+    <p class="text-muted mb-0">Welcome, {{ user.first_name|default:user.email }}! Track your appointments and service updates.</p>
+  </div>
+  <div class="d-flex align-items-center flex-wrap gap-2">
+    <a class="btn btn-outline-dark rounded-pill px-3 py-2 fw-semibold" href="{% url 'services:schedule_list' %}">
+      <i class="bi bi-calendar3-range me-1"></i> My Schedule
+    </a>
+    <a class="btn btn-outline-dark rounded-pill px-3 py-2 fw-semibold" href="{% url 'services:time_block_list' %}">
+      <i class="bi bi-clock-history me-1"></i> Time Blocks
+    </a>
+    <a class="btn btn-brand rounded-pill px-4 py-2 fw-semibold shadow-sm" href="{% url 'monitoring:index' %}">
+      <i class="bi bi-kanban me-1"></i> Live Service Board
+    </a>
+  </div>
+</div>
+
+<!-- Metric Stat Cards -->
+<div class="dashboard-kpis mb-4">
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Assigned Services</span>
+      <i class="bi bi-calendar2-check text-primary fs-4"></i>
+    </div>
+    <strong class="fs-2">{{ assigned_count }}</strong>
+    <small class="text-muted">Today's scheduled queue</small>
+  </div>
+
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Ongoing</span>
+      <i class="bi bi-hourglass-split text-warning fs-4"></i>
+    </div>
+    <strong class="fs-2 text-warning">{{ ongoing_count }}</strong>
+    <small class="text-muted">Currently in service</small>
+  </div>
+
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Completed</span>
+      <i class="bi bi-check-circle-fill text-success fs-4"></i>
+    </div>
+    <strong class="fs-2 text-success">{{ completed_count }}</strong>
+    <small class="text-muted">Finished today</small>
+  </div>
+
+  <div class="stat-card shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>Unread Alerts</span>
+      <i class="bi bi-bell-fill text-danger fs-4"></i>
+    </div>
+    <strong class="fs-2 text-danger">{{ unread_notifications }}</strong>
+    <small class="text-muted">Appointment notifications</small>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Today's Service Schedule (Main / Left) -->
+  <div class="col-xl-8">
+    <section class="content-card shadow-sm p-4 rounded-4">
+      <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <div>
+          <h3 class="h5 mb-0 fw-bold">Service Schedule</h3>
+          <small class="text-muted">Your real-time assigned customer appointments today</small>
+        </div>
+        <a href="{% url 'monitoring:index' %}" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+          Manage Status &rarr;
+        </a>
+      </div>
+
+      <div class="d-flex flex-column gap-3">
+        {% for item in assigned_work %}
+          <div class="p-3 rounded-3 border d-flex flex-wrap justify-content-between align-items-center gap-3" style="background: #ffffff; border-color: #ebd6de !important;">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-pill px-3 py-2 fw-bold text-center" style="background: #fdf2f4; color: var(--deep-rose, #8b4f5c); min-width: 85px;">
+                <i class="bi bi-clock me-1"></i>{{ item.appointment.start_time|time:"g:i A" }}
+              </div>
+              <div>
+                <h4 class="h6 mb-1 fw-bold text-dark">{{ item.service_name }}</h4>
+                <div class="small text-muted d-flex align-items-center gap-2">
+                  <span><i class="bi bi-person me-1"></i>{{ item.appointment.customer_name }}</span>
+                  {% if item.appointment.branch %}
+                    <span>&bull;</span>
+                    <span><i class="bi bi-geo-alt me-1"></i>{{ item.appointment.branch.name }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div>
+              {% if item.status == 'COMPLETED' %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">Completed</span>
+              {% elif item.status == 'IN_PROGRESS' %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill fw-semibold">In Progress</span>
+              {% elif item.status == 'PENDING' %}
+                <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 rounded-pill fw-semibold">Pending</span>
+              {% else %}
+                <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">{{ item.get_status_display }}</span>
+              {% endif %}
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-calendar2-check display-4 opacity-50 mb-3 d-block"></i>
+            <h4 class="h6 fw-semibold">No assigned services for today</h4>
+            <p class="small mb-0">Check back later or view the live service board for walk-ins.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <!-- Notifications / Alerts (Right) -->
+  <div class="col-xl-4">
+    <section class="content-card shadow-sm p-4 rounded-4">
+      <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <h3 class="h5 mb-0 fw-bold">Recent Alerts</h3>
+        <a href="{% url 'notifications:index' %}" class="small text-decoration-none fw-semibold" style="color: var(--deep-rose, #8b4f5c);">
+          View all
+        </a>
+      </div>
+
+      <div class="d-flex flex-column gap-2.5">
+        {% for notification in notifications %}
+          <div class="p-3 rounded-3 border {% if not notification.is_read %}bg-light border-danger-subtle{% endif %}">
+            <div class="fw-semibold text-dark small mb-1">{{ notification.title }}</div>
+            <div class="text-muted small mb-2" style="font-size: 0.82rem; line-height: 1.4;">{{ notification.message }}</div>
+            <small class="text-muted opacity-75 d-block" style="font-size: 0.72rem;">{{ notification.created_at|naturaltime }}</small>
+          </div>
+        {% empty %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-bell-slash fs-3 opacity-50 mb-2 d-block"></i>
+            <span class="small">No notifications at the moment.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

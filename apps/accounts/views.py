@@ -65,7 +65,14 @@ class BrandedLoginView(AllauthLoginView):
                 )
                 return self.form_invalid(form)
             return redirect("customers:customer_login_verify_otp")
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if self.request.user.is_authenticated:
+            try:
+                from allauth.account.internal.flows.reauthentication import record_authentication
+                record_authentication(self.request, self.request.user, method="password", reauthenticated=True)
+            except Exception:
+                pass
+        return response
 
 
 class BrandedSignupView(SignupView):

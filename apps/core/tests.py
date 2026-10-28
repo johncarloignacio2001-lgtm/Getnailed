@@ -262,3 +262,35 @@ class InputSecurityTests(TestCase):
         customer_user.refresh_from_db()
         self.assertEqual(customer_user.first_name, "Jane")
         self.assertEqual(customer_user.last_name, "Doe")
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    MFA_ENFORCE_OWNER=False,
+    MFA_REQUIRE_INTERNAL_USERS=False,
+)
+class SystemHealthViewTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_superuser(email="owner@example.com", password=PASSWORD)
+        self.staff = User.objects.create_user(
+            email="staff@example.com",
+            password=PASSWORD,
+            role=User.Role.STAFF,
+            email_verified_at=timezone.now(),
+            is_active=True,
+            is_active_staff_member=True,
+        )
+
+    def test_owner_can_view_system_health(self):
+        self.client.force_login(self.owner)
+        url = reverse("core:system_health")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "System Health")
+
+    def test_non_owner_cannot_view(self):
+        self.client.force_login(self.staff)
+        url = reverse("core:system_health")
+        resp = self.client.get(url)
+        self.assertIn(resp.status_code, (302, 403))
+

@@ -13,8 +13,19 @@ DEFAULT_LUNCH_END = "13:00:00"
 # Staggered leave assignment: Every staff member has exactly 1 day off (leave) per week,
 # ensuring full coverage across all specialties and cashiers from Monday to Sunday.
 DEFAULT_STAFF_LEAVE_ASSIGNMENTS = {
+    "staff@getnailed.com": StaffSchedule.DayOfWeek.TUESDAY,
+    "rita@getnailed.ph": StaffSchedule.DayOfWeek.TUESDAY,
+    "nory@getnailed.ph": StaffSchedule.DayOfWeek.MONDAY,
+    "sheng@getnailed.ph": StaffSchedule.DayOfWeek.TUESDAY,
+    "stef@getnailed.ph": StaffSchedule.DayOfWeek.WEDNESDAY,
+    "ann@getnailed.ph": StaffSchedule.DayOfWeek.WEDNESDAY,
+    "alona@getnailed.ph": StaffSchedule.DayOfWeek.THURSDAY,
+    "aila@getnailed.ph": StaffSchedule.DayOfWeek.THURSDAY,
+    "jessa@getnailed.ph": StaffSchedule.DayOfWeek.FRIDAY,
+    "manilyn@getnailed.ph": StaffSchedule.DayOfWeek.SATURDAY,
+    "verna@getnailed.ph": StaffSchedule.DayOfWeek.SUNDAY,
+    # Fallback mappings for legacy email formats
     "nory.pecaso@getnailed.com": StaffSchedule.DayOfWeek.MONDAY,
-    "phen.abino@getnailed.com": StaffSchedule.DayOfWeek.MONDAY,
     "rita.inoferio@getnailed.com": StaffSchedule.DayOfWeek.TUESDAY,
     "sheng.lucilla@getnailed.com": StaffSchedule.DayOfWeek.TUESDAY,
     "stef.datur@getnailed.com": StaffSchedule.DayOfWeek.WEDNESDAY,

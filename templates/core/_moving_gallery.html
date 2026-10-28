@@ -1,0 +1,95 @@
+{% load static %}
+<!-- Continuous Moving Nail Art Gallery Strip -->
+<section class="gn-marquee-section my-4" aria-label="Nail Art Showcase">
+  <div class="gn-marquee-viewport">
+    <div class="gn-marquee-track">
+      <!-- First set of cards -->
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/slide-1.jpg' %}" alt="Ruby & Leopard Stiletto Nail Art">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/slide-2.jpg' %}" alt="Black French & Tortoiseshell Set">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card gn-marquee-card-narrow">
+        <img src="{% static 'images/gallery/slide-3.jpg' %}" alt="Clean Milky Square Manicure">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/slide-4.jpg' %}" alt="3D Lilac Orchid & Gold Texture Set">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/slide-5.jpg' %}" alt="Amber Velvet Cat Eye Set">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/slide-6.jpg' %}" alt="Celestial Blue Star Stiletto Set">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-1.jpg' %}" alt="Starlight Navy Cat Eye Gel">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-2.jpg' %}" alt="Champagne Cat Eye Softgel">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-3.jpg' %}" alt="3D Bridal Floral & Gold Foil">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-4.jpg' %}" alt="Burgundy Marble & Gold Leaf">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-7.jpg' %}" alt="3D Blossom Softgel Set">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-5.jpg' %}" alt="Glossy Red Gel Polish">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-6.jpg' %}" alt="Clean Nude Manicure">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card">
+        <img src="{% static 'images/gallery/nail-8.jpg' %}" alt="Studio Nail Lounge">
+      </a>
+
+      <!-- Duplicated set for seamless infinite scrolling -->
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/slide-1.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/slide-2.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card gn-marquee-card-narrow" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/slide-3.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/slide-4.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/slide-5.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/slide-6.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-1.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-2.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-3.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-4.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-7.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-5.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-6.jpg' %}" alt="">
+      </a>
+      <a href="{% if request.user.is_authenticated %}{% url 'bookings:index' %}{% else %}{% url 'accounts:login' %}?next={% url 'bookings:index' %}{% endif %}" class="gn-marquee-card" aria-hidden="true" tabindex="-1">
+        <img src="{% static 'images/gallery/nail-8.jpg' %}" alt="">
+      </a>
+    </div>
+  </div>
+</section>

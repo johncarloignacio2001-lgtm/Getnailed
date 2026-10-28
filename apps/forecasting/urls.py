@@ -4,6 +4,7 @@ from . import views
 app_name = 'forecasting'
 urlpatterns = [
     path('', views.index, name='index'),
+    path('quick-sync/', views.quick_sync, name='quick_sync'),
     path('train/', views.train, name='train'),
     path('compare/', views.compare, name='compare'),
     path('runs/<uuid:public_id>/', views.detail, name='detail'),

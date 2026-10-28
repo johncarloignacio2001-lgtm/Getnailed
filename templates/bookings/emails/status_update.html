@@ -1,5 +1,24 @@
-<h1>Appointment update</h1>
-<p><strong>Reference:</strong> {{ appointment.reference }}</p>
-<p><strong>Status:</strong> {{ appointment.get_status_display }}</p>
-<p><strong>Schedule:</strong> {{ appointment.scheduled_for }}</p>
-<p><strong>Services:</strong> {{ appointment.service_name }}</p>
+{% extends "accounts/emails/base.html" %}
+{% block email_content %}
+  <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #8b4f5c; font-weight: 700;">Appointment update</p>
+  <h1 style="font-size: 24px; margin-top: 0;">{{ appointment.reference }} is {{ appointment.get_status_display|lower }}</h1>
+  <p>
+    <strong>Branch Location:</strong> {{ appointment.get_branch_display }}<br>
+    <strong>Schedule:</strong> {{ appointment.scheduled_for }}<br>
+    <strong>Services:</strong> {{ appointment.service_name }}
+    {% if appointment.customer_phone_snapshot %}<br><strong>Contact Phone:</strong> {{ appointment.customer_phone_snapshot }}{% endif %}
+  </p>
+  {% if appointment.status == 'APPROVED' and appointment.promo_code_issued %}
+    <div style="margin: 16px 0; padding: 16px; border-radius: 12px; background: #fdf5f7; border: 2px dashed #c86d83;">
+      <p style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #9a4458; font-weight: 700;">Exclusive Approved Booking Promo Code</p>
+      <p style="margin: 0; font-size: 22px; font-weight: 800; color: #2b181d; letter-spacing: 0.06em;">{{ appointment.promo_code_issued }}</p>
+      <p style="margin: 6px 0 0; font-size: 13px; color: #5e444b;">Present this promo code at the salon checkout to enjoy your exclusive booking discount!</p>
+    </div>
+  {% endif %}
+  {% if appointment.cancellation_reason %}
+    <p><strong>Reason / Note:</strong> {{ appointment.cancellation_reason }}</p>
+  {% endif %}
+  <p style="font-size: 13px; color: #6c555b; margin-top: 14px;">
+    <strong>Salon Reminder Policy:</strong> No advance payment is required. Our team will remind you 4–5 hours before your schedule and on the day of your visit via email and SMS/call. Please arrive on time — slots are held for a 10–15 minute grace period before being automatically released to waiting clients.
+  </p>
+{% endblock %}

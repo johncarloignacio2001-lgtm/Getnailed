@@ -134,6 +134,7 @@ def index(request):
                 raw_items=raw_items,
                 customer=form.cleaned_data["customer"],
                 appointment=form.cleaned_data["appointment"],
+                walk_in_referral_number=form.cleaned_data.get("walk_in_referral_number", ""),
                 discount_type=form.cleaned_data["discount_type"],
                 discount_value=form.cleaned_data["discount_value"],
                 discount_id_number=form.cleaned_data.get("discount_id_number", ""),

@@ -127,7 +127,7 @@ class LoginProtectionTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(AccessAttempt.objects.filter(username=user.email).exists())
 
-    @override_settings(LOGIN_CAPTCHA_THRESHOLD=2)
+    @override_settings(LOGIN_CAPTCHA_THRESHOLD=2, ENABLE_LOGIN_CAPTCHA=True)
     def test_captcha_appears_only_after_repeated_failures_and_is_required(self):
         user = self.create_user()
         initial = self.client.get(reverse("accounts:login"), REMOTE_ADDR=ATTACKER_IP)

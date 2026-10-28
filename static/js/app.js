@@ -46,26 +46,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 
   function setSidebarCollapsed(collapsed) {
+    const preStyle = document.getElementById('pre-sidebar-style');
+    if (preStyle) preStyle.remove();
+    document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
     document.body.classList.toggle('sidebar-collapsed', collapsed);
+    try {
+      localStorage.setItem('admin-sidebar-collapsed', collapsed ? 'true' : 'false');
+    } catch (e) {}
     if (sidebarCollapseToggle) {
       sidebarCollapseToggle.setAttribute('aria-expanded', String(!collapsed));
-      sidebarCollapseToggle.setAttribute('aria-label', collapsed ? 'Expand side navigation' : 'Minimize side navigation');
-      sidebarCollapseToggle.title = collapsed ? 'Expand side navigation' : 'Minimize side navigation';
-    }
-    if (adminSidebar) {
-      adminSidebar.querySelectorAll('.sidebar-nav a').forEach((link) => {
-        const label = link.querySelector('span')?.textContent.trim();
-        if (!label) return;
-        if (collapsed) {
-          link.setAttribute('aria-label', label);
-          link.title = label;
-        } else {
-          link.removeAttribute('aria-label');
-          link.removeAttribute('title');
-        }
-      });
+      sidebarCollapseToggle.setAttribute('aria-label', collapsed ? 'Open sidebar navigation' : 'Hide sidebar navigation');
+      sidebarCollapseToggle.title = collapsed ? 'Open sidebar navigation' : 'Hide sidebar navigation';
     }
   }
+
+  // Restore saved collapse state on desktop
+  try {
+    if (localStorage.getItem('admin-sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
+      document.documentElement.classList.add('sidebar-collapsed');
+      document.body.classList.add('sidebar-collapsed');
+      if (sidebarCollapseToggle) {
+        sidebarCollapseToggle.setAttribute('aria-expanded', 'false');
+        sidebarCollapseToggle.setAttribute('aria-label', 'Open sidebar navigation');
+        sidebarCollapseToggle.title = 'Open sidebar navigation';
+      }
+    }
+  } catch (e) {}
 
   function openSidebar() {
     if (adminSidebar) adminSidebar.classList.add('show');
@@ -84,7 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (sidebarToggle) sidebarToggle.addEventListener('click', openSidebar);
   if (sidebarCollapseToggle) {
     sidebarCollapseToggle.addEventListener('click', () => {
-      setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+      document.documentElement.classList.add('sidebar-interactive');
+      document.body.classList.add('sidebar-interactive');
+      const isCurrentlyCollapsed = document.documentElement.classList.contains('sidebar-collapsed') || document.body.classList.contains('sidebar-collapsed');
+      setSidebarCollapsed(!isCurrentlyCollapsed);
     });
   }
   if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
